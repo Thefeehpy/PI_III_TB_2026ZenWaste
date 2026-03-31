@@ -102,7 +102,7 @@ export function PostCard({ post }: PostCardProps) {
             <img
               src={post.images[0]}
               alt={post.type}
-              className="h-48 w-full object-cover transition-transform duration-300 hover:scale-105"
+              className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
               onError={() => setImageError(true)}
             />
           </div>
