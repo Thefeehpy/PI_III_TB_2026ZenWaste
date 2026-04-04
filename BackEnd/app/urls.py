@@ -17,10 +17,12 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from empresas.views import EmpresaCreateListView
+from empresas.views import EmpresaRetrieveUpdateDestroy
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    path('empresas/', EmpresaCreateListView.as_view(), name='empresa-create-list') 
+    path('empresa/', EmpresaCreateListView.as_view(), name='empresas-create-list'),
+    path('empresa/<int:pk>', EmpresaRetrieveUpdateDestroy.as_view(), name='empresa-detail-view')
 
 ]

@@ -6,3 +6,7 @@ from empresas.serializers import EmpresaSerializer
 class EmpresaCreateListView(generics.ListCreateAPIView):
     queryset = Empresa.objects.all()
     serializer_class = EmpresaSerializer
+
+class EmpresaRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Empresa.objects.all()
+    serializer_class = EmpresaSerializer
