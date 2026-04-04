@@ -16,11 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from empresa.views import EmpresaCreateListView
+from empresas.views import EmpresaCreateListView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    path('empresa/', EmpresaCreateListView.as_view(), name='empresa-create-list') 
+    path('empresas/', EmpresaCreateListView.as_view(), name='empresa-create-list') 
 
 ]
