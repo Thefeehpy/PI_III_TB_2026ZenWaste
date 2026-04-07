@@ -54,7 +54,7 @@ export function Sidebar() {
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-violet-600">
             <Recycle className="h-5 w-5 text-white" />
           </div>
-          <span className="font-semibold text-foreground">ReciclaTrade</span>
+          <span className="font-semibold text-foreground">ZenWaste</span>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -104,7 +104,7 @@ export function Sidebar() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-violet-600">
               <Recycle className="h-5 w-5 text-white" />
             </div>
-            <span className="font-semibold text-foreground">ReciclaTrade</span>
+            <span className="font-semibold text-foreground">ZenWaste</span>
           </div>
           <Button
             variant="ghost"

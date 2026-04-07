@@ -92,7 +92,7 @@ export default function HomePage() {
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 shadow-lg shadow-violet-600/30 transition-transform duration-300 group-hover:scale-105">
                 <Recycle className="h-8 w-8 text-white" />
               </div>
-              <h1 className="text-3xl font-bold text-white tracking-tight">ReciclaTrade</h1>
+              <h1 className="text-3xl font-bold text-white tracking-tight">ZenWaste</h1>
             </div>
 
             <h2 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-6 text-balance">
@@ -102,10 +102,7 @@ export default function HomePage() {
               </span>
             </h2>
 
-            <p className="text-lg text-blue-100 mb-12 text-pretty leading-relaxed">
-              Conectamos empresas que geram residuos com aquelas que podem reaproveitá-los. 
-              Economia circular de verdade, com transparencia e seguranca.
-            </p>
+            
 
             <div className="space-y-5">
               {features.map((feature, index) => (
@@ -144,7 +141,7 @@ export default function HomePage() {
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 shadow-lg">
                   <Recycle className="h-6 w-6 text-white" />
                 </div>
-                <h1 className="text-2xl font-bold text-white">ReciclaTrade</h1>
+                <h1 className="text-2xl font-bold text-white">ZenWaste</h1>
               </div>
               <p className="text-blue-200">
                 Marketplace B2B de residuos industriais
