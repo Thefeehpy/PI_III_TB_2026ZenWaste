@@ -18,11 +18,19 @@ from django.contrib import admin
 from django.urls import path
 from empresas.views import EmpresaCreateListView
 from empresas.views import EmpresaRetrieveUpdateDestroy
+from estoque.views import EstoqueCreateListView
+from produtos.views import ProdutoCreateListView
+from produtos.views import ProdutoRetrieveUpdateDestroy
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
     path('empresa/', EmpresaCreateListView.as_view(), name='empresas-create-list'),
-    path('empresa/<int:pk>', EmpresaRetrieveUpdateDestroy.as_view(), name='empresa-detail-view')
+    path('empresa/<int:pk>', EmpresaRetrieveUpdateDestroy.as_view(), name='empresa-detail-view'),
+    
+    path('produto', ProdutoCreateListView.as_view(), name='criar-produto'),
+    path('produto/<int:pk>', ProdutoRetrieveUpdateDestroy.as_view(), name='criar-produto'),
+
+    path('empresa/<int:pk>/estoque', EstoqueCreateListView.as_view(), name='estoque-empresa')
 
 ]

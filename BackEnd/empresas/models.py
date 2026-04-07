@@ -1,6 +1,7 @@
 import json
 from django.db import models
 from localflavor.br.models import BRCNPJField
+from estoque.models import Estoque
 
 class Empresa(models.Model):
     id_empresa = models.AutoField(primary_key=True)
@@ -12,6 +13,8 @@ class Empresa(models.Model):
     email = models.CharField(unique=True, max_length=256, blank=False)
     senha = models.CharField(max_length=20, blank=False)
     
+    estoque = models.ForeignKey(Estoque, on_delete=models.RESTRICT, related_name='estoque', null=True)
+
     def __str__(self):
         return self.id_empresa
         
