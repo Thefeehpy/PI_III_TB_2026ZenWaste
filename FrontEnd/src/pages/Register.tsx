@@ -13,14 +13,14 @@ import logo from "@/assets/logo.png";
 
 const segments = [
   "Metalurgia",
-  "Petroquímica",
+  "Petroquimica",
   "Alimentos e Bebidas",
   "Papel e Celulose",
   "Automotivo",
-  "Construção Civil",
-  "Têxtil",
-  "Eletrônico",
-  "Farmacêutico",
+  "Construcao Civil",
+  "Textil",
+  "Eletronico",
+  "Farmaceutico",
   "Outro",
 ];
 
@@ -44,17 +44,17 @@ export default function Register() {
     setForm({ ...form, cnpj: formatted });
     const digits = formatted.replace(/\D/g, "");
     if (digits.length === 14) {
-      setCnpjError(validateCNPJ(formatted) ? "" : "CNPJ inválido");
+      setCnpjError(validateCNPJ(formatted) ? "" : "CNPJ invalido");
     } else {
       setCnpjError("");
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateCNPJ(form.cnpj)) {
-      setCnpjError("CNPJ inválido. Apenas empresas podem se cadastrar.");
+      setCnpjError("CNPJ invalido. Apenas empresas podem se cadastrar.");
       return;
     }
 
@@ -67,7 +67,7 @@ export default function Register() {
       return;
     }
 
-    const result = register({
+    const result = await register({
       razaoSocial: form.razaoSocial,
       cnpj: form.cnpj,
       segmento: form.segmento,
@@ -78,7 +78,7 @@ export default function Register() {
 
     if (!result.success) {
       toast({
-        title: "Cadastro não concluído",
+        title: "Cadastro nao concluido",
         description: result.message,
         variant: "destructive",
       });
@@ -87,7 +87,7 @@ export default function Register() {
 
     toast({
       title: "Conta criada",
-      description: "Agora você já pode entrar com seu e-mail e senha.",
+      description: "Agora voce ja pode entrar com seu e-mail e senha.",
     });
     navigate("/login");
   };
@@ -101,15 +101,15 @@ export default function Register() {
             <span className="font-bold text-xl text-foreground">ZenWaste</span>
           </div>
           <CardTitle className="text-2xl">Cadastro Empresarial</CardTitle>
-          <CardDescription>Apenas empresas com CNPJ válido podem se cadastrar</CardDescription>
+          <CardDescription>Apenas empresas com CNPJ valido podem se cadastrar</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="razao">Razão Social</Label>
+              <Label htmlFor="razao">Razao Social</Label>
               <div className="relative">
                 <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="razao" placeholder="Razão Social da Empresa" className="pl-10" value={form.razaoSocial} onChange={(e) => setForm({ ...form, razaoSocial: e.target.value })} required />
+                <Input id="razao" placeholder="Razao Social da Empresa" className="pl-10" value={form.razaoSocial} onChange={(e) => setForm({ ...form, razaoSocial: e.target.value })} required />
               </div>
             </div>
 
@@ -120,7 +120,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label>Segmento de Atuação</Label>
+              <Label>Segmento de Atuacao</Label>
               <Select value={form.segmento} onValueChange={(value) => setForm({ ...form, segmento: value })}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
@@ -153,14 +153,14 @@ export default function Register() {
                 <Label htmlFor="pass">Senha</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="pass" type="password" placeholder="••••••••" className="pl-10" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+                  <Input id="pass" type="password" placeholder="********" className="pl-10" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirm">Confirmar Senha</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="confirm" type="password" placeholder="••••••••" className="pl-10" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} required />
+                  <Input id="confirm" type="password" placeholder="********" className="pl-10" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} required />
                 </div>
               </div>
             </div>
@@ -168,7 +168,7 @@ export default function Register() {
             <Button type="submit" className="w-full">Criar Conta</Button>
           </form>
           <p className="text-center text-sm text-muted-foreground mt-6">
-            Já tem conta?{" "}
+            Ja tem conta?{" "}
             <Link to="/login" className="text-primary font-medium hover:underline">Fazer login</Link>
           </p>
         </CardContent>

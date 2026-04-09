@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 const USERS_STORAGE_KEY = "zenwaste.users";
 const SESSION_STORAGE_KEY = "zenwaste.session";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 export interface AuthUser {
   id: string;
@@ -18,8 +19,8 @@ type RegisterInput = Omit<AuthUser, "id">;
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => { success: boolean; message?: string };
-  register: (input: RegisterInput) => { success: boolean; message?: string };
+  login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  register: (input: RegisterInput) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
 }
 
@@ -60,6 +61,25 @@ function readSession() {
   }
 }
 
+function extractErrorMessage(data: unknown, fallback: string) {
+  if (!data || typeof data !== "object") {
+    return fallback;
+  }
+
+  const values = Object.values(data as Record<string, unknown>);
+  const firstValue = values[0];
+
+  if (typeof firstValue === "string") {
+    return firstValue;
+  }
+
+  if (Array.isArray(firstValue) && typeof firstValue[0] === "string") {
+    return firstValue[0];
+  }
+
+  return fallback;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<AuthUser[]>(() => readUsers());
   const [user, setUser] = useState<AuthUser | null>(() => readSession());
@@ -80,30 +100,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(() => ({
     user,
     isAuthenticated: Boolean(user),
-    login: (email, password) => {
-      const foundUser = users.find((candidate) => candidate.email.toLowerCase() === email.toLowerCase());
+    login: async (email, password) => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/login/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, password }),
+        });
 
-      if (!foundUser || foundUser.password !== password) {
-        return { success: false, message: "E-mail ou senha inválidos." };
+        const data = await response.json();
+
+        if (!response.ok) {
+          return { success: false, message: data.message ?? "E-mail ou senha invalidos." };
+        }
+
+        const authenticatedUser: AuthUser = {
+          id: data.empresa.id,
+          razaoSocial: data.empresa.razaoSocial,
+          cnpj: data.empresa.cnpj,
+          segmento: data.empresa.segmento,
+          email: data.empresa.email,
+          telefone: data.empresa.telefone,
+          password: "",
+        };
+
+        setUser(authenticatedUser);
+        return { success: true };
+      } catch {
+        return { success: false, message: "Nao foi possivel conectar ao servidor de login." };
       }
-
-      setUser(foundUser);
-      return { success: true };
     },
-    register: (input) => {
-      const alreadyExists = users.some((candidate) => candidate.email.toLowerCase() === input.email.toLowerCase());
+    register: async (input) => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/empresa/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            cnpj: input.cnpj.replace(/\D/g, ""),
+            razao_social: input.razaoSocial,
+            telefone_whatsapp: input.telefone,
+            descricao_segmento: input.segmento,
+            email: input.email,
+            senha: input.password,
+          }),
+        });
 
-      if (alreadyExists) {
-        return { success: false, message: "Já existe uma conta com este e-mail." };
+        const data = await response.json();
+
+        if (!response.ok) {
+          return {
+            success: false,
+            message: extractErrorMessage(data, "Nao foi possivel concluir o cadastro."),
+          };
+        }
+
+        return { success: true };
+      } catch {
+        return { success: false, message: "Nao foi possivel conectar ao servidor de cadastro." };
       }
-
-      const newUser: AuthUser = {
-        id: crypto.randomUUID(),
-        ...input,
-      };
-
-      setUsers((current) => [...current, newUser]);
-      return { success: true };
     },
     logout: () => {
       setUser(null);

@@ -20,13 +20,13 @@ export default function Login() {
 
   const redirectTo = (location.state as { from?: string } | null)?.from || "/dashboard";
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const result = login(email, password);
+    const result = await login(email, password);
     if (!result.success) {
       toast({
-        title: "Não foi possível entrar",
+        title: "NÃ£o foi possÃ­vel entrar",
         description: result.message,
         variant: "destructive",
       });
@@ -35,7 +35,7 @@ export default function Login() {
 
     toast({
       title: "Login realizado",
-      description: "Sua sessão foi restaurada e continuará ativa neste navegador.",
+      description: "Sua sessÃ£o foi restaurada e continuarÃ¡ ativa neste navegador.",
     });
     navigate(redirectTo, { replace: true });
   };
@@ -50,11 +50,11 @@ export default function Login() {
           </div>
           <h1 className="text-4xl font-bold text-secondary-foreground">ZenWaste</h1>
           <p className="text-lg text-secondary-foreground/80 max-w-md mx-auto">
-            Transforme resíduos em ativos financeiros. A plataforma inteligente para a economia circular industrial.
+            Transforme resÃ­duos em ativos financeiros. A plataforma inteligente para a economia circular industrial.
           </p>
           <div className="flex items-center justify-center gap-2 text-secondary-foreground/60 text-sm">
             <Leaf className="h-4 w-4" />
-            <span>Economia Circular · Sustentabilidade · Inovação</span>
+            <span>Economia Circular Â· Sustentabilidade Â· InovaÃ§Ã£o</span>
           </div>
         </div>
       </div>
@@ -82,13 +82,13 @@ export default function Login() {
                 <Label htmlFor="password">Senha</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="password" type="password" placeholder="••••••••" className="pl-10" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                  <Input id="password" type="password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" className="pl-10" value={password} onChange={(e) => setPassword(e.target.value)} required />
                 </div>
               </div>
               <Button type="submit" className="w-full">Entrar</Button>
             </form>
             <p className="text-center text-sm text-muted-foreground mt-6">
-              Não tem conta?{" "}
+              NÃ£o tem conta?{" "}
               <Link to="/register" className="text-primary font-medium hover:underline">Cadastrar empresa</Link>
             </p>
           </CardContent>
