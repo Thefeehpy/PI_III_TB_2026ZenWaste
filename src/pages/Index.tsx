@@ -16,9 +16,13 @@ import {
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import heroBg from "@/assets/hero-bg.jpg";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const heroStats = [
-  { value: "R$ 4,8 mi", label: "potencial anual capturado com revenda e reaproveitamento inteligente" },
+  {
+    value: "R$ 4,8 mi",
+    label: "potencial anual capturado com revenda e reaproveitamento inteligente",
+  },
   { value: "72h", label: "para transformar excedente operacional em oferta pronta para o mercado" },
   { value: "98%", label: "de visibilidade sobre estoque, demanda e critérios de conformidade" },
 ];
@@ -87,28 +91,33 @@ export default function Index() {
         <div className="absolute -left-24 top-24 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
         <div className="absolute right-0 top-10 h-96 w-96 rounded-full bg-cyan-200/10 blur-3xl" />
 
-        <header className="relative z-10 container flex items-center justify-between py-6">
+        <header className="relative z-10 container flex items-center justify-between gap-4 py-6">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/10 backdrop-blur">
               <img src={logo} alt="ZenWaste" className="h-10 w-10" />
             </div>
             <div>
               <p className="font-display text-lg font-semibold tracking-tight">ZenWaste</p>
-              <p className="text-sm text-white/[0.65]">Economia circular industrial com visão de produto</p>
+              <p className="text-sm text-white/[0.65]">
+                Economia circular industrial com visão de produto
+              </p>
             </div>
           </div>
 
-          <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
-            <a href="#como-funciona" className="transition-colors hover:text-white">
-              Como funciona
-            </a>
-            <Link to="/marketplace" className="transition-colors hover:text-white">
-              Marketplace
-            </Link>
-            <Link to="/login" className="transition-colors hover:text-white">
-              Entrar
-            </Link>
-          </nav>
+          <div className="flex items-center gap-3">
+            <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
+              <a href="#como-funciona" className="transition-colors hover:text-white">
+                Como funciona
+              </a>
+              <Link to="/marketplace" className="transition-colors hover:text-white">
+                Marketplace
+              </Link>
+              <Link to="/login" className="transition-colors hover:text-white">
+                Entrar
+              </Link>
+            </nav>
+            <ThemeToggle />
+          </div>
         </header>
 
         <div className="relative z-10 container grid gap-14 pb-24 pt-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:pb-28 lg:pt-12">
@@ -174,21 +183,6 @@ export default function Index() {
           </div>
 
           <div className="relative mx-auto w-full max-w-[35rem]">
-            <div className="float-delayed absolute -left-6 top-10 hidden w-48 rounded-[28px] border border-white/10 bg-white/10 p-4 shadow-[0_18px_50px_rgba(2,12,27,0.28)] backdrop-blur-xl lg:block">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-emerald-300/15 p-3 text-emerald-100">
-                  <TrendingUp className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-white/[0.45]">Receita estimada</p>
-                  <p className="mt-1 text-2xl font-semibold text-white">+32%</p>
-                </div>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-white/[0.65]">
-                Potencial de valorização frente ao descarte tradicional.
-              </p>
-            </div>
-
             <div className="float-soft absolute -right-6 bottom-10 hidden w-52 rounded-[28px] border border-white/10 bg-slate-950/70 p-4 shadow-[0_22px_60px_rgba(2,12,27,0.34)] backdrop-blur-xl lg:block">
               <div className="flex items-center gap-3">
                 <div className="rounded-2xl bg-white/10 p-3 text-white">
@@ -211,7 +205,9 @@ export default function Index() {
               <div className="relative rounded-[30px] border border-white/10 bg-slate-950/65 p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-white/[0.42]">Painel ZenWaste</p>
+                    <p className="text-xs uppercase tracking-[0.24em] text-white/[0.42]">
+                      Painel ZenWaste
+                    </p>
                     <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight text-white">
                       Visão comercial e operacional no mesmo lugar
                     </h2>
@@ -303,8 +299,12 @@ export default function Index() {
                       key={metric.label}
                       className="rounded-[22px] border border-white/[0.08] bg-white/[0.03] px-4 py-4"
                     >
-                      <p className="text-xs uppercase tracking-[0.2em] text-white/[0.38]">{metric.label}</p>
-                      <p className="mt-2 font-display text-3xl font-semibold text-white">{metric.value}</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-white/[0.38]">
+                        {metric.label}
+                      </p>
+                      <p className="mt-2 font-display text-3xl font-semibold text-white">
+                        {metric.value}
+                      </p>
                       <p className="mt-2 text-sm text-white/[0.56]">{metric.detail}</p>
                     </div>
                   ))}
@@ -337,7 +337,10 @@ export default function Index() {
                 { value: "UX", label: "escaneável, elegante e com CTA forte" },
                 { value: "UI", label: "camadas, contraste e atmosfera de produto" },
               ].map((item) => (
-                <div key={item.label} className="rounded-[24px] border border-border/60 bg-white/70 p-5">
+                <div
+                  key={item.label}
+                  className="rounded-[24px] border border-border/60 bg-card/75 p-5 backdrop-blur"
+                >
                   <p className="font-display text-3xl font-semibold tracking-tight text-foreground">
                     {item.value}
                   </p>
@@ -349,87 +352,54 @@ export default function Index() {
         </div>
       </section>
 
-      <section className="container py-24">
-        <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">
-            Experiência de produto
-          </p>
-          <h2 className="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground md:text-5xl">
-            Uma narrativa visual pensada para operação, sustentabilidade e comercial.
-          </h2>
-          <p className="mt-4 text-lg leading-8 text-muted-foreground">
-            A home agora combina linguagem executiva, contexto industrial e uma estética mais atual
-            para que o usuário entenda rápido por que a ZenWaste merece atenção.
-          </p>
-        </div>
+      <section className="bg-muted/40 py-24">
+        <div className="container">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">
+              Experiência de produto
+            </p>
+            <h2 className="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground md:text-5xl">
+              Uma narrativa visual pensada para operação, sustentabilidade e comercial.
+            </h2>
+            <p className="mt-4 text-lg leading-8 text-muted-foreground">
+              A home agora combina linguagem executiva, contexto industrial e uma estética mais atual
+              para que o usuário entenda rápido por que a ZenWaste merece atenção.
+            </p>
+          </div>
 
-        <div className="mt-12 grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-          <article className="relative overflow-hidden rounded-[34px] border border-border/60 bg-slate-950 p-8 text-white shadow-[0_24px_70px_rgba(15,23,42,0.18)] lg:row-span-2">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(45,212,191,0.18),transparent_38%)]" />
-            <div className="relative">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.08] px-3 py-1 text-sm text-white/80">
-                <Leaf className="h-4 w-4 text-emerald-200" />
-                Circularidade com resultado econômico
-              </span>
-
-              <h3 className="mt-6 font-display text-3xl font-semibold tracking-tight">
-                A plataforma deixa de parecer só funcional e passa a parecer desejável.
-              </h3>
-              <p className="mt-4 max-w-xl text-base leading-8 text-white/[0.68]">
-                O novo desenho reforça posicionamento premium, reduz ruído visual e distribui melhor
-                informação, prova de valor e chamadas para ação. Isso melhora percepção da marca e
-                tende a ajudar conversão.
-              </p>
-
-              <div className="mt-8 grid gap-4 sm:grid-cols-2">
-                {[
-                  "Hero com storytelling mais forte",
-                  "Cards com profundidade e contraste",
-                  "Métricas para reforçar autoridade",
-                  "CTA mais claro para próximo passo",
-                ].map((item) => (
-                  <div
-                    key={item}
-                    className="rounded-[24px] border border-white/10 bg-white/[0.05] p-4 text-sm leading-6 text-white/75"
-                  >
-                    {item}
+          <div className="mt-12 grid gap-5 lg:grid-cols-3">
+            {featureCards.map((feature, index) => (
+              <article
+                key={feature.title}
+                className="surface-panel rounded-[30px] border border-border/60 p-7 shadow-[0_18px_45px_rgba(15,23,42,0.05)]"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-4xl font-semibold tracking-tight text-foreground/90">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <div className="rounded-2xl bg-accent p-3 text-accent-foreground">
+                    <feature.icon className="h-6 w-6" />
                   </div>
-                ))}
-              </div>
-            </div>
-          </article>
-
-          {featureCards.map((feature) => (
-            <article
-              key={feature.title}
-              className="surface-panel rounded-[30px] border border-border/60 p-7 shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
-            >
-              <div className="flex items-start gap-4">
-                <div className="rounded-2xl bg-accent p-3 text-accent-foreground">
-                  <feature.icon className="h-6 w-6" />
                 </div>
-                <div>
-                  <h3 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-                    {feature.title}
-                  </h3>
-                  <p className="mt-3 text-base leading-7 text-muted-foreground">
-                    {feature.description}
-                  </p>
-                </div>
-              </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {feature.points.map((point) => (
-                  <div
-                    key={point}
-                    className="rounded-[22px] border border-border/60 bg-background/80 px-4 py-4 text-sm leading-6 text-foreground/[0.85]"
-                  >
-                    {point}
-                  </div>
-                ))}
-              </div>
-            </article>
-          ))}
+                <h3 className="mt-8 font-display text-2xl font-semibold tracking-tight text-foreground">
+                  {feature.title}
+                </h3>
+                <p className="mt-4 text-base leading-8 text-muted-foreground">{feature.description}</p>
+
+                <div className="mt-6 space-y-3">
+                  {feature.points.map((point) => (
+                    <div
+                      key={point}
+                      className="rounded-[22px] border border-border/60 bg-background/80 px-4 py-4 text-sm leading-6 text-foreground/[0.85]"
+                    >
+                      {point}
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 

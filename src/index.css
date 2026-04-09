@@ -48,6 +48,61 @@
     --success: 152 55% 35%;
     --warning: 38 92% 50%;
     --info: 213 50% 45%;
+
+    --chart-grid: 214 20% 90%;
+    --chart-axis: 215 15% 50%;
+    --chart-tooltip: 0 0% 100%;
+    --chart-tooltip-foreground: 215 25% 15%;
+    --chart-bar-secondary: 214 20% 90%;
+  }
+
+  .dark {
+    --background: 216 31% 10%;
+    --foreground: 210 20% 96%;
+
+    --card: 217 31% 12%;
+    --card-foreground: 210 20% 96%;
+
+    --popover: 217 31% 12%;
+    --popover-foreground: 210 20% 96%;
+
+    --primary: 152 52% 46%;
+    --primary-foreground: 214 50% 8%;
+
+    --secondary: 214 28% 18%;
+    --secondary-foreground: 210 20% 96%;
+
+    --muted: 215 26% 18%;
+    --muted-foreground: 215 15% 72%;
+
+    --accent: 152 24% 18%;
+    --accent-foreground: 152 48% 88%;
+
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 215 23% 24%;
+    --input: 215 23% 24%;
+    --ring: 152 52% 46%;
+
+    --sidebar-background: 213 43% 9%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 152 52% 46%;
+    --sidebar-primary-foreground: 214 50% 8%;
+    --sidebar-accent: 214 30% 16%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 214 24% 20%;
+    --sidebar-ring: 152 52% 46%;
+
+    --success: 152 55% 42%;
+    --warning: 38 92% 56%;
+    --info: 204 90% 60%;
+
+    --chart-grid: 215 20% 22%;
+    --chart-axis: 215 15% 72%;
+    --chart-tooltip: 217 31% 12%;
+    --chart-tooltip-foreground: 210 20% 96%;
+    --chart-bar-secondary: 215 16% 34%;
   }
 }
 
@@ -55,8 +110,14 @@
   * {
     @apply border-border;
   }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased transition-colors duration-300;
     font-family: "Manrope", "Segoe UI", sans-serif;
   }
 }
@@ -107,6 +168,26 @@
 
   .float-delayed {
     animation: float-soft 9s ease-in-out infinite 1.2s;
+  }
+
+  .dark .landing-grid {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  }
+
+  .dark .surface-panel {
+    background:
+      linear-gradient(180deg, rgba(18, 28, 44, 0.94), rgba(9, 14, 24, 0.88)),
+      rgba(12, 18, 30, 0.84);
+    backdrop-filter: blur(24px);
+  }
+
+  .dark .surface-panel-dark {
+    background:
+      linear-gradient(180deg, rgba(4, 10, 20, 0.98), rgba(5, 12, 22, 0.92)),
+      rgba(3, 8, 18, 0.92);
+    backdrop-filter: blur(24px);
   }
 }
 

@@ -87,13 +87,13 @@ export default function CreateAd() {
   };
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground">Criar Anúncio</h2>
         <p className="text-muted-foreground">Publique um resíduo do seu estoque no marketplace</p>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 gap-y-3">
         {steps.map((step, index) => (
           <div key={step} className="flex items-center gap-2">
             <div
@@ -103,7 +103,11 @@ export default function CreateAd() {
             >
               {index < currentStep ? <Check className="h-4 w-4" /> : index + 1}
             </div>
-            <span className={`hidden text-sm sm:inline ${index === currentStep ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+            <span
+              className={`hidden text-sm sm:inline ${
+                index === currentStep ? "font-medium text-foreground" : "text-muted-foreground"
+              }`}
+            >
               {step}
             </span>
             {index < steps.length - 1 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
@@ -169,7 +173,7 @@ export default function CreateAd() {
                   rows={4}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Quantidade para Venda</Label>
                   <Input type="number" min="0" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
@@ -247,25 +251,25 @@ export default function CreateAd() {
             <div className="space-y-4">
               <CardTitle className="text-lg">Revisão do Anúncio</CardTitle>
               <div className="space-y-3 text-sm">
-                <div className="flex justify-between border-b border-border py-2">
+                <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-muted-foreground">Título</span>
                   <span className="font-medium">{form.title}</span>
                 </div>
-                <div className="flex justify-between border-b border-border py-2">
+                <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-muted-foreground">Empresa</span>
                   <span className="font-medium">{user?.razaoSocial || "-"}</span>
                 </div>
-                <div className="flex justify-between border-b border-border py-2">
+                <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-muted-foreground">Quantidade</span>
                   <span className="font-medium">
                     {form.quantity} {form.unit}
                   </span>
                 </div>
-                <div className="flex justify-between border-b border-border py-2">
+                <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-muted-foreground">Localização</span>
                   <span className="font-medium">{form.location || "-"}</span>
                 </div>
-                <div className="flex justify-between border-b border-border py-2">
+                <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-muted-foreground">Preço</span>
                   <span className="text-lg font-bold text-primary">
                     R$ {(form.price || form.suggestedPrice).replace(".", ",")} / {form.unit}
@@ -281,7 +285,7 @@ export default function CreateAd() {
             </div>
           )}
 
-          <div className="mt-6 flex justify-between border-t border-border pt-4">
+          <div className="mt-6 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:justify-between">
             <Button variant="outline" onClick={prev} disabled={currentStep === 0}>
               Voltar
             </Button>

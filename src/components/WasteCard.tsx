@@ -1,7 +1,8 @@
-import { MapPin, Building2, MessageCircle } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Building2, MapPin, MessageCircle } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import type { WasteItem } from "@/data/mockData";
 
 interface WasteCardProps {
@@ -10,29 +11,29 @@ interface WasteCardProps {
 
 export function WasteCard({ item }: WasteCardProps) {
   const whatsappMessage = encodeURIComponent(
-    `Olá! Vi o anúncio "${item.name}" na ZenWaste e tenho interesse. Podemos negociar?`
+    `Ola! Vi o anuncio "${item.name}" na ZenWaste e tenho interesse. Podemos negociar?`,
   );
   const whatsappUrl = `https://wa.me/?text=${whatsappMessage}`;
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow animate-fade-in group">
+    <Card className="group animate-fade-in overflow-hidden transition-shadow hover:shadow-lg">
       <div className="aspect-video overflow-hidden">
         <img
           src={item.imageUrl}
           alt={item.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
         />
       </div>
-      <CardContent className="p-4 space-y-3">
+      <CardContent className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold text-foreground leading-tight">{item.name}</h3>
-          <Badge variant="secondary" className="shrink-0 text-xs bg-accent text-accent-foreground">
+          <h3 className="leading-tight font-semibold text-foreground">{item.name}</h3>
+          <Badge variant="secondary" className="shrink-0 bg-accent text-xs text-accent-foreground">
             {item.type}
           </Badge>
         </div>
-        <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <p className="line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
           <span className="flex items-center gap-1">
             <MapPin className="h-3.5 w-3.5" />
             {item.location}
@@ -42,7 +43,7 @@ export function WasteCard({ item }: WasteCardProps) {
             {item.company}
           </span>
         </div>
-        <div className="flex items-center justify-between pt-2 border-t border-border">
+        <div className="flex items-center justify-between border-t border-border pt-2">
           <div>
             <p className="text-xs text-muted-foreground">Quantidade</p>
             <p className="font-semibold text-foreground">
@@ -50,10 +51,8 @@ export function WasteCard({ item }: WasteCardProps) {
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-muted-foreground">Preço / {item.unit}</p>
-            <p className="font-bold text-primary text-lg">
-              R$ {item.price.toFixed(2).replace(".", ",")}
-            </p>
+            <p className="text-xs text-muted-foreground">Preco / {item.unit}</p>
+            <p className="text-lg font-bold text-primary">R$ {item.price.toFixed(2).replace(".", ",")}</p>
           </div>
         </div>
         <Button asChild className="w-full gap-2">
