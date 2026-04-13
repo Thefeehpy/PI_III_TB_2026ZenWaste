@@ -1,7 +1,9 @@
 asgiref==3.11.1
-django-cors-headers==4.7.0
-Django==3.12
+Django==6.0.3
 django-localflavor==5.0
 djangorestframework==3.17.1
+djangorestframework_simplejwt==5.5.1
+PyJWT==2.12.1
+python-stdnum==2.2
 sqlparse==0.5.5
 tzdata==2026.1
