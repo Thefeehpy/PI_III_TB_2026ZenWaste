@@ -10,6 +10,8 @@ export interface WasteItem {
   company: string;
   imageUrl: string;
   createdAt: string;
+  contactPhone?: string;
+  whatsappUrl?: string;
 }
 
 export interface InventoryItem {

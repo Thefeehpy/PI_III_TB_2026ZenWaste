@@ -22,10 +22,10 @@ export default function Login() {
 
   const redirectTo = (location.state as { from?: string } | null)?.from || "/dashboard";
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const result = login(email, password);
+    const result = await login(email, password);
     if (!result.success) {
       toast({
         title: "Nao foi possivel entrar",
