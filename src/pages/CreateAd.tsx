@@ -12,6 +12,7 @@ import { useInventory } from "@/contexts/InventoryContext";
 import { useMarketplace } from "@/contexts/MarketplaceContext";
 import { locations } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
 import { getMarketInsight, getSuggestedPriceByWasteType } from "@/lib/market-intelligence";
 
 const steps = ["Selecionar Item", "Detalhes do Anuncio", "Precificacao", "Revisao"];
@@ -102,13 +103,63 @@ export default function CreateAd() {
       return;
     }
 
+    let active = true;
+    const fallbackPrice = getSuggestedPriceByWasteType(form.type).toFixed(2);
+
     setForm((current) => ({
       ...current,
-      suggestedPrice: getSuggestedPriceByWasteType(current.type).toFixed(2),
+      suggestedPrice: fallbackPrice,
     }));
+
+    api
+      .getSuggestedPrice(form.type)
+      .then((response) => {
+        if (active) {
+          setForm((current) => ({
+            ...current,
+            suggestedPrice: response.suggestedPrice.toFixed(2),
+          }));
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
   }, [form.type]);
 
   const resetForm = () => {
+  const handlePublish = async () => {
+    const selectedInventory = items.find((item) => item.id === form.inventoryId);
+    if (!selectedInventory || !user) {
+      return;
+    }
+
+    const result = await addItem({
+      inventoryId: selectedInventory.id,
+      name: form.title,
+      type: selectedInventory.type,
+      description: form.description || `Material disponível no estoque da ${user.razaoSocial}.`,
+      quantity: Number(form.quantity),
+      unit: form.unit,
+      location: form.location,
+      price: Number(form.price || form.suggestedPrice),
+    });
+
+    if (!result.success) {
+      toast({
+        title: "Anuncio nao publicado",
+        description: result.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Anúncio publicado",
+      description: "Seu resíduo já está disponível no marketplace.",
+    });
+
     setCurrentStep(0);
     setSelectedPhotoName("");
     setIsDraggingImage(false);

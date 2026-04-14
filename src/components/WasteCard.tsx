@@ -13,7 +13,7 @@ export function WasteCard({ item }: WasteCardProps) {
   const whatsappMessage = encodeURIComponent(
     `Ola! Vi o anuncio "${item.name}" na ZenWaste e tenho interesse. Podemos negociar?`,
   );
-  const whatsappUrl = `https://wa.me/?text=${whatsappMessage}`;
+  const whatsappUrl = item.whatsappUrl || `https://wa.me/?text=${whatsappMessage}`;
 
   return (
     <Card className="group animate-fade-in overflow-hidden transition-shadow hover:shadow-lg">

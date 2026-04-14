@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useEffect, useState } from "react";
 import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -16,12 +17,39 @@ import { priceHistory } from "@/data/mockData";
 import { useChartTheme } from "@/hooks/use-chart-theme";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getMarketInsight, getMaterialMetrics } from "@/lib/market-intelligence";
+import { api } from "@/lib/api";
 
-const materials = getMaterialMetrics();
+const defaultMaterials = getMaterialMetrics();
 
 export default function MarketIntelligence() {
   const isMobile = useIsMobile();
   const chartTheme = useChartTheme();
+  const [marketData, setMarketData] = useState({
+    priceHistory,
+    materials: defaultMaterials,
+    insight: getMarketInsight(),
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    api
+      .getMarketPrices()
+      .then((response) => {
+        if (active) {
+          setMarketData({
+            priceHistory: response.priceHistory as typeof priceHistory,
+            materials: response.materials as typeof defaultMaterials,
+            insight: response.insight,
+          });
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="container space-y-6 py-6 sm:space-y-8 sm:py-8">
@@ -33,7 +61,7 @@ export default function MarketIntelligence() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {materials.map((material) => {
+        {marketData.materials.map((material) => {
           const TrendIcon = material.change > 0 ? TrendingUp : material.change < 0 ? TrendingDown : Minus;
 
           return (
@@ -82,7 +110,7 @@ export default function MarketIntelligence() {
         <CardContent>
           <div className="h-[320px] sm:h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={priceHistory}>
+              <LineChart data={marketData.priceHistory}>
                 <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" />
                 <XAxis dataKey="month" stroke={chartTheme.axis} fontSize={isMobile ? 10 : 12} tickMargin={8} />
                 <YAxis
@@ -103,7 +131,7 @@ export default function MarketIntelligence() {
                   labelStyle={{ color: chartTheme.tooltipText }}
                 />
                 <Legend wrapperStyle={{ fontSize: isMobile ? 11 : 12, paddingTop: 12 }} />
-                {materials.map((material) => (
+                {marketData.materials.map((material) => (
                   <Line
                     key={material.key}
                     type="monotone"
@@ -123,7 +151,7 @@ export default function MarketIntelligence() {
       <Card className="border-primary/20 bg-accent/30">
         <CardContent className="p-6">
           <p className="text-sm text-muted-foreground">
-            <strong className="text-foreground">Insight IA:</strong> {getMarketInsight()}
+            <strong className="text-foreground">Insight IA:</strong> {marketData.insight}
           </p>
         </CardContent>
       </Card>

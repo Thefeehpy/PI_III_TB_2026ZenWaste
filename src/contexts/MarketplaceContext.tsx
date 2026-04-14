@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { marketplaceItems as initialMarketplaceItems, type WasteItem } from "@/data/mockData";
-
-const STORAGE_KEY = "zenwaste.marketplace-items";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { marketplaceItems as fallbackMarketplaceItems, type WasteItem } from "@/data/mockData";
+import { api } from "@/lib/api";
 
 interface CreateMarketplaceItemInput {
+  inventoryId?: string;
   name: string;
   type: string;
   description: string;
@@ -11,63 +11,63 @@ interface CreateMarketplaceItemInput {
   unit: string;
   price: number;
   location: string;
-  company: string;
   imageUrl?: string;
+}
+
+interface MarketplaceActionResult {
+  success: boolean;
+  message?: string;
 }
 
 interface MarketplaceContextValue {
   items: WasteItem[];
-  addItem: (item: CreateMarketplaceItemInput) => void;
+  isLoading: boolean;
+  refreshMarketplace: () => Promise<void>;
+  addItem: (item: CreateMarketplaceItemInput) => Promise<MarketplaceActionResult>;
 }
 
 const MarketplaceContext = createContext<MarketplaceContextValue | undefined>(undefined);
 
-function readStoredItems(): WasteItem[] {
-  if (typeof window === "undefined") {
-    return initialMarketplaceItems;
-  }
-
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    return initialMarketplaceItems;
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as WasteItem[]) : initialMarketplaceItems;
-  } catch {
-    return initialMarketplaceItems;
-  }
-}
-
 export function MarketplaceProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<WasteItem[]>(() => readStoredItems());
+  const [items, setItems] = useState<WasteItem[]>(fallbackMarketplaceItems);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const refreshMarketplace = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.listMarketplaceItems();
+      setItems(response.items);
+    } catch {
+      setItems(fallbackMarketplaceItems);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items]);
+    void refreshMarketplace();
+  }, [refreshMarketplace]);
 
-  const value = useMemo<MarketplaceContextValue>(() => ({
-    items,
-    addItem: (item) => {
-      setItems((current) => [
-        {
-          id: crypto.randomUUID(),
-          name: item.name,
-          type: item.type,
-          description: item.description,
-          quantity: item.quantity,
-          unit: item.unit,
-          price: item.price,
-          location: item.location,
-          company: item.company,
-          imageUrl: item.imageUrl || "https://images.unsplash.com/photo-1513828583688-c52646db42da?w=400&h=300&fit=crop",
-          createdAt: new Date().toISOString().slice(0, 10),
-        },
-        ...current,
-      ]);
-    },
-  }), [items]);
+  const value = useMemo<MarketplaceContextValue>(
+    () => ({
+      items,
+      isLoading,
+      refreshMarketplace,
+      addItem: async (item) => {
+        try {
+          const response = await api.createMarketplaceItem(item);
+          setItems((current) => [response.item, ...current.filter((candidate) => candidate.id !== response.item.id)]);
+          return { success: true };
+        } catch (error) {
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : "Nao foi possivel publicar o anuncio.",
+          };
+        }
+      },
+    }),
+    [isLoading, items, refreshMarketplace],
+  );
 
   return <MarketplaceContext.Provider value={value}>{children}</MarketplaceContext.Provider>;
 }

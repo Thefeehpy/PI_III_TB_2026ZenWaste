@@ -11,6 +11,14 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+
+# Python / Django
+__pycache__/
+*.py[cod]
+back-end/.venv/
+back-end/db.sqlite3
+.workspace/
 
 # Editor directories and files
 .vscode/*
