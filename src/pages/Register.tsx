@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { formatCNPJ, validateCNPJ } from "@/utils/cnpj";
 import heroBg from "@/assets/hero-bg.jpg";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo-zenwaste.png";
 
 const segments = [
   "Metalurgia",
@@ -110,7 +110,7 @@ export default function Register() {
         <header className="border-b border-white/10 bg-slate-950/10 backdrop-blur">
           <div className="container flex h-16 items-center justify-between">
             <Link to="/" className="flex items-center gap-2 text-white">
-              <img src={logo} alt="ZenWaste" className="h-9 w-9" />
+              <img src={logo} alt="ZenWaste" className="w-28 h-auto" />
               <span className="font-bold text-lg sm:text-xl">ZenWaste</span>
             </Link>
             <ThemeToggle />
@@ -121,7 +121,7 @@ export default function Register() {
           <Card className="w-full max-w-lg animate-fade-in border-border/70 bg-background/90 shadow-[0_28px_80px_rgba(15,23,42,0.32)] backdrop-blur-xl">
             <CardHeader className="text-center">
               <div className="mb-2 flex items-center justify-center gap-2">
-                <img src={logo} alt="ZenWaste" className="h-10 w-10" />
+                <img src={logo} alt="ZenWaste" className="w-32 h-auto shrink-0" />
                 <span className="font-bold text-xl text-foreground">ZenWaste</span>
               </div>
               <CardTitle className="text-2xl">Cadastro Empresarial</CardTitle>

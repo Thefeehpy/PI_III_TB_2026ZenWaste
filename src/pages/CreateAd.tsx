@@ -1,19 +1,73 @@
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { useEffect, useRef, useState } from "react";
+import { Check, ChevronRight, ImagePlus, Sparkles, Trash2, UploadCloud } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, ChevronRight, Sparkles, ImagePlus } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useInventory } from "@/contexts/InventoryContext";
 import { useMarketplace } from "@/contexts/MarketplaceContext";
 import { locations } from "@/data/mockData";
+import { useToast } from "@/hooks/use-toast";
 import { getMarketInsight, getSuggestedPriceByWasteType } from "@/lib/market-intelligence";
 
-const steps = ["Selecionar Item", "Detalhes do Anúncio", "Precificação", "Revisão"];
+const steps = ["Selecionar Item", "Detalhes do Anuncio", "Precificacao", "Revisao"];
+const MAX_IMAGE_DIMENSION = 1600;
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Nao foi possivel ler a imagem selecionada."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Nao foi possivel processar a imagem selecionada."));
+    image.src = src;
+  });
+}
+
+async function processMarketplaceImage(file: File) {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Selecione um arquivo de imagem valido.");
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error("A imagem deve ter no maximo 10 MB.");
+  }
+
+  const originalDataUrl = await readFileAsDataUrl(file);
+  const image = await loadImage(originalDataUrl);
+  const largestSide = Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height, 1);
+  const scale = Math.min(1, MAX_IMAGE_DIMENSION / largestSide);
+  const width = Math.max(1, Math.round((image.naturalWidth || image.width) * scale));
+  const height = Math.max(1, Math.round((image.naturalHeight || image.height) * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return originalDataUrl;
+  }
+
+  context.drawImage(image, 0, 0, width, height);
+  const compressedDataUrl = canvas.toDataURL("image/webp", 0.86);
+
+  return compressedDataUrl.length < originalDataUrl.length ? compressedDataUrl : originalDataUrl;
+}
 
 export default function CreateAd() {
   const { items } = useInventory();
@@ -21,7 +75,12 @@ export default function CreateAd() {
   const { addItem } = useMarketplace();
   const { toast } = useToast();
   const availableItems = items.filter((item) => item.quantity > 0);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [currentStep, setCurrentStep] = useState(0);
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [selectedPhotoName, setSelectedPhotoName] = useState("");
   const [form, setForm] = useState({
     inventoryId: "",
     title: "",
@@ -49,29 +108,11 @@ export default function CreateAd() {
     }));
   }, [form.type]);
 
-  const handlePublish = () => {
-    const selectedInventory = items.find((item) => item.id === form.inventoryId);
-    if (!selectedInventory || !user) {
-      return;
-    }
-
-    addItem({
-      name: form.title,
-      type: selectedInventory.type,
-      description: form.description || `Material disponível no estoque da ${user.razaoSocial}.`,
-      quantity: Number(form.quantity),
-      unit: form.unit,
-      location: form.location,
-      price: Number(form.price || form.suggestedPrice),
-      company: user.razaoSocial,
-    });
-
-    toast({
-      title: "Anúncio publicado",
-      description: "Seu resíduo já está disponível no marketplace.",
-    });
-
+  const resetForm = () => {
     setCurrentStep(0);
+    setSelectedPhotoName("");
+    setIsDraggingImage(false);
+    setIsProcessingImage(false);
     setForm({
       inventoryId: "",
       title: "",
@@ -86,11 +127,73 @@ export default function CreateAd() {
     });
   };
 
+  const attachPhoto = async (file: File) => {
+    setIsProcessingImage(true);
+
+    try {
+      const processedImage = await processMarketplaceImage(file);
+
+      setForm((current) => ({
+        ...current,
+        photos: [processedImage],
+      }));
+      setSelectedPhotoName(file.name);
+
+      toast({
+        title: "Imagem anexada",
+        description: "A imagem foi adicionada ao anuncio e sera publicada junto com ele.",
+      });
+    } catch (error) {
+      toast({
+        title: "Nao foi possivel anexar a imagem",
+        description: error instanceof Error ? error.message : "Tente novamente com outra imagem.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingImage(false);
+      setIsDraggingImage(false);
+    }
+  };
+
+  const handleFileSelection = async (files: FileList | null) => {
+    if (!files?.length) {
+      return;
+    }
+
+    await attachPhoto(files[0]);
+  };
+
+  const handlePublish = () => {
+    const selectedInventory = items.find((item) => item.id === form.inventoryId);
+    if (!selectedInventory || !user) {
+      return;
+    }
+
+    addItem({
+      name: form.title,
+      type: selectedInventory.type,
+      description: form.description || `Material disponivel no estoque da ${user.razaoSocial}.`,
+      quantity: Number(form.quantity),
+      unit: form.unit,
+      location: form.location,
+      price: Number(form.price || form.suggestedPrice),
+      company: user.razaoSocial,
+      imageUrl: form.photos[0],
+    });
+
+    toast({
+      title: "Anuncio publicado",
+      description: "Seu residuo ja esta disponivel no marketplace.",
+    });
+
+    resetForm();
+  };
+
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-foreground">Criar Anúncio</h2>
-        <p className="text-muted-foreground">Publique um resíduo do seu estoque no marketplace</p>
+        <h2 className="text-2xl font-bold text-foreground">Criar Anuncio</h2>
+        <p className="text-muted-foreground">Publique um residuo do seu estoque no marketplace</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 gap-y-3">
@@ -125,15 +228,15 @@ export default function CreateAd() {
                 onValueChange={(value) => {
                   const selectedItem = items.find((item) => item.id === value);
                   if (selectedItem) {
-                    setForm({
-                      ...form,
+                    setForm((current) => ({
+                      ...current,
                       inventoryId: value,
                       title: selectedItem.name,
                       type: selectedItem.type,
                       quantity: String(selectedItem.quantity),
                       unit: selectedItem.unit,
                       suggestedPrice: getSuggestedPriceByWasteType(selectedItem.type).toFixed(2),
-                    });
+                    }));
                   }
                 }}
                 disabled={availableItems.length === 0}
@@ -151,7 +254,7 @@ export default function CreateAd() {
               </Select>
               {availableItems.length === 0 && (
                 <p className="text-sm text-muted-foreground">
-                  Nenhum item disponível no estoque. Cadastre um resíduo antes de criar um anúncio.
+                  Nenhum item disponivel no estoque. Cadastre um residuo antes de criar um anuncio.
                 </p>
               )}
             </div>
@@ -159,27 +262,36 @@ export default function CreateAd() {
 
           {currentStep === 1 && (
             <div className="space-y-4">
-              <CardTitle className="text-lg">Detalhes do Anúncio</CardTitle>
+              <CardTitle className="text-lg">Detalhes do Anuncio</CardTitle>
+
               <div className="space-y-2">
-                <Label>Título</Label>
+                <Label>Titulo</Label>
                 <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
               </div>
+
               <div className="space-y-2">
-                <Label>Descrição</Label>
+                <Label>Descricao</Label>
                 <Textarea
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="Descreva as especificações técnicas do material..."
+                  placeholder="Descreva as especificacoes tecnicas do material..."
                   rows={4}
                 />
               </div>
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Quantidade para Venda</Label>
-                  <Input type="number" min="0" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+                  <Input
+                    type="number"
+                    min="0"
+                    value={form.quantity}
+                    onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                  />
                 </div>
+
                 <div className="space-y-2">
-                  <Label>Localização</Label>
+                  <Label>Localizacao</Label>
                   <Select value={form.location} onValueChange={(value) => setForm({ ...form, location: value })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione" />
@@ -194,36 +306,150 @@ export default function CreateAd() {
                   </Select>
                 </div>
               </div>
+
               <div className="space-y-2">
-                <Label>Fotos do Material</Label>
-                <div className="cursor-pointer rounded-lg border-2 border-dashed border-border p-8 text-center transition-colors hover:bg-muted/50">
-                  <ImagePlus className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">Upload visual ainda ilustrativo. O anúncio já publica normalmente sem foto.</p>
+                <Label>Imagem do Material</Label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (event) => {
+                    await handleFileSelection(event.target.files);
+                    event.target.value = "";
+                  }}
+                />
+
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  onDragEnter={(event) => {
+                    event.preventDefault();
+                    setIsDraggingImage(true);
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setIsDraggingImage(true);
+                  }}
+                  onDragLeave={(event) => {
+                    event.preventDefault();
+                    setIsDraggingImage(false);
+                  }}
+                  onDrop={async (event) => {
+                    event.preventDefault();
+                    await handleFileSelection(event.dataTransfer.files);
+                  }}
+                  className={`relative overflow-hidden rounded-2xl border-2 border-dashed p-5 transition-all ${
+                    isDraggingImage
+                      ? "border-primary bg-primary/5 shadow-[0_0_0_4px_rgba(22,163,74,0.08)]"
+                      : "border-border bg-muted/20 hover:bg-muted/40"
+                  }`}
+                >
+                  {isProcessingImage && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+                      <p className="text-sm font-medium text-foreground">Processando imagem...</p>
+                    </div>
+                  )}
+
+                  {form.photos[0] ? (
+                    <div className="space-y-4">
+                      <div className="overflow-hidden rounded-xl border border-border/70 bg-background">
+                        <img src={form.photos[0]} alt="Previa da imagem do anuncio" className="h-64 w-full object-cover" />
+                      </div>
+
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {selectedPhotoName || "Imagem pronta para o anuncio"}
+                          </p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Clique para trocar ou arraste outra imagem para substituir.
+                          </p>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              fileInputRef.current?.click();
+                            }}
+                          >
+                            Trocar imagem
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="gap-2 text-destructive hover:text-destructive"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setForm((current) => ({
+                                ...current,
+                                photos: [],
+                              }));
+                              setSelectedPhotoName("");
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Remover
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+                      <div className="rounded-2xl bg-background/90 p-4 shadow-sm">
+                        {isDraggingImage ? (
+                          <UploadCloud className="h-8 w-8 text-primary" />
+                        ) : (
+                          <ImagePlus className="h-8 w-8 text-muted-foreground" />
+                        )}
+                      </div>
+                      <p className="mt-4 text-sm font-medium text-foreground">
+                        Clique aqui ou arraste uma imagem para anexar ao anuncio
+                      </p>
+                      <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                        Aceita JPG, PNG, WEBP e outros formatos de imagem. A imagem anexada sera usada como foto do
+                        anuncio publicado.
+                      </p>
+                    </div>
+                  )}
                 </div>
+
+                <p className="text-xs text-muted-foreground">
+                  O upload e salvo no anuncio publicado. Se preferir, voce ainda pode publicar sem imagem e usar a
+                  imagem padrao do marketplace.
+                </p>
               </div>
             </div>
           )}
 
           {currentStep === 2 && (
             <div className="space-y-4">
-              <CardTitle className="text-lg">Precificação</CardTitle>
+              <CardTitle className="text-lg">Precificacao</CardTitle>
               <Card className="border-primary/30 bg-accent/30">
                 <CardContent className="flex items-start gap-3 p-4">
                   <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">Sugestão Inteligente de Preço (IA)</p>
+                    <p className="text-sm font-medium text-foreground">Sugestao Inteligente de Preco (IA)</p>
                     <p className="mt-1 text-2xl font-bold text-primary">
                       R$ {form.suggestedPrice.replace(".", ",")}
                       <span className="text-sm font-normal text-muted-foreground"> / {form.unit}</span>
                     </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {getMarketInsight()}
-                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">{getMarketInsight()}</p>
                   </div>
                 </CardContent>
               </Card>
               <div className="space-y-2">
-                <Label>Seu Preço (R$ / {form.unit})</Label>
+                <Label>Seu Preco (R$ / {form.unit})</Label>
                 <Input
                   type="number"
                   min="0"
@@ -238,21 +464,28 @@ export default function CreateAd() {
                   placeholder={form.suggestedPrice}
                 />
                 <p className="text-xs text-muted-foreground">
-                  A recomendação é calculada a partir do histórico de preços do tipo de resíduo selecionado.
+                  A recomendacao e calculada a partir do historico de precos do tipo de residuo selecionado.
                 </p>
               </div>
               <Button variant="outline" size="sm" onClick={() => setForm({ ...form, price: form.suggestedPrice })}>
-                Usar preço sugerido
+                Usar preco sugerido
               </Button>
             </div>
           )}
 
           {currentStep === 3 && (
             <div className="space-y-4">
-              <CardTitle className="text-lg">Revisão do Anúncio</CardTitle>
+              <CardTitle className="text-lg">Revisao do Anuncio</CardTitle>
+
+              {form.photos[0] && (
+                <div className="overflow-hidden rounded-2xl border border-border/70 bg-background">
+                  <img src={form.photos[0]} alt="Previa final da imagem do anuncio" className="h-64 w-full object-cover" />
+                </div>
+              )}
+
               <div className="space-y-3 text-sm">
                 <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-muted-foreground">Título</span>
+                  <span className="text-muted-foreground">Titulo</span>
                   <span className="font-medium">{form.title}</span>
                 </div>
                 <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
@@ -266,18 +499,22 @@ export default function CreateAd() {
                   </span>
                 </div>
                 <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-muted-foreground">Localização</span>
+                  <span className="text-muted-foreground">Localizacao</span>
                   <span className="font-medium">{form.location || "-"}</span>
                 </div>
                 <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-muted-foreground">Preço</span>
+                  <span className="text-muted-foreground">Preco</span>
                   <span className="text-lg font-bold text-primary">
                     R$ {(form.price || form.suggestedPrice).replace(".", ",")} / {form.unit}
                   </span>
                 </div>
+                <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-muted-foreground">Imagem principal</span>
+                  <span className="font-medium">{selectedPhotoName || "Imagem padrao do marketplace"}</span>
+                </div>
                 {form.description && (
                   <div className="py-2">
-                    <p className="mb-1 text-muted-foreground">Descrição</p>
+                    <p className="mb-1 text-muted-foreground">Descricao</p>
                     <p>{form.description}</p>
                   </div>
                 )}
@@ -297,11 +534,11 @@ export default function CreateAd() {
                   (currentStep === 1 && (!form.title || !form.quantity || !form.location))
                 }
               >
-                Próximo
+                Proximo
               </Button>
             ) : (
               <Button onClick={handlePublish} disabled={!form.quantity || !form.location}>
-                Publicar Anúncio
+                Publicar Anuncio
               </Button>
             )}
           </div>

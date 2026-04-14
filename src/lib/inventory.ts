@@ -85,3 +85,10 @@ export function formatInventoryDate(value: string) {
     minute: "2-digit",
   });
 }
+
+export function formatInventoryChartDate(value: string) {
+  return new Date(value).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
