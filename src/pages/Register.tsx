@@ -53,7 +53,7 @@ export default function Register() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateCNPJ(form.cnpj)) {
@@ -70,7 +70,7 @@ export default function Register() {
       return;
     }
 
-    const result = register({
+    const result = await register({
       razaoSocial: form.razaoSocial,
       cnpj: form.cnpj,
       segmento: form.segmento,

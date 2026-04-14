@@ -34,10 +34,10 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
   const { addItem } = useInventory();
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    addItem({
+    const result = await addItem({
       name: form.name,
       type: form.type,
       quantity: Number(form.quantity),
@@ -46,9 +46,18 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
       deadline: form.deadline,
     });
 
+    if (!result.success) {
+      toast({
+        title: "Item nao cadastrado",
+        description: result.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     toast({
       title: "Item cadastrado",
-      description: "O novo item já está disponível para movimentação no estoque.",
+      description: result.message,
     });
 
     onOpenChange(false);

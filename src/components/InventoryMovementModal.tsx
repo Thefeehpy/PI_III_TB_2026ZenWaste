@@ -60,7 +60,7 @@ export function InventoryMovementModal({
     : 0;
   const projectedStatus = item ? inventoryStatusMap[getInventoryItemStatus(projectedQuantity, item.targetQuantity)] : null;
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!item) {
@@ -85,7 +85,7 @@ export function InventoryMovementModal({
       return;
     }
 
-    const result = adjustItemQuantity({
+    const result = await adjustItemQuantity({
       itemId: item.id,
       quantity: numericQuantity,
       type: movementType,
