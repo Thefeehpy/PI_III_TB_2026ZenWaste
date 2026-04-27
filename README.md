@@ -4,16 +4,16 @@ Plataforma B2B para gestao interna de residuos industriais, marketplace e inteli
 
 ## Entrega - Programacao para Web
 
-Este repositorio contem uma API Django funcional para cadastro de empresas, gestao de estoque de residuos, publicacao de anuncios e consulta de inteligencia de mercado.
+Este repositorio contem um front-end React integrado a uma API Django REST Framework para cadastro de empresas, gestao de estoque de residuos, publicacao de anuncios e consulta de inteligencia de mercado.
 
 Produto viavel entregue:
 
 - API funcional com CRUD da entidade principal `Produto` (item de estoque).
-- Modelagem de dados com entidades principais: `Empresa`, `Produto`, `CategoriaResiduo`, `UnidadeMedida`, `Reserva`, `MvtoProduto`, `Anuncio`, `ImagemAnuncio` e `SessionToken`.
-- Conexao com banco SQLite em ambiente local, configurada em `back-end/config/settings.py`.
-- Rotas REST em JSON para criar, listar, detalhar, editar e excluir registros.
+- Modelagem de dados baseada no DER do documento ZenWaste: `EMPRESA`, `CATEGORIA_RESIDUO`, `PRODUTO`, `IMAGEM_ANUNCIO`, `ANUNCIO`, `RESERVA`, `UNIDADE_MEDIDA` e `MVTO_PRODUTO`.
+- Estrutura Django no padrao simples de apps na raiz do backend, com `models.py`, `serializers.py`, `views.py`, `urls.py` central e `admin.py`.
+- Serializers DRF para entrada, validacao e saida JSON.
 - Autenticacao por token Bearer para rotas privadas.
-- README com instrucoes de execucao e exemplos para testar no Postman.
+- Rotas REST mantidas no mesmo formato consumido pelo front-end.
 
 ## Estrutura da API
 
@@ -21,15 +21,16 @@ Backend:
 
 ```text
 back-end/
-  config/
+  app/
     settings.py
     urls.py
-  apps/
-    accounts/      cadastro, login, token e perfil da empresa
-    inventory/     CRUD da entidade principal Produto e movimentacoes
-    marketplace/   anuncios publicos e publicacao autenticada
-    market/        historico e sugestao de precos
-    common/        helpers de JSON, erros e CORS
+    views.py
+    asgi.py
+    wsgi.py
+  accounts/       cadastro, login, token e perfil da empresa
+  inventory/      CRUD da entidade principal Produto e movimentacoes
+  marketplace/    anuncios publicos e publicacao autenticada
+  market/         historico e sugestao de precos
 ```
 
 Frontend:
@@ -45,7 +46,7 @@ src/pages/          telas da aplicacao
 Entidades principais:
 
 - `Empresa`: perfil da empresa, ligado ao usuario do Django.
-- `SessionToken`: token de sessao usado no header `Authorization: Bearer <token>`.
+- `SessionToken`: tabela tecnica para token de sessao usado no header `Authorization: Bearer <token>`.
 - `Produto`: entidade principal do CRUD; representa um residuo no estoque.
 - `CategoriaResiduo`: tipo/material do residuo.
 - `UnidadeMedida`: unidade, como `kg`.
@@ -54,7 +55,7 @@ Entidades principais:
 - `Anuncio`: publicacao de um produto no marketplace.
 - `ImagemAnuncio`: URL de imagem associada ao produto anunciado.
 
-Relacionamento principal:
+Relacionamento principal de negocio:
 
 ```text
 User Django -> Empresa -> Produto -> Anuncio
@@ -117,6 +118,8 @@ http://127.0.0.1:8000/api
 | GET | `/api/auth/me/` | Retorna perfil da empresa autenticada |
 | PATCH | `/api/auth/me/` | Atualiza perfil da empresa autenticada |
 | POST | `/api/auth/logout/` | Encerra o token atual |
+| GET | `/api/companies/` | Lista empresas cadastradas autenticado |
+| GET | `/api/companies/<id>/` | Detalha empresa cadastrada autenticado |
 
 ### CRUD principal - Produto / Estoque
 
