@@ -129,11 +129,29 @@ export default function CreateAd() {
   }, [form.type]);
 
   const resetForm = () => {
-  const handlePublish = async () => {
-    const selectedInventory = items.find((item) => item.id === form.inventoryId);
-    if (!selectedInventory || !user) {
-      return;
-    }
+  setCurrentStep(0);
+  setSelectedPhotoName("");
+  setIsDraggingImage(false);
+  setIsProcessingImage(false);
+  setForm({
+    inventoryId: "",
+    title: "",
+    type: "",
+    description: "",
+    quantity: "",
+    unit: "kg",
+    location: "",
+    price: "",
+    suggestedPrice: "0.00",
+    photos: [],
+  });
+};
+
+const handlePublish = async () => {
+  const selectedInventory = items.find((item) => item.id === form.inventoryId);
+  if (!selectedInventory || !user) {
+    return;
+  }
 
     const result = await addItem({
       inventoryId: selectedInventory.id,
@@ -212,32 +230,6 @@ export default function CreateAd() {
     }
 
     await attachPhoto(files[0]);
-  };
-
-  const handlePublish = () => {
-    const selectedInventory = items.find((item) => item.id === form.inventoryId);
-    if (!selectedInventory || !user) {
-      return;
-    }
-
-    addItem({
-      name: form.title,
-      type: selectedInventory.type,
-      description: form.description || `Material disponivel no estoque da ${user.razaoSocial}.`,
-      quantity: Number(form.quantity),
-      unit: form.unit,
-      location: form.location,
-      price: Number(form.price || form.suggestedPrice),
-      company: user.razaoSocial,
-      imageUrl: form.photos[0],
-    });
-
-    toast({
-      title: "Anuncio publicado",
-      description: "Seu residuo ja esta disponivel no marketplace.",
-    });
-
-    resetForm();
   };
 
   return (
