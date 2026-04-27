@@ -2,9 +2,6 @@ from django.contrib.auth.hashers import check_password, identify_hasher, make_pa
 from django.db import models
 from localflavor.br.models import BRCNPJField
 
-from estoque.models import Estoque
-
-
 def senha_ja_criptografada(valor):
     try:
         identify_hasher(valor)
@@ -22,9 +19,7 @@ class Empresa(models.Model):
     descricao_segmento = models.CharField(max_length=60, blank=True)
     email = models.CharField(unique=True, max_length=256, blank=False)
     senha = models.CharField(max_length=128, blank=False)
-
-    estoque = models.ForeignKey(Estoque, on_delete=models.RESTRICT, related_name="estoque", null=True)
-
+    
     def __str__(self):
         return self.razao_social
 

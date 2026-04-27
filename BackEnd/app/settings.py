@@ -41,10 +41,12 @@ INSTALLED_APPS = [
 
     'corsheaders',
     'rest_framework',
-    'localflavor',
+    'rest_framework_simplejwt',
+    'localflavor',    
+
+    #'authentication',
     'empresas',
-    'produtos', 
-    'estoque',
+    'produtos',     
 ]
 
 MIDDLEWARE = [
@@ -137,3 +139,9 @@ CORS_ALLOW_CREDENTIALS = True
 FRONTEND_URL = os.getenv('FRONTEND_URL')
 if FRONTEND_URL and FRONTEND_URL not in CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}

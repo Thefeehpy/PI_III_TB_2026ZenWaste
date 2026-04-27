@@ -18,15 +18,14 @@ from django.contrib import admin
 from django.urls import path
 
 from empresas.views import EmpresaCreateListView, EmpresaRetrieveUpdateDestroy, LoginView
-from estoque.views import EstoqueCreateListView
 from produtos.views import ProdutoCreateListView, ProdutoRetrieveUpdateDestroy
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("empresa/", EmpresaCreateListView.as_view(), name="empresas-create-list"),
     path("empresa/<int:pk>", EmpresaRetrieveUpdateDestroy.as_view(), name="empresa-detail-view"),
-    path("auth/login/", LoginView.as_view(), name="login"),
+    
     path("produto", ProdutoCreateListView.as_view(), name="criar-produto"),
     path("produto/<int:pk>", ProdutoRetrieveUpdateDestroy.as_view(), name="criar-produto"),
-    path("empresa/<int:pk>/estoque", EstoqueCreateListView.as_view(), name="estoque-empresa"),
+    
 ]
