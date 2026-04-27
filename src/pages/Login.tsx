@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Leaf, Lock, Mail } from "lucide-react";
 
+import { BrandLogo } from "@/components/BrandLogo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import heroBg from "@/assets/hero-bg.jpg";
-import logo from "@/assets/logo.png";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -56,10 +56,10 @@ export default function Login() {
             className="absolute inset-0 h-full w-full object-cover mix-blend-overlay opacity-30"
           />
           <div className="relative z-10 space-y-6 p-12 text-center">
-            <div className="flex items-center justify-center gap-3">
-              <img src={logo} alt="ZenWaste" className="h-16 w-16" />
+            <div className="flex justify-center">
+              <BrandLogo className="max-w-[21rem]" />
             </div>
-            <h1 className="text-4xl font-bold text-secondary-foreground">ZenWaste</h1>
+            <h1 className="sr-only">ZenWaste</h1>
             <p className="mx-auto max-w-md text-lg text-secondary-foreground/80">
               Transforme residuos em ativos financeiros. A plataforma inteligente para a economia circular industrial.
             </p>
@@ -73,9 +73,8 @@ export default function Login() {
         <div className="flex w-full items-center justify-center p-8 lg:w-1/2">
           <Card className="w-full max-w-md border-0 shadow-none lg:border lg:shadow-sm">
             <CardHeader className="text-center">
-              <div className="mb-2 flex items-center justify-center gap-2 lg:hidden">
-                <img src={logo} alt="ZenWaste" className="h-10 w-10" />
-                <span className="font-bold text-xl text-foreground">ZenWaste</span>
+              <div className="mb-4 flex justify-center lg:hidden">
+                <BrandLogo className="max-w-[12rem]" />
               </div>
               <CardTitle className="text-2xl">Bem-vindo de volta</CardTitle>
               <CardDescription>Entre com suas credenciais para acessar o painel</CardDescription>

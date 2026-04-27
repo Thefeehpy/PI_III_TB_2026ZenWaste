@@ -1,8 +1,8 @@
 import { LayoutDashboard, Package, PlusCircle, TrendingUp, ShoppingBag, LogOut } from "lucide-react";
+import { BrandLogo } from "@/components/BrandLogo";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import logo from "@/assets/logo.png";
 import {
   Sidebar,
   SidebarContent,
@@ -38,11 +38,10 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
-        <div className="p-4 flex items-center gap-3">
-          <img src={logo} alt="ZenWaste" className="h-8 w-8 shrink-0" />
+        <div className={`flex p-4 ${collapsed ? "justify-center" : "flex-col gap-2"}`}>
+          <BrandLogo className={collapsed ? "max-w-10" : "max-w-[11rem]"} />
           {!collapsed && (
             <div>
-              <span className="font-bold text-lg text-sidebar-foreground">ZenWaste</span>
               {user && <p className="text-xs text-sidebar-foreground/70">{user.razaoSocial}</p>}
             </div>
           )}

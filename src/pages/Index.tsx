@@ -14,7 +14,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import logo from "@/assets/logo.png";
+import { BrandLogo } from "@/components/BrandLogo";
 import heroBg from "@/assets/hero-bg.jpg";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -92,17 +92,10 @@ export default function Index() {
         <div className="absolute right-0 top-10 h-96 w-96 rounded-full bg-cyan-200/10 blur-3xl" />
 
         <header className="relative z-10 container flex items-center justify-between gap-4 py-6">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/10 backdrop-blur">
-              <img src={logo} alt="ZenWaste" className="h-10 w-10" />
-            </div>
-            <div>
-              <p className="font-display text-lg font-semibold tracking-tight">ZenWaste</p>
-              <p className="text-sm text-white/[0.65]">
-                Economia circular industrial com visão de produto
-              </p>
-            </div>
-          </div>
+          <Link to="/" className="flex min-w-0 flex-col gap-2">
+            <BrandLogo className="max-w-[14rem] sm:max-w-[17rem]" />
+            <p className="text-sm text-white/[0.65]">Economia circular industrial com visão de produto</p>
+          </Link>
 
           <div className="flex items-center gap-3">
             <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
@@ -205,9 +198,7 @@ export default function Index() {
               <div className="relative rounded-[30px] border border-white/10 bg-slate-950/65 p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-white/[0.42]">
-                      Painel ZenWaste
-                    </p>
+                    <BrandLogo className="max-w-[8.75rem] opacity-90" />
                     <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight text-white">
                       Visão comercial e operacional no mesmo lugar
                     </h2>
@@ -485,12 +476,9 @@ export default function Index() {
 
       <footer className="border-t border-border/80 py-8">
         <div className="container flex flex-col gap-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <img src={logo} alt="ZenWaste" className="h-9 w-9" />
-            <div>
-              <p className="font-medium text-foreground">ZenWaste</p>
-              <p>Plataforma de economia circular industrial</p>
-            </div>
+          <div className="flex flex-col gap-2">
+            <BrandLogo className="max-w-[11rem]" />
+            <p>Plataforma de economia circular industrial</p>
           </div>
 
           <div className="flex flex-wrap gap-4">

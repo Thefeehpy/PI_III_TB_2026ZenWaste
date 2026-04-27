@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Building2, Lock, Mail, Phone } from "lucide-react";
 
+import { BrandLogo } from "@/components/BrandLogo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { formatCNPJ, validateCNPJ } from "@/utils/cnpj";
 import heroBg from "@/assets/hero-bg.jpg";
-import logo from "@/assets/logo.png";
 
 const segments = [
   "Metalurgia",
@@ -109,9 +109,8 @@ export default function Register() {
       <div className="relative z-10 flex min-h-screen flex-col">
         <header className="border-b border-white/10 bg-slate-950/10 backdrop-blur">
           <div className="container flex h-16 items-center justify-between">
-            <Link to="/" className="flex items-center gap-2 text-white">
-              <img src={logo} alt="ZenWaste" className="h-9 w-9" />
-              <span className="font-bold text-lg sm:text-xl">ZenWaste</span>
+            <Link to="/" className="flex items-center">
+              <BrandLogo className="max-w-[10.5rem]" />
             </Link>
             <ThemeToggle />
           </div>
@@ -120,9 +119,8 @@ export default function Register() {
         <div className="flex flex-1 items-center justify-center p-4">
           <Card className="w-full max-w-lg animate-fade-in border-border/70 bg-background/90 shadow-[0_28px_80px_rgba(15,23,42,0.32)] backdrop-blur-xl">
             <CardHeader className="text-center">
-              <div className="mb-2 flex items-center justify-center gap-2">
-                <img src={logo} alt="ZenWaste" className="h-10 w-10" />
-                <span className="font-bold text-xl text-foreground">ZenWaste</span>
+              <div className="mb-4 flex justify-center">
+                <BrandLogo className="max-w-[12rem]" />
               </div>
               <CardTitle className="text-2xl">Cadastro Empresarial</CardTitle>
               <CardDescription>Apenas empresas com CNPJ valido podem se cadastrar</CardDescription>
