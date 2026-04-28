@@ -31,3 +31,5 @@ class Empresa(models.Model):
             return check_password(senha_pura, self.senha)
 
         return self.senha == senha_pura
+
+    

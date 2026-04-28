@@ -44,7 +44,3 @@ class EmpresaSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-
-class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, trim_whitespace=False)

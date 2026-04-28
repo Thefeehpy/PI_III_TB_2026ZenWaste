@@ -11,7 +11,5 @@ class Produto(models.Model):
 
     empresa = models.ForeignKey(Empresa, on_delete=models.SET_DEFAULT, related_name="empresa", null=True, blank=True, default='')
 
-
-
     def __str__(self):
-        return self.id_produto
+        return self.tipo_produto

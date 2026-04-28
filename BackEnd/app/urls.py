@@ -17,9 +17,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-from empresas.views import EmpresaCreateListView, EmpresaRetrieveUpdateDestroy, LoginView
+from empresas.views import EmpresaCreateListView, EmpresaRetrieveUpdateDestroy
 from produtos.views import ProdutoCreateListView, ProdutoRetrieveUpdateDestroy
-
+from login.views import LoginView
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("empresa/", EmpresaCreateListView.as_view(), name="empresas-create-list"),
@@ -27,5 +27,7 @@ urlpatterns = [
     
     path("produto", ProdutoCreateListView.as_view(), name="criar-produto"),
     path("produto/<int:pk>", ProdutoRetrieveUpdateDestroy.as_view(), name="criar-produto"),
+
+    path("login", LoginView.as_view(), name="Login"),
     
 ]

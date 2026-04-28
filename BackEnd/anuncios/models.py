@@ -1,5 +1,6 @@
 from django.db import models
 from produtos.models import Produto
+
 class Anuncio(models.Model):
     id_anuncio = models.AutoField(primary_key=True)
     preco_final = models.DecimalField(max_digits=10, decimal_places=2, blank=True)
