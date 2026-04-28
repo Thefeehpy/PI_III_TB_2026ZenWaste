@@ -1,113 +1,81 @@
-ZenWaste
-Plataforma B2B para gestao interna de residuos industriais, marketplace e inteligencia de mercado.
-Entrega - Programacao para Web
-Este repositorio contem uma API Django funcional para cadastro de empresas, gestao de estoque de residuos, publicacao de anuncios e consulta de inteligencia de mercado.
-Produto viavel entregue:
-API funcional com CRUD da entidade principal Produto (item de estoque).
-Modelagem de dados com entidades principais: Empresa, Produto, estoque.
-Conexao com banco SQLite em ambiente local, configurada em back-end/app/settings.py.
-Rotas REST em JSON para criar, listar, detalhar, editar e excluir registros.
-Estrutura da API
-Backend:
+# ZenWaste API
+
+Backend Django REST Framework para autenticar empresas B2B, manter estoque privado, publicar anuncios no marketplace e expor inteligencia de mercado.
+
+## Estrutura
+
+text
 back-end/
-    app/
-        settings.py
-        urls.py
+  app/            configuracao, urls principais e tratamento global de erros
+  accounts/       cadastro, login, token e perfil da empresa
+  inventory/      Produto, Categoria, Unidade, Reserva e movimentacoes
+  marketplace/    Anuncio, ImagemAnuncio e WhatsApp
+  market/         precos de referencia e sugestao de preco
 
-    empresas/  #Valores recebidos e serialização dos dados de empresa, estabelecimento do CRUD
-        models.py 
-        serializers.py
-        views.py        
-    estoque/   #Valores recebidos e serialização dos dados de estoque, estabelecimento do CRUD e importação da chave estrangeira de Produto
+Cada app segue o padrao Django usado no projeto de referencia:
 
-        models.py
-        serializers.py
-        views.py
-    produtos/ #Valores recebidos e serialização dos dados de estoque, estabelecimento do CRUD
-        models.py
-        serializers.py
-        views.py
+text
+models.py
+serializers.py
+views.py
+admin.py
+apps.py
+tests.py
+migrations/
 
-## Modelagem de dados
+## Como rodar localmente
 
-Entidades principais:
+powershell
+cd back-end
+python -m venv .venv
+.\\.venv\\Scripts\\Activate.ps1
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py seed_demo_data
+python manage.py runserver 127.0.0.1:8000
 
-- `Empresa`: perfil da empresa, ligado ao usuario do Django.
-- `Produto`: entidade principal do CRUD; representa um residuo no estoque.
-- `estoque`: representação da quantidade de produtos existentes na empresa
+O front usa VITE_API_URL. Se a API estiver no endereco padrao, nenhuma variavel extra e necessaria. Para mudar:
 
+powershell
+$env:VITE_API_URL="http://127.0.0.1:8000/api"
+npm run dev
 
-## Rodando o backend Django
+## Endpoints principais
 
-cd back-end python -m venv .venv .\.venv\Scripts\Activate.ps1 pip install -r requirements.txt python manage.py migrate python manage.py seed_demo_data python manage.py runserver 127.0.0.1:8000
-## Rotas principais da API
+POST /api/auth/register/: cadastro de empresa com CNPJ valido.
+POST /api/auth/login/: autentica e retorna token Bearer.
+GET /api/auth/me/: perfil da empresa autenticada.
+GET /api/companies/: lista empresas cadastradas autenticado.
+GET /api/companies/<id>/: detalha uma empresa cadastrada autenticado.
+GET|POST /api/inventory/items/: lista e cria itens privados de estoque.
+POST /api/inventory/items/<id>/movements/: registra entrada ou saida.
+GET /api/inventory/movements/: historico privado de movimentacoes.
+GET|POST /api/marketplace/ads/: lista anuncios publicos e publica anuncio autenticado.
+GET /api/market/prices/: historico da bolsa de residuos.
+GET /api/market/suggest-price/?type=...: sugestao de preco por tipo de residuo.
 
-Base local:
+## Modelo de banco
 
-```text
-http://127.0.0.1:8000/empresa
-Autenticacao
+As tabelas de negocio seguem o modelo logico do projeto:
 
-Metodo
-Rota
-Descricao
-GET
-/empresa/
-Retorna perfil da empresa autenticada
-PUT
-/empresa/
-Atualiza perfil da empresa autenticada
-PATCH
-/empresa/
-Atualiza a empresa atual
-DELETE
-/empresa/
-Deleta a empresa atual
-CRUD principal - Produto
+EMPRESA
+CATEGORIA_RESIDUO
+PRODUTO
+IMAGEM_ANUNCIO
+ANUNCIO
+RESERVA
+UNIDADE_MEDIDA
+MVTO_PRODUTO
 
-Metodo
-Rota
-Descricao
-GET
-/produto/
-Retorna perfil do produto autenticado
-PUT
-/produto/
-Atualiza perfil do produto autenticado
-PATCH
-/produto/
-Atualiza o produto atual
-DELETE
-/produto/
-Deleta o produto atual
-Rotas complementares de estoque:
+O Django tambem cria tabelas tecnicas como auth_user, django_migrations e accounts_sessiontoken. Elas ficam separadas para autenticar usuarios, armazenar senha com hash e controlar sessoes da API.
 
-Metodo
-Rota
-Descricao
-GET
-/estoque/
-Lista os produtos cadastrados nesse estoque
-Testando no Postman
-1. empresa
-get (http://127.0.0.1:8000/empresa/pk)
-{
-  {
-        "id_empresa": 1,
-        "cnpj": "34312163000121",
-        "razao_social": "Empresa do zé",
-        "telefone_whatsapp": "19999990000",
-        "data_cadastro": "2026-04-13",
-        "descricao_segmento": "Metalurgica",
-        "email": "empresadoze@gmail"
-    }
-2. produto
-[POST (http://127.0.0.1:8000/produto)
-{
-     "id_produto": 2,
-        "tipo_produto": "Aluminio",
-        "status": "V",
-        "data_registro": "2026-04-13",
-        "quantidade": "5.000",
-        "descricao_produto": "Cavaco de aluminio"
-    }
+Observacao: ANUNCIO.localizacao foi mantido alem do DER para preservar a funcionalidade de filtro por localidade ja usada pelo front-end.
+
+Se voce ja tinha criado db.sqlite3 antes dessa modelagem, recrie o banco de desenvolvimento:
+
+powershell
+cd back-end
+Copy-Item db.sqlite3 ..\\.workspace\\db.sqlite3.backup -ErrorAction SilentlyContinue
+Remove-Item db.sqlite3
+.\\.venv\\Scripts\\python manage.py migrate
+.\\.venv\\Scripts\\python manage.py seed_demo_data
