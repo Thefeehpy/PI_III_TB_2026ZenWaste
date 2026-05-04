@@ -44,10 +44,11 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'localflavor',    
 
-    #'authentication',
+    'authentication',
     'empresas',
     'produtos',     
     'login',
+    'anuncios',
 ]
 
 MIDDLEWARE = [
@@ -142,7 +143,10 @@ if FRONTEND_URL and FRONTEND_URL not in CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
 
 REST_FRAMEWORK = {
+    
     'DEFAULT_AUTHENTICATION_CLASSES': (
+    
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
+    
 }

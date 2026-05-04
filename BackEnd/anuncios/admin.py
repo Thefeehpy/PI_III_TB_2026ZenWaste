@@ -1,3 +1,5 @@
-from django.contrib import admin
+'''from django.contrib import admin
+from anuncios.models import Anuncio
 
-# Register your models here.
+class AnuncioAdmin(admin.ModelAdmin):
+    list_display'''

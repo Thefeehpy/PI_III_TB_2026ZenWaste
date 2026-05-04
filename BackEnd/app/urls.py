@@ -16,10 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-
 from empresas.views import EmpresaCreateListView, EmpresaRetrieveUpdateDestroy
 from produtos.views import ProdutoCreateListView, ProdutoRetrieveUpdateDestroy
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 from login.views import LoginView
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("empresa/", EmpresaCreateListView.as_view(), name="empresas-create-list"),
@@ -27,7 +28,11 @@ urlpatterns = [
     
     path("produto", ProdutoCreateListView.as_view(), name="criar-produto"),
     path("produto/<int:pk>", ProdutoRetrieveUpdateDestroy.as_view(), name="criar-produto"),
-
+    
     path("login", LoginView.as_view(), name="Login"),
+    
+    path('authentication/token/', TokenObtainPairView.as_view(), name='token-obtain-pair'),
+    path('authentication/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+    path('authentication/token/verify/', TokenVerifyView.as_view(), name='token_obtain_pair'),
     
 ]
