@@ -18,6 +18,7 @@ import { useInventory } from "@/contexts/InventoryContext";
 import type { InventoryItem, InventoryMovement } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
 import {
+  formatInventoryCalendarDate,
   formatInventoryDate,
   formatInventoryQuantity,
   getInventoryItemStatus,
@@ -69,6 +70,14 @@ export function InventoryMovementModal({
     : 0;
   const projectedStatus = item ? inventoryStatusMap[getInventoryItemStatus(projectedQuantity, item.targetQuantity)] : null;
   const actionMeta = inventoryMovementMap[movementType];
+  const plannedTimestamp = formatInventoryDate(new Date().toISOString());
+  const plannedQuantity = item
+    ? hasValidQuantity
+      ? formatInventoryQuantity(numericQuantity, item.unit)
+      : `Aguardando valor em ${item.unit}`
+    : "Aguardando valor";
+  const latestMovementLabel = latestMovement ? formatInventoryDate(latestMovement.createdAt) : "Nenhuma movimentacao ainda";
+  const itemDeadlineLabel = item ? formatInventoryCalendarDate(item.deadline) : "Nao definido";
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -154,44 +163,92 @@ export function InventoryMovementModal({
           </Tabs>
 
           {item && (
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_0.9fr]">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="rounded-[24px] border border-border/70 bg-card p-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Boxes className="h-4 w-4" />
-                    Saldo atual
+            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.1fr)_0.9fr]">
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="flex flex-col rounded-[24px] border border-border/70 bg-card p-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Boxes className="h-4 w-4" />
+                      Saldo atual
+                    </div>
+                    <p className="mt-3 text-2xl font-semibold text-foreground">
+                      {formatInventoryQuantity(item.quantity, item.unit)}
+                    </p>
                   </div>
-                  <p className="mt-3 text-2xl font-semibold text-foreground">
-                    {formatInventoryQuantity(item.quantity, item.unit)}
-                  </p>
+
+                  <div className="flex flex-col rounded-[24px] border border-border/70 bg-card p-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Target className="h-4 w-4" />
+                      Meta do item
+                    </div>
+                    <p className="mt-3 text-2xl font-semibold text-foreground">
+                      {formatInventoryQuantity(item.targetQuantity, item.unit)}
+                    </p>
+                  </div>
+
+                  <div
+                    className={`flex flex-col rounded-[24px] border p-4 ${
+                      exceedsAvailable ? "border-destructive/30 bg-destructive/5" : "border-border/70 bg-card"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      {movementType === "entrada" ? (
+                        <ArrowUpRight className="h-4 w-4 text-primary" />
+                      ) : (
+                        <ArrowDownRight className="h-4 w-4 text-destructive" />
+                      )}
+                      Saldo projetado
+                    </div>
+                    <p className="mt-3 text-2xl font-semibold text-foreground">
+                      {formatInventoryQuantity(projectedQuantity, item.unit)}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="rounded-[24px] border border-border/70 bg-card p-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Target className="h-4 w-4" />
-                    Meta do item
+                <div className="rounded-[24px] border border-border/70 bg-muted/[0.18] p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="font-medium text-foreground">Painel rapido do registro</p>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                        Horario previsto, prazo do item e ultima leitura reunidos no topo para evitar area ociosa.
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-medium ${actionMeta.className}`}
+                    >
+                      {actionMeta.label}
+                    </span>
                   </div>
-                  <p className="mt-3 text-2xl font-semibold text-foreground">
-                    {formatInventoryQuantity(item.targetQuantity, item.unit)}
-                  </p>
-                </div>
 
-                <div
-                  className={`rounded-[24px] border p-4 ${
-                    exceedsAvailable ? "border-destructive/30 bg-destructive/5" : "border-border/70 bg-card"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    {movementType === "entrada" ? (
-                      <ArrowUpRight className="h-4 w-4 text-primary" />
-                    ) : (
-                      <ArrowDownRight className="h-4 w-4 text-destructive" />
-                    )}
-                    Saldo projetado
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-border/70 bg-background/80 p-3">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Registro previsto</p>
+                      <p className="mt-2 text-sm font-semibold text-foreground">{plannedTimestamp}</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-border/70 bg-background/80 p-3">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Volume informado</p>
+                      <p className="mt-2 text-sm font-semibold text-foreground">{plannedQuantity}</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-border/70 bg-background/80 p-3">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Prazo do item</p>
+                      <p className="mt-2 text-sm font-semibold text-foreground">{itemDeadlineLabel}</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-border/70 bg-background/80 p-3">
+                      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        <CalendarClock className="h-4 w-4" />
+                        Ultima atualizacao
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-foreground">{latestMovementLabel}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {latestMovement
+                          ? `Saldo resultante: ${formatInventoryQuantity(latestMovement.resultingQuantity, latestMovement.unit)}`
+                          : "O historico aparece aqui assim que a primeira movimentacao for salva."}
+                      </p>
+                    </div>
                   </div>
-                  <p className="mt-3 text-2xl font-semibold text-foreground">
-                    {formatInventoryQuantity(projectedQuantity, item.unit)}
-                  </p>
                 </div>
               </div>
 
@@ -207,19 +264,6 @@ export function InventoryMovementModal({
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Status apos registro</p>
                     <p className="mt-2 text-sm font-semibold text-foreground">{projectedStatus.label}</p>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">{projectedStatus.description}</p>
-                  </div>
-                )}
-
-                {latestMovement && (
-                  <div className="mt-4 rounded-2xl border border-border/70 bg-background/80 p-3">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <CalendarClock className="h-4 w-4" />
-                      Ultima atualizacao
-                    </div>
-                    <p className="mt-2 text-sm font-medium text-foreground">{formatInventoryDate(latestMovement.createdAt)}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Saldo resultante: {formatInventoryQuantity(latestMovement.resultingQuantity, latestMovement.unit)}
-                    </p>
                   </div>
                 )}
               </div>

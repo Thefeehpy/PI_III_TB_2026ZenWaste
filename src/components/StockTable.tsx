@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { useChartTheme } from "@/hooks/use-chart-theme";
 import type { InventoryItem, InventoryMovement } from "@/data/mockData";
 import {
+  formatInventoryCalendarDate,
   formatInventoryChartDate,
   formatInventoryDate,
   formatInventoryQuantity,
@@ -164,7 +165,7 @@ export function StockTable({ items, movements, onAdjustItem }: StockTableProps) 
 
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span className="rounded-full bg-muted/60 px-2.5 py-1">
-                      Prazo {new Date(item.deadline).toLocaleDateString("pt-BR")}
+                      Prazo {formatInventoryCalendarDate(item.deadline)}
                     </span>
                     <span className="rounded-full bg-muted/60 px-2.5 py-1">
                       Atualizado em {formatInventoryDate(item.updatedAt)}

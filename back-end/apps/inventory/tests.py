@@ -43,6 +43,8 @@ class InventoryApiTests(TestCase):
         )
         self.assertEqual(create_response.status_code, 201)
         item = create_response.json()["item"]
+        self.assertEqual(item["deadline"], "2026-05-30")
+        self.assertIn("T", item["createdAt"])
 
         invalid_movement = self.post_json(
             f"/api/inventory/items/{item['id']}/movements/",
@@ -56,3 +58,5 @@ class InventoryApiTests(TestCase):
         )
         self.assertEqual(valid_movement.status_code, 201)
         self.assertEqual(valid_movement.json()["item"]["quantity"], 60.0)
+        self.assertEqual(valid_movement.json()["movement"]["note"], "Venda parcial")
+        self.assertIn("T", valid_movement.json()["movement"]["createdAt"])

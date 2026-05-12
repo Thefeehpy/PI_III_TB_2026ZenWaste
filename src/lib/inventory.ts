@@ -76,8 +76,22 @@ export function formatInventoryQuantity(value: number, unit: string) {
   return `${value.toLocaleString("pt-BR")} ${unit}`;
 }
 
+function parseInventoryDate(value: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return new Date(`${value}T00:00:00`);
+  }
+
+  return new Date(value);
+}
+
 export function formatInventoryDate(value: string) {
-  return new Date(value).toLocaleString("pt-BR", {
+  const date = parseInventoryDate(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -87,8 +101,28 @@ export function formatInventoryDate(value: string) {
 }
 
 export function formatInventoryChartDate(value: string) {
-  return new Date(value).toLocaleDateString("pt-BR", {
+  const date = parseInventoryDate(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
+  });
+}
+
+export function formatInventoryCalendarDate(value: string) {
+  const date = parseInventoryDate(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
   });
 }

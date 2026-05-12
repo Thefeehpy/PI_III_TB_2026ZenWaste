@@ -111,7 +111,6 @@ export default function Register() {
           <div className="container flex h-16 items-center justify-between">
             <Link to="/" className="flex items-center gap-2 text-white">
               <img src={logo} alt="ZenWaste" className="w-28 h-auto" />
-              <span className="font-bold text-lg sm:text-xl">ZenWaste</span>
             </Link>
             <ThemeToggle />
           </div>
@@ -122,7 +121,6 @@ export default function Register() {
             <CardHeader className="text-center">
               <div className="mb-2 flex items-center justify-center gap-2">
                 <img src={logo} alt="ZenWaste" className="w-32 h-auto shrink-0" />
-                <span className="font-bold text-xl text-foreground">ZenWaste</span>
               </div>
               <CardTitle className="text-2xl">Cadastro Empresarial</CardTitle>
               <CardDescription>Apenas empresas com CNPJ valido podem se cadastrar</CardDescription>

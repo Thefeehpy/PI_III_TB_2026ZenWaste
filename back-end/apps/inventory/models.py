@@ -58,7 +58,9 @@ class Produto(models.Model):
     id_produto = models.AutoField(primary_key=True)
     quantidade_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     status = models.CharField(max_length=1, default=STATUS_SEM_SALDO)
-    data_registro = models.DateField(auto_now_add=True)
+    data_registro = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    prazo = models.DateField(null=True, blank=True)
     empresa = models.ForeignKey(Empresa, db_column="FK_id_empresa", on_delete=models.CASCADE, related_name="produtos")
     categoria_residuo = models.ForeignKey(
         CategoriaResiduo,
@@ -118,7 +120,8 @@ class Produto(models.Model):
 
 class MvtoProduto(models.Model):
     id_estoque = models.AutoField(primary_key=True)
-    dt_entrada = models.DateField(auto_now_add=True)
+    dt_entrada = models.DateTimeField(auto_now_add=True)
+    observacao = models.TextField(blank=True, default="")
     produto = models.ForeignKey(Produto, db_column="FK_id_produto", on_delete=models.CASCADE, related_name="movimentos")
     nr_qntd = models.DecimalField(max_digits=10, decimal_places=2)
 

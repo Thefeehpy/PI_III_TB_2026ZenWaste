@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
@@ -16,6 +17,14 @@ def decimal_from_payload(value, field: str) -> Decimal:
     except (InvalidOperation, TypeError) as exc:
         raise ApiError(f"Informe um valor numerico valido para {field}.", status=400) from exc
     return number.quantize(Decimal("0.01"))
+
+
+def date_from_payload(value, field: str) -> date:
+    try:
+        parsed_date = date.fromisoformat(str(value))
+    except (TypeError, ValueError) as exc:
+        raise ApiError(f"Informe uma data valida para {field}.", status=400) from exc
+    return parsed_date
 
 
 def get_or_create_category(name: str) -> CategoriaResiduo:
@@ -49,6 +58,7 @@ def items(request: HttpRequest):
         unit_sigla = str(data.get("unit", "kg")).strip() or "kg"
         quantity = decimal_from_payload(data.get("quantity", 0), "quantidade")
         target_quantity = decimal_from_payload(data.get("targetQuantity", 0), "meta")
+        deadline = date_from_payload(data.get("deadline", ""), "o prazo")
 
         if not name or not waste_type:
             raise ApiError("Nome e tipo do residuo sao obrigatorios.", status=400)
@@ -65,10 +75,11 @@ def items(request: HttpRequest):
                 categoria_residuo=get_or_create_category(waste_type),
                 unidade=get_or_create_unit(unit_sigla),
                 quantidade_total=quantity,
+                prazo=deadline,
                 reserva=reserva,
             )
             item.atualizar_status()
-            item.save(update_fields=["status"])
+            item.save(update_fields=["status", "updated_at"])
 
             if quantity > 0:
                 MvtoProduto.objects.create(produto=item, nr_qntd=quantity)
@@ -120,6 +131,8 @@ def item_detail(request: HttpRequest, item_id):
             else:
                 item.reserva.qntd_reserva = target_quantity
                 item.reserva.save(update_fields=["qntd_reserva"])
+        if "deadline" in data:
+            item.prazo = date_from_payload(data["deadline"], "o prazo")
 
         item.atualizar_status()
         item.save()
@@ -160,6 +173,7 @@ def item_movements(request: HttpRequest, item_id):
     try:
         data = parse_json(request)
         movement_type = str(data.get("type", "")).strip()
+        note = str(data.get("note", "")).strip()
         quantity = decimal_from_payload(data.get("quantity", 0), "quantidade")
 
         if movement_type not in ["entrada", "saida"]:
@@ -183,9 +197,9 @@ def item_movements(request: HttpRequest, item_id):
             signed_quantity = quantity if movement_type == "entrada" else -quantity
             item.quantidade_total += signed_quantity
             item.atualizar_status()
-            item.save(update_fields=["quantidade_total", "status"])
+            item.save(update_fields=["quantidade_total", "status", "updated_at"])
 
-            movement = MvtoProduto.objects.create(produto=item, nr_qntd=signed_quantity)
+            movement = MvtoProduto.objects.create(produto=item, nr_qntd=signed_quantity, observacao=note)
     except ApiError as exc:
         return api_error_response(exc)
 
