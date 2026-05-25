@@ -10,26 +10,40 @@ export const inventoryStatusMap: Record<
     description: string;
   }
 > = {
+  sem_saldo: {
+    label: "Sem saldo",
+    badgeVariant: "outline",
+    className: "border-warning/30 bg-warning/10 text-warning",
+    color: "hsl(38 92% 50%)",
+    description: "Item cadastrado, mas sem quantidade disponivel no momento.",
+  },
+  disponivel: {
+    label: "Disponivel",
+    badgeVariant: "secondary",
+    className: "border-primary/25 bg-primary/10 text-primary",
+    color: "hsl(152 55% 35%)",
+    description: "Ha saldo disponivel para operacao ou anuncio.",
+  },
   em_estoque: {
     label: "Sem saldo",
     badgeVariant: "outline",
     className: "border-warning/30 bg-warning/10 text-warning",
     color: "hsl(38 92% 50%)",
-    description: "Item cadastrado, mas sem quantidade disponível no momento.",
+    description: "Item cadastrado, mas sem quantidade disponivel no momento.",
   },
   em_producao: {
-    label: "Abaixo da meta",
+    label: "Disponivel",
     badgeVariant: "outline",
     className: "border-info/25 bg-info/10 text-info",
     color: "hsl(213 50% 45%)",
-    description: "Há saldo disponível, mas o volume ainda está abaixo da meta definida.",
+    description: "Ha saldo disponivel para operacao ou anuncio.",
   },
   concluido: {
-    label: "Meta atingida",
+    label: "Disponivel",
     badgeVariant: "secondary",
     className: "border-primary/25 bg-primary/10 text-primary",
     color: "hsl(152 55% 35%)",
-    description: "O volume atual já atingiu ou ultrapassou a meta do item.",
+    description: "Ha saldo disponivel para operacao ou anuncio.",
   },
 };
 
@@ -47,29 +61,14 @@ export const inventoryMovementMap: Record<
     className: "border-primary/20 bg-primary/10 text-primary",
   },
   saida: {
-    label: "Saída",
+    label: "Saida",
     badgeVariant: "outline",
     className: "border-destructive/25 bg-destructive/10 text-destructive",
   },
 };
 
-export function getInventoryItemStatus(quantity: number, targetQuantity: number): InventoryItem["status"] {
-  const safeTarget = Math.max(targetQuantity, 1);
-
-  if (quantity <= 0) {
-    return "em_estoque";
-  }
-
-  if (quantity >= safeTarget) {
-    return "concluido";
-  }
-
-  return "em_producao";
-}
-
-export function getInventoryProgress(item: Pick<InventoryItem, "quantity" | "targetQuantity">) {
-  const safeTarget = Math.max(item.targetQuantity, 1);
-  return Math.min(100, Math.round((Math.max(item.quantity, 0) / safeTarget) * 100));
+export function getInventoryItemStatus(quantity: number): InventoryItem["status"] {
+  return quantity > 0 ? "disponivel" : "sem_saldo";
 }
 
 export function formatInventoryQuantity(value: number, unit: string) {

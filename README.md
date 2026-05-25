@@ -20,7 +20,7 @@ Produto viavel entregue:
 Backend:
 
 ```text
-back-end/
+BackEnd/
   app/
     settings.py
     urls.py
@@ -67,24 +67,40 @@ User Django -> Empresa -> Produto -> Anuncio
 
 ## Rodando o backend Django
 
+O backend usa PostgreSQL. Antes de rodar as migracoes, crie um banco local e ajuste as variaveis se seus dados forem diferentes dos padroes:
+
 ```powershell
-cd back-end
+createdb -U postgres zenwaste
+$env:ZENWASTE_DB_NAME="zenwaste"
+$env:ZENWASTE_DB_USER="postgres"
+$env:ZENWASTE_DB_PASSWORD="123"
+$env:ZENWASTE_DB_HOST="localhost"
+$env:ZENWASTE_DB_PORT="5432"
+```
+
+```powershell
+cd BackEnd
 python -m venv .venv
-.\\.venv\\Scripts\\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py seed_demo_data
 python manage.py runserver 127.0.0.1:8000
 ```
 
-Se o `back-end/db.sqlite3` foi criado antes da modelagem atual, faca backup e recrie o banco para gerar as tabelas `EMPRESA`, `PRODUTO`, `ANUNCIO`, `RESERVA` e relacionadas:
+Se preferir evitar problemas de ativacao da venv no PowerShell, execute o Python da venv diretamente:
 
 ```powershell
-cd back-end
+cd BackEnd
+.\.venv\Scripts\python.exe manage.py migrate
+.\.venv\Scripts\python.exe manage.py runserver 127.0.0.1:8000
+```
+
+Se voce tinha dados antigos em `BackEnd/db.sqlite3`, eles nao serao mais usados. Guarde uma copia antes de remover o arquivo:
+
+```powershell
+cd BackEnd
 Copy-Item db.sqlite3 ..\.workspace\db.sqlite3.backup -ErrorAction SilentlyContinue
-Remove-Item db.sqlite3
-.\.venv\Scripts\python manage.py migrate
-.\.venv\Scripts\python manage.py seed_demo_data
+.\.venv\Scripts\python.exe manage.py migrate
 ```
 
 ## Rodando o frontend
@@ -275,6 +291,6 @@ Para testar saida:
 ```powershell
 npm run build
 npm run lint
-cd back-end
+cd BackEnd
 .\\.venv\\Scripts\\python manage.py test
 ```

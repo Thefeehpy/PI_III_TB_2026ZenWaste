@@ -1,25 +1,35 @@
 import { useState } from "react";
-import { AlertTriangle, Boxes, CheckCircle2, Plus, RefreshCcw } from "lucide-react";
+import { AlertTriangle, Boxes, CheckCircle2, FileCheck2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StockTable } from "@/components/StockTable";
 import { CreateItemModal } from "@/components/CreateItemModal";
 import { InventoryMovementModal } from "@/components/InventoryMovementModal";
+import { ReservationPanel } from "@/components/ReservationPanel";
+import { SellerAdsPanel } from "@/components/SellerAdsPanel";
+import { FinalizeAdModal } from "@/components/FinalizeAdModal";
 import { useInventory } from "@/contexts/InventoryContext";
-import type { InventoryItem, InventoryMovement } from "@/data/mockData";
+import type { InventoryItem, InventoryMovement, ReservationStatus, SellerAd } from "@/data/mockData";
+import { useToast } from "@/hooks/use-toast";
 import { formatInventoryDate, formatInventoryQuantity, inventoryMovementMap } from "@/lib/inventory";
 
 export default function Inventory() {
   const [modalOpen, setModalOpen] = useState(false);
   const [movementModalOpen, setMovementModalOpen] = useState(false);
+  const [finalizeModalOpen, setFinalizeModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [selectedAd, setSelectedAd] = useState<SellerAd | null>(null);
   const [movementType, setMovementType] = useState<InventoryMovement["type"]>("entrada");
-  const { items, movements } = useInventory();
+  const [isFinalizingAd, setIsFinalizingAd] = useState(false);
+  const { items, movements, reservations, sellerAds, updateReservationStatus, finalizeAd } = useInventory();
+  const { toast } = useToast();
 
   const itemsWithBalance = items.filter((item) => item.quantity > 0).length;
-  const itemsBelowTarget = items.filter((item) => item.quantity > 0 && item.quantity < item.targetQuantity).length;
   const itemsWithoutBalance = items.filter((item) => item.quantity <= 0).length;
+  const openReservations = reservations.filter((reservation) =>
+    reservation.status === "em_captacao" || reservation.status === "pronta"
+  ).length;
   const recentMovements = movements.slice(0, 6);
 
   const handleAdjustItem = (item: InventoryItem, type: InventoryMovement["type"]) => {
@@ -28,13 +38,27 @@ export default function Inventory() {
     setMovementModalOpen(true);
   };
 
+  const handleReservationStatus = async (reservationId: string, nextStatus: ReservationStatus) => {
+    const result = await updateReservationStatus(reservationId, nextStatus);
+    toast({
+      title: result.success ? "Reserva atualizada" : "Nao foi possivel atualizar",
+      description: result.message,
+      variant: result.success ? "default" : "destructive",
+    });
+  };
+
+  const handleFinalizeAd = (ad: SellerAd) => {
+    setSelectedAd(ad);
+    setFinalizeModalOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Controle de Estoque</h2>
           <p className="text-muted-foreground">
-            Gerencie entradas, saídas e metas dos resíduos com uma operação mais clara e rastreável.
+            Gerencie saldo, movimentacoes, vendas de anuncios e reservas futuras dos residuos.
           </p>
         </div>
         <Button onClick={() => setModalOpen(true)} className="gap-2">
@@ -63,9 +87,9 @@ export default function Inventory() {
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Com saldo disponível</p>
+                <p className="text-sm text-muted-foreground">Com saldo disponivel</p>
                 <p className="mt-2 text-3xl font-semibold text-foreground">{itemsWithBalance}</p>
-                <p className="mt-2 text-xs text-muted-foreground">prontos para operação ou anúncio</p>
+                <p className="mt-2 text-xs text-muted-foreground">prontos para operacao ou anuncio</p>
               </div>
               <div className="rounded-2xl bg-primary/10 p-3">
                 <CheckCircle2 className="h-5 w-5 text-primary" />
@@ -78,12 +102,12 @@ export default function Inventory() {
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Abaixo da meta</p>
-                <p className="mt-2 text-3xl font-semibold text-foreground">{itemsBelowTarget}</p>
-                <p className="mt-2 text-xs text-muted-foreground">itens que ainda pedem reforço de saldo</p>
+                <p className="text-sm text-muted-foreground">Reservas abertas</p>
+                <p className="mt-2 text-3xl font-semibold text-foreground">{openReservations}</p>
+                <p className="mt-2 text-xs text-muted-foreground">pedidos futuros em acompanhamento</p>
               </div>
               <div className="rounded-2xl bg-info/10 p-3">
-                <RefreshCcw className="h-5 w-5 text-info" />
+                <FileCheck2 className="h-5 w-5 text-info" />
               </div>
             </div>
           </CardContent>
@@ -95,7 +119,7 @@ export default function Inventory() {
               <div>
                 <p className="text-sm text-muted-foreground">Sem saldo</p>
                 <p className="mt-2 text-3xl font-semibold text-foreground">{itemsWithoutBalance}</p>
-                <p className="mt-2 text-xs text-muted-foreground">cadastros que precisam de reposição</p>
+                <p className="mt-2 text-xs text-muted-foreground">cadastros que precisam de reposicao</p>
               </div>
               <div className="rounded-2xl bg-warning/10 p-3">
                 <AlertTriangle className="h-5 w-5 text-warning" />
@@ -110,7 +134,7 @@ export default function Inventory() {
           <CardHeader className="pb-3">
             <CardTitle className="text-xl">Itens em estoque</CardTitle>
             <CardDescription>
-              Use os botões de entrada e saída para movimentar rapidamente o saldo de cada item.
+              Use os botoes de entrada e saida para movimentar o saldo real de cada item.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
@@ -120,15 +144,13 @@ export default function Inventory() {
 
         <Card className="border-border/70 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-xl">Movimentações recentes</CardTitle>
-            <CardDescription>
-              Histórico rápido das últimas entradas e saídas registradas no estoque.
-            </CardDescription>
+            <CardTitle className="text-xl">Movimentacoes recentes</CardTitle>
+            <CardDescription>Historico rapido das ultimas entradas e saidas registradas.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {recentMovements.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-                As movimentações aparecerão aqui assim que você registrar a primeira entrada ou saída.
+                As movimentacoes aparecerao aqui assim que voce registrar a primeira entrada ou saida.
               </div>
             ) : (
               recentMovements.map((movement) => {
@@ -154,7 +176,7 @@ export default function Inventory() {
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Saldo após operação</span>
+                        <span className="text-muted-foreground">Saldo apos operacao</span>
                         <span className="font-medium text-foreground">
                           {formatInventoryQuantity(movement.resultingQuantity, movement.unit)}
                         </span>
@@ -178,12 +200,101 @@ export default function Inventory() {
         </Card>
       </div>
 
+      <SellerAdsPanel ads={sellerAds} onFinalize={handleFinalizeAd} />
+      <ReservationPanel reservations={reservations} onStatusChange={handleReservationStatus} />
+
       <CreateItemModal open={modalOpen} onOpenChange={setModalOpen} />
       <InventoryMovementModal
         item={selectedItem}
         open={movementModalOpen}
         onOpenChange={setMovementModalOpen}
         initialType={movementType}
+      />
+      <FinalizeAdModal
+        ad={selectedAd}
+        open={finalizeModalOpen}
+        isSubmitting={isFinalizingAd}
+        onOpenChange={(open) => {
+          setFinalizeModalOpen(open);
+          if (!open) {
+            setSelectedAd(null);
+          }
+        }}
+        onSubmit={async (input) => {
+          if (!selectedAd) {
+            return;
+          }
+
+          if (!Number.isFinite(input.soldQuantity) || input.soldQuantity <= 0) {
+            toast({
+              title: "Quantidade invalida",
+              description: "Informe uma quantidade vendida maior que zero.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          if (input.soldQuantity > selectedAd.availableQuantity) {
+            toast({
+              title: "Saldo insuficiente",
+              description: "A quantidade vendida nao pode ultrapassar o saldo atual do produto.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          const wantsReservation = input.reservationQuantity !== undefined;
+          if (
+            wantsReservation &&
+            (!Number.isFinite(input.reservationQuantity) || input.reservationQuantity <= 0)
+          ) {
+            toast({
+              title: "Reserva invalida",
+              description: "Informe uma quantidade reservada maior que zero.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          if (
+            wantsReservation &&
+            (!Number.isFinite(input.reservationUnitPrice) || Number(input.reservationUnitPrice) < 0)
+          ) {
+            toast({
+              title: "Preco invalido",
+              description: "Informe um preco unitario valido para a reserva.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          if (wantsReservation && (!input.buyerName.trim() || !input.buyerPhone.trim())) {
+            toast({
+              title: "Comprador obrigatorio",
+              description: "Informe nome e numero do comprador para criar uma reserva.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          setIsFinalizingAd(true);
+          const result = await finalizeAd({
+            adId: selectedAd.id,
+            ...input,
+          });
+          setIsFinalizingAd(false);
+
+          toast({
+            title: result.success ? "Anuncio finalizado" : "Nao foi possivel finalizar",
+            description: result.message,
+            variant: result.success ? "default" : "destructive",
+          });
+
+          if (result.success) {
+            setFinalizeModalOpen(false);
+            setSelectedAd(null);
+          }
+        }}
       />
     </div>
   );

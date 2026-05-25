@@ -14,8 +14,8 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import logo from "@/assets/logo.png";
 import heroBg from "@/assets/hero-bg.jpg";
+import { BrandLogo } from "@/components/BrandLogo";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const heroStats = [
@@ -93,11 +93,11 @@ export default function Index() {
 
         <header className="relative z-10 container flex items-center justify-between gap-4 py-6">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/10 backdrop-blur">
-              <img src={logo} alt="ZenWaste" className="h-10 w-10" />
+            <div className="flex items-center justify-center">
+              <BrandLogo size="md" tone="dark" />
             </div>
             <div>
-              <p className="font-display text-lg font-semibold tracking-tight">ZenWaste</p>
+              <p className="sr-only">ZenWaste</p>
               <p className="text-sm text-white/[0.65]">
                 Economia circular industrial com visão de produto
               </p>
@@ -486,9 +486,9 @@ export default function Index() {
       <footer className="border-t border-border/80 py-8">
         <div className="container flex flex-col gap-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <img src={logo} alt="ZenWaste" className="h-9 w-9" />
+            <BrandLogo size="sm" />
             <div>
-              <p className="font-medium text-foreground">ZenWaste</p>
+              <p className="sr-only">ZenWaste</p>
               <p>Plataforma de economia circular industrial</p>
             </div>
           </div>

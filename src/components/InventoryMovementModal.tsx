@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, Boxes, Target } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Boxes, ClipboardCheck } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -58,7 +58,7 @@ export function InventoryMovementModal({
   const projectedQuantity = item
     ? Math.max(0, item.quantity + (movementType === "entrada" ? numericQuantity || 0 : -(numericQuantity || 0)))
     : 0;
-  const projectedStatus = item ? inventoryStatusMap[getInventoryItemStatus(projectedQuantity, item.targetQuantity)] : null;
+  const projectedStatus = item ? inventoryStatusMap[getInventoryItemStatus(projectedQuantity)] : null;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -145,7 +145,7 @@ export function InventoryMovementModal({
           </Tabs>
 
           {item && (
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-border/70 bg-card p-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Boxes className="h-4 w-4" />
@@ -158,26 +158,8 @@ export function InventoryMovementModal({
 
               <div className="rounded-2xl border border-border/70 bg-card p-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Target className="h-4 w-4" />
-                  Meta do item
-                </div>
-                <p className="mt-3 text-2xl font-semibold text-foreground">
-                  {formatInventoryQuantity(item.targetQuantity, item.unit)}
-                </p>
-              </div>
-
-              <div
-                className={`rounded-2xl border p-4 ${
-                  exceedsAvailable ? "border-destructive/30 bg-destructive/5" : "border-border/70 bg-card"
-                }`}
-              >
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  {movementType === "entrada" ? (
-                    <ArrowUpRight className="h-4 w-4 text-primary" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 text-destructive" />
-                  )}
-                  Saldo projetado
+                  <ClipboardCheck className="h-4 w-4" />
+                  Status projetado
                 </div>
                 <p className="mt-3 text-2xl font-semibold text-foreground">
                   {formatInventoryQuantity(projectedQuantity, item.unit)}

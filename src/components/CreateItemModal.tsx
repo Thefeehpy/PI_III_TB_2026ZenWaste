@@ -25,8 +25,6 @@ const initialForm = {
   type: "",
   quantity: "",
   unit: "kg",
-  target: "",
-  deadline: "",
 };
 
 export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
@@ -42,8 +40,6 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
       type: form.type,
       quantity: Number(form.quantity),
       unit: form.unit,
-      targetQuantity: Number(form.target),
-      deadline: form.deadline,
     });
 
     if (!result.success) {
@@ -71,7 +67,7 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
           <DialogHeader className="text-left">
             <DialogTitle className="text-2xl">Cadastrar item de estoque</DialogTitle>
             <DialogDescription className="max-w-xl leading-6">
-              Crie um novo item para começar a controlar saldo, meta e movimentações operacionais.
+              Crie um novo item para controlar saldo e movimentacoes operacionais.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -79,11 +75,11 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
         <form onSubmit={handleSubmit} className="space-y-6 p-6">
           <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-2">
-              <Label htmlFor="name">Nome do resíduo</Label>
+              <Label htmlFor="name">Nome do residuo</Label>
               <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </div>
             <div className="space-y-2">
-              <Label>Tipo de resíduo</Label>
+              <Label>Tipo de residuo</Label>
               <Select value={form.type} onValueChange={(value) => setForm({ ...form, type: value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o tipo" />
@@ -99,7 +95,7 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="qty">Saldo inicial</Label>
               <Input
@@ -126,35 +122,11 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="target">Meta do item</Label>
-              <Input
-                id="target"
-                type="number"
-                min="1"
-                step="0.01"
-                value={form.target}
-                onChange={(e) => setForm({ ...form, target: e.target.value })}
-                required
-              />
-            </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr]">
-            <div className="space-y-2">
-              <Label htmlFor="deadline">Prazo</Label>
-              <Input
-                id="deadline"
-                type="date"
-                value={form.deadline}
-                onChange={(e) => setForm({ ...form, deadline: e.target.value })}
-                required
-              />
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-              O saldo inicial será registrado automaticamente como a primeira entrada do item, o que
-              ajuda a manter o histórico operacional mais claro desde o cadastro.
-            </div>
+          <div className="rounded-2xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+            O saldo inicial sera registrado automaticamente como a primeira entrada do item, mantendo o historico
+            operacional claro desde o cadastro.
           </div>
 
           <DialogFooter className="gap-3 border-t border-border pt-5 sm:justify-between sm:space-x-0">

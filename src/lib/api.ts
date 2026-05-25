@@ -1,4 +1,4 @@
-import type { InventoryItem, InventoryMovement, WasteItem } from "@/data/mockData";
+import type { InventoryItem, InventoryMovement, Reservation, ReservationStatus, SellerAd, WasteItem } from "@/data/mockData";
 
 const API_URL = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api").replace(/\/$/, "");
 const TOKEN_STORAGE_KEY = "zenwaste.auth-token";
@@ -108,7 +108,7 @@ export const api = {
     return request<{ items: InventoryItem[] }>("/inventory/items/");
   },
 
-  async createInventoryItem(input: Omit<InventoryItem, "id" | "status" | "createdAt" | "updatedAt">) {
+  async createInventoryItem(input: Pick<InventoryItem, "name" | "type" | "quantity" | "unit">) {
     return request<{ item: InventoryItem }>("/inventory/items/", {
       method: "POST",
       body: JSON.stringify(input),
@@ -153,6 +153,61 @@ export const api = {
     return request<{ item: WasteItem }>("/marketplace/ads/", {
       method: "POST",
       body: JSON.stringify(input),
+    });
+  },
+
+  async listSellerAds() {
+    return request<{ items: SellerAd[] }>("/marketplace/ads/mine/");
+  },
+
+  async finalizeMarketplaceAd(input: {
+    adId: string;
+    soldQuantity: number;
+    buyerName?: string;
+    buyerPhone?: string;
+    reservationQuantity?: number;
+    reservationUnitPrice?: number;
+    reservationNote?: string;
+  }) {
+    return request<{
+      ad: SellerAd;
+      item: InventoryItem;
+      movement: InventoryMovement;
+      reservation?: Reservation;
+    }>(`/marketplace/ads/${input.adId}/finalize/`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  async createReservation(input: {
+    itemId: string;
+    quantity: number;
+    unitPrice: number;
+    buyerName: string;
+    buyerPhone: string;
+    note?: string;
+  }) {
+    return request<{ reservation: Reservation }>(`/inventory/items/${input.itemId}/reservations/`, {
+      method: "POST",
+      body: JSON.stringify({
+        quantity: input.quantity,
+        unitPrice: input.unitPrice,
+        buyerName: input.buyerName,
+        buyerPhone: input.buyerPhone,
+        note: input.note || "",
+      }),
+    });
+  },
+
+  async listReservations() {
+    return request<{ items: Reservation[] }>("/inventory/reservations/");
+  },
+
+  async updateReservationStatus(input: { reservationId: string; status: ReservationStatus }) {
+    return request<{ reservation: Reservation }>(`/inventory/reservations/${input.reservationId}/`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: input.status }),
     });
   },
 
