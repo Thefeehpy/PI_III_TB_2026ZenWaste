@@ -115,6 +115,16 @@ export const api = {
     });
   },
 
+  async updateInventoryItem(
+    itemId: string,
+    input: Partial<Pick<InventoryItem, "name" | "type" | "unit" | "targetQuantity" | "deadline">>,
+  ) {
+    return request<{ item: InventoryItem }>(`/inventory/items/${itemId}/`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+
   async listInventoryMovements() {
     return request<{ movements: InventoryMovement[] }>("/inventory/movements/");
   },

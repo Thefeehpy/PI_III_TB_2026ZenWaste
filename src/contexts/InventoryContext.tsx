@@ -19,6 +19,15 @@ interface AdjustInventoryQuantityInput {
   note?: string;
 }
 
+interface UpdateInventoryItemInput {
+  itemId: string;
+  name?: string;
+  type?: string;
+  unit?: string;
+  targetQuantity?: number;
+  deadline?: string;
+}
+
 interface InventoryActionResult {
   success: boolean;
   message: string;
@@ -30,6 +39,7 @@ interface InventoryContextValue {
   isLoading: boolean;
   refreshInventory: () => Promise<void>;
   addItem: (item: CreateInventoryItemInput) => Promise<InventoryActionResult>;
+  updateItem: (input: UpdateInventoryItemInput) => Promise<InventoryActionResult>;
   adjustItemQuantity: (input: AdjustInventoryQuantityInput) => Promise<InventoryActionResult>;
 }
 
@@ -109,6 +119,46 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
           return {
             success: false,
             message: error instanceof Error ? error.message : "Nao foi possivel cadastrar o item.",
+          };
+        }
+      },
+      updateItem: async (input) => {
+        try {
+          const payload: Partial<Pick<InventoryItem, "name" | "type" | "unit" | "targetQuantity" | "deadline">> = {};
+
+          if (input.name !== undefined) {
+            payload.name = input.name.trim();
+          }
+
+          if (input.type !== undefined) {
+            payload.type = input.type;
+          }
+
+          if (input.unit !== undefined) {
+            payload.unit = input.unit;
+          }
+
+          if (input.targetQuantity !== undefined) {
+            const targetQuantity = Math.max(1, Number(input.targetQuantity) || 1);
+            payload.targetQuantity = targetQuantity;
+          }
+
+          if (input.deadline !== undefined) {
+            payload.deadline = input.deadline;
+          }
+
+          const response = await api.updateInventoryItem(input.itemId, payload);
+
+          setItems((current) => sortItems([response.item, ...current.filter((item) => item.id !== response.item.id)]));
+
+          return {
+            success: true,
+            message: "Reserva atualizada com sucesso.",
+          };
+        } catch (error) {
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : "Nao foi possivel atualizar a reserva.",
           };
         }
       },

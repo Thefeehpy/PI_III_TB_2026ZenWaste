@@ -15,21 +15,21 @@ export const inventoryStatusMap: Record<
     badgeVariant: "outline",
     className: "border-warning/30 bg-warning/10 text-warning",
     color: "hsl(38 92% 50%)",
-    description: "Item cadastrado, mas sem quantidade disponível no momento.",
+    description: "Item cadastrado, mas sem quantidade disponivel para atender reservas ou novos anuncios.",
   },
   em_producao: {
-    label: "Abaixo da meta",
+    label: "Reserva pendente",
     badgeVariant: "outline",
     className: "border-info/25 bg-info/10 text-info",
     color: "hsl(213 50% 45%)",
-    description: "Há saldo disponível, mas o volume ainda está abaixo da meta definida.",
+    description: "Ha saldo disponivel, mas a reserva vinculada ainda nao foi totalmente coberta.",
   },
   concluido: {
-    label: "Meta atingida",
+    label: "Reserva coberta",
     badgeVariant: "secondary",
     className: "border-primary/25 bg-primary/10 text-primary",
     color: "hsl(152 55% 35%)",
-    description: "O volume atual já atingiu ou ultrapassou a meta do item.",
+    description: "O saldo atual ja cobre a quantidade reservada para este item.",
   },
 };
 
@@ -47,7 +47,7 @@ export const inventoryMovementMap: Record<
     className: "border-primary/20 bg-primary/10 text-primary",
   },
   saida: {
-    label: "Saída",
+    label: "Saida",
     badgeVariant: "outline",
     className: "border-destructive/25 bg-destructive/10 text-destructive",
   },

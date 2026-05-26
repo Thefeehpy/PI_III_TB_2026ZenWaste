@@ -25,24 +25,25 @@ const mediaAssets = import.meta.glob("../assets/*", {
 }) as Record<string, string>;
 
 const heroVideo = mediaAssets["../assets/video-bg.mp4"];
+const heroSideImage = mediaAssets["../assets/img-hero.png"];
 
 const navigationItems = [
   { label: "Home", href: "#home" },
   { label: "Sobre", href: "#sobre" },
-  { label: "O que e", href: "#o-que-e" },
+  { label: "O que é", href: "#o-que-e" },
   { label: "Processo", href: "#processo" },
 ];
 
 const heroPillars = [
   { icon: Building2, label: "Marketplace B2B" },
-  { icon: Gauge, label: "Gestao Inteligente" },
+  { icon: Gauge, label: "Gestão Inteligente" },
   { icon: Leaf, label: "Economia Circular" },
 ];
 
 const aboutSignals = [
   { icon: Sparkles, label: "Tecnologia" },
-  { icon: TrendingUp, label: "Inteligencia de mercado" },
-  { icon: Boxes, label: "Gestao integrada" },
+  { icon: TrendingUp, label: "Inteligência de mercado" },
+  { icon: Boxes, label: "Gestão integrada" },
 ];
 
 const processSteps = [
@@ -56,18 +57,18 @@ const processSteps = [
     step: "2",
     icon: PackageSearch,
     title: "Publique ou encontre materiais",
-    description: "Anuncie residuos industriais ou encontre oportunidades no marketplace.",
+    description: "Anuncie resíduos industriais ou encontre oportunidades no marketplace.",
   },
   {
     step: "3",
     icon: Users,
     title: "Negocie diretamente",
-    description: "Conecte-se com outras empresas de forma pratica e rapida.",
+    description: "Conecte-se com outras empresas de forma prática e rápida.",
   },
   {
     step: "4",
     icon: BarChart3,
-    title: "Gerencie tudo em um so lugar",
+    title: "Gerencie tudo em um só lugar",
     description: "Controle estoque, metas e indicadores em tempo real.",
   },
 ];
@@ -173,50 +174,82 @@ export default function Index() {
         </header>
 
         <div className="container relative z-10 flex flex-1 items-center pb-24 pt-10 sm:pt-12 lg:pb-28 lg:pt-16">
-          <div data-reveal className="reveal-on-scroll max-w-3xl">
-            <div className={`${sectionTagClass} border-white/[0.14] bg-white/10 text-white/[0.82] backdrop-blur`}>
-              <Sparkles className="h-4 w-4 text-emerald-200" />
-              Home
-            </div>
+          <div className="grid w-full gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.92fr)] lg:items-center xl:gap-16">
+            <div data-reveal className="reveal-on-scroll max-w-3xl">
+              <div className={`${sectionTagClass} border-white/[0.14] bg-white/10 text-white/[0.82] backdrop-blur`}>
+                <Sparkles className="h-4 w-4 text-emerald-200" />
+                Home
+              </div>
 
-            <h1 className="mt-8 max-w-3xl font-display text-4xl font-semibold leading-[0.95] tracking-tight text-white sm:text-5xl lg:text-[4.8rem]">
-              Transforme residuos industriais em novas oportunidades.
-            </h1>
+              <h1 className="mt-8 max-w-3xl font-display text-[2.7rem] font-semibold leading-[0.95] tracking-tight text-white sm:text-[2.9rem] lg:text-[3.7rem]">
+                Transforme resíduos industriais em novas oportunidades.
+              </h1>
 
-            <p className="mt-6 max-w-2xl text-base leading-8 text-white/[0.74] sm:text-lg">
-              A plataforma que conecta empresas para comprar, vender e gerenciar residuos de forma
-              inteligente, sustentavel e lucrativa.
-            </p>
+              <p className="mt-6 max-w-2xl text-base leading-8 text-white/[0.74] sm:text-lg">
+                A plataforma que conecta empresas para comprar, vender e gerenciar resíduos de forma
+                inteligente, sustentável e lucrativa.
+              </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              {heroPillars.map((pillar, index) => (
-                <div
-                  key={pillar.label}
-                  data-reveal
-                  className="reveal-on-scroll landing-nav-shell inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm text-white/[0.78]"
-                  style={{ transitionDelay: `${120 + index * 90}ms` }}
+              <div className="mt-8 flex flex-wrap gap-3">
+                {heroPillars.map((pillar, index) => (
+                  <div
+                    key={pillar.label}
+                    data-reveal
+                    className="reveal-on-scroll landing-nav-shell inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm text-white/[0.78]"
+                    style={{ transitionDelay: `${120 + index * 90}ms` }}
+                  >
+                    <pillar.icon className="h-4 w-4 text-emerald-200" />
+                    {pillar.label}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-12 flex flex-col gap-4 sm:flex-row sm:items-center">
+                <Button
+                  size="lg"
+                  asChild
+                  className="h-12 rounded-full bg-white px-7 text-base font-semibold text-slate-950 shadow-[0_22px_60px_rgba(255,255,255,0.18)] hover:bg-white/[0.92]"
                 >
-                  <pillar.icon className="h-4 w-4 text-emerald-200" />
-                  {pillar.label}
-                </div>
-              ))}
+                  <Link to="/register">
+                    Comece agora gratuitamente
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+
+                <Link to="/login" className="text-sm font-medium text-white/[0.68] transition-colors hover:text-white">
+                  Entrar
+                </Link>
+              </div>
             </div>
 
-            <div className="mt-12 flex flex-col gap-4 sm:flex-row sm:items-center">
-              <Button
-                size="lg"
-                asChild
-                className="h-12 rounded-full bg-white px-7 text-base font-semibold text-slate-950 shadow-[0_22px_60px_rgba(255,255,255,0.18)] hover:bg-white/[0.92]"
-              >
-                <Link to="/register">
-                  Comece agora gratuitamente
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
+            <div
+              data-reveal
+              className="reveal-on-scroll relative mx-auto w-full max-w-[560px]"
+              style={{ transitionDelay: "140ms" }}
+            >
+              <div className="absolute -left-8 top-10 h-28 w-28 rounded-full bg-emerald-300/20 blur-3xl" />
+              <div className="absolute -right-4 bottom-10 h-36 w-36 rounded-full bg-cyan-200/20 blur-3xl" />
 
-              <Link to="/login" className="text-sm font-medium text-white/[0.68] transition-colors hover:text-white">
-                Entrar
-              </Link>
+              <div className="float-gentle relative overflow-hidden rounded-[32px]">
+                <div className="relative aspect-[4/3] overflow-hidden rounded-[32px]">
+                  {heroSideImage ? (
+                    <img
+                      src={heroSideImage}
+                      alt="Ilustração da hero ZenWaste"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center rounded-[32px] border border-dashed border-white/25 px-8 text-center">
+                      <div>
+                        <p className="font-display text-2xl font-semibold text-white">Espaço da imagem da hero</p>
+                        <p className="mt-3 text-sm leading-6 text-white/70">
+                          Adicione o arquivo `src/assets/img-hero.png` para exibir sua arte aqui.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -237,14 +270,14 @@ export default function Index() {
             </h2>
 
             <p className="mt-5 text-base leading-8 text-muted-foreground sm:text-lg">
-              A ZenWaste nasceu para resolver um dos maiores desafios da industria: o descarte
-              ineficiente de residuos.
+              A ZenWaste nasceu para resolver um dos maiores desafios da indústria: o descarte
+              ineficiente de resíduos.
             </p>
 
             <div className="mt-6 rounded-[30px] border border-border/70 bg-background/75 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur">
               <p className="text-base leading-8 text-foreground/[0.88]">
-                Unimos tecnologia, inteligencia de mercado e gestao integrada para transformar
-                materiais descartados em ativos estrategicos para outras empresas.
+                Unimos tecnologia, inteligência de mercado e gestão integrada para transformar
+                materiais descartados em ativos estratégicos para outras empresas.
               </p>
             </div>
           </div>
@@ -279,16 +312,16 @@ export default function Index() {
           <div data-reveal className="reveal-on-scroll max-w-2xl">
             <div className={`${sectionTagClass} border-primary/[0.16] bg-primary/[0.08] text-primary`}>
               <Sparkles className="h-4 w-4" />
-              O que e
+              O que é
             </div>
 
             <h2 className="mt-6 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              Muito alem de um marketplace.
+              Muito além de um marketplace.
             </h2>
 
             <p className="mt-5 text-base leading-8 text-muted-foreground sm:text-lg">
-              A ZenWaste e uma plataforma inteligente que conecta industrias interessadas em
-              reutilizar residuos e reduzir custos operacionais.
+              A ZenWaste é uma plataforma inteligente que conecta indústrias interessadas em
+              reutilizar resíduos e reduzir custos operacionais.
             </p>
           </div>
 
@@ -299,15 +332,15 @@ export default function Index() {
             >
               <div className="max-w-3xl">
                 <p className="text-lg leading-8 text-foreground/[0.9] sm:text-xl sm:leading-9">
-                  Com ela, sua empresa pode publicar residuos disponiveis para venda, encontrar
+                  Com ela, sua empresa pode publicar resíduos disponíveis para venda, encontrar
                   materiais com menor custo, gerenciar estoque interno, acompanhar metas e
-                  indicadores e receber sugestoes inteligentes de precificacao.
+                  indicadores e receber sugestões inteligentes de precificação.
                 </p>
 
                 <p className="mt-6 text-base leading-8 text-muted-foreground sm:text-lg">
                   Tudo acontece em um ambiente seguro, moderno e pensado para o mercado industrial,
-                  com uma experiencia mais fluida, visual e estrategica para conectar oferta,
-                  demanda e operacao em um unico lugar.
+                  com uma experiência mais fluida, visual e estratégica para conectar oferta,
+                  demanda e operação em um único lugar.
                 </p>
               </div>
             </article>
@@ -325,12 +358,12 @@ export default function Index() {
                 </div>
 
                 <p className="mt-6 font-display text-2xl font-semibold leading-tight text-white sm:text-3xl">
-                  Menos atrito para vender, comprar e gerenciar residuos com visao comercial e
+                  Menos atrito para vender, comprar e gerenciar resíduos com visão comercial e
                   operacional.
                 </p>
 
                 <p className="mt-5 text-base leading-8 text-white/[0.7]">
-                  A proposta da ZenWaste e transformar uma rotina normalmente fragmentada em um
+                  A proposta da ZenWaste é transformar uma rotina normalmente fragmentada em um
                   fluxo centralizado, claro e pronto para gerar novas oportunidades entre empresas.
                 </p>
               </div>
@@ -350,7 +383,7 @@ export default function Index() {
             </div>
 
             <h2 className="mt-6 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              Simples, rapido e eficiente.
+              Simples, rápido e eficiente.
             </h2>
           </div>
 
@@ -428,7 +461,7 @@ export default function Index() {
                 </div>
 
                 <h2 className="mt-6 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-                  O futuro da gestao sustentavel comeca agora.
+                  O futuro da gestão sustentável começa agora.
                 </h2>
 
                 <p className="mt-5 text-base leading-8 text-white/[0.76] sm:text-lg">
@@ -437,7 +470,7 @@ export default function Index() {
                 </p>
 
                 <p className="mt-4 font-display text-2xl font-semibold text-white">
-                  Faca parte da ZenWaste.
+                  Faça parte da ZenWaste.
                 </p>
 
                 <div className="mt-8 flex flex-col gap-4 sm:flex-row">
@@ -476,7 +509,7 @@ export default function Index() {
                       </div>
 
                       <h3 className="mt-6 font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                        Entrada rapida em uma plataforma feita para conectar operacao, mercado e
+                        Entrada rápida em uma plataforma feita para conectar operação, mercado e
                         sustentabilidade.
                       </h3>
 
@@ -484,18 +517,18 @@ export default function Index() {
                         {[
                           {
                             icon: Gauge,
-                            title: "Ativacao fluida",
-                            text: "Comece com uma experiencia clara, leve e pronta para escalar.",
+                            title: "Ativação fluida",
+                            text: "Comece com uma experiência clara, leve e pronta para escalar.",
                           },
                           {
                             icon: Sparkles,
-                            title: "Mais presenca visual",
+                            title: "Mais presença visual",
                             text: "Um bloco de cadastro com mais brilho, profundidade e contraste.",
                           },
                           {
                             icon: ShieldCheck,
                             title: "Base segura",
-                            text: "Fluxo moderno para empresas entrarem com mais confianca no ecossistema.",
+                            text: "Fluxo moderno para empresas entrarem com mais confiança no ecossistema.",
                           },
                         ].map((item) => (
                           <div

@@ -312,6 +312,11 @@
     animation: float-soft 9s ease-in-out infinite 1.2s;
   }
 
+  .float-gentle {
+    animation: float-gentle 8s ease-in-out infinite;
+    will-change: transform;
+  }
+
   .dark .landing-grid {
     background-image:
       linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
@@ -366,6 +371,17 @@
   }
 }
 
+@keyframes float-gentle {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -8px, 0);
+  }
+}
+
 @keyframes sweep-shine {
   0%,
   78%,
@@ -393,6 +409,7 @@
 @media (prefers-reduced-motion: reduce) {
   .landing-glow-orb,
   .float-soft,
+  .float-gentle,
   .float-delayed,
   .landing-bar,
   .landing-shimmer::after {
