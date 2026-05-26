@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronRight, ImagePlus, Sparkles, Trash2, UploadCloud } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useInventory } from "@/contexts/InventoryContext";
 import { useMarketplace } from "@/contexts/MarketplaceContext";
-import { locations } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { getMarketInsight, getSuggestedPriceByWasteType } from "@/lib/market-intelligence";
@@ -18,6 +17,45 @@ import { getMarketInsight, getSuggestedPriceByWasteType } from "@/lib/market-int
 const steps = ["Selecionar Item", "Detalhes do Anuncio", "Precificacao", "Revisao"];
 const MAX_IMAGE_DIMENSION = 1600;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+type CepLookupTone = "idle" | "loading" | "success" | "error";
+
+function normalizeCep(value: string) {
+  return value.replace(/\D/g, "").slice(0, 8);
+}
+
+function formatCep(value: string) {
+  const digits = normalizeCep(value);
+
+  if (digits.length <= 5) {
+    return digits;
+  }
+
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
+async function fetchAddressByCep(cep: string) {
+  const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+
+  if (!response.ok) {
+    throw new Error("Nao foi possivel consultar o CEP.");
+  }
+
+  const data = (await response.json()) as {
+    erro?: boolean;
+    localidade?: string;
+    uf?: string;
+  };
+
+  if (data.erro || !data.localidade || !data.uf) {
+    throw new Error("CEP nao encontrado.");
+  }
+
+  return {
+    city: data.localidade,
+    state: data.uf,
+  };
+}
 
 function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -77,11 +115,14 @@ export default function CreateAd() {
   const { toast } = useToast();
   const availableItems = items.filter((item) => item.quantity > 0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const lastResolvedCepRef = useRef("");
 
   const [currentStep, setCurrentStep] = useState(0);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [selectedPhotoName, setSelectedPhotoName] = useState("");
+  const [cepLookupTone, setCepLookupTone] = useState<CepLookupTone>("idle");
+  const [cepLookupMessage, setCepLookupMessage] = useState("");
   const [form, setForm] = useState({
     inventoryId: "",
     title: "",
@@ -89,11 +130,17 @@ export default function CreateAd() {
     description: "",
     quantity: "",
     unit: "kg",
+    cep: "",
+    city: "",
+    state: "",
     location: "",
     price: "",
     suggestedPrice: "0.00",
     photos: [] as string[],
   });
+
+  const normalizedCep = useMemo(() => normalizeCep(form.cep), [form.cep]);
+  const locationLabel = form.city && form.state ? `${form.city} - ${form.state}` : "";
 
   const next = () => setCurrentStep((step) => Math.min(step + 1, steps.length - 1));
   const prev = () => setCurrentStep((step) => Math.max(step - 1, 0));
@@ -128,36 +175,115 @@ export default function CreateAd() {
     };
   }, [form.type]);
 
-  const resetForm = () => {
-  setCurrentStep(0);
-  setSelectedPhotoName("");
-  setIsDraggingImage(false);
-  setIsProcessingImage(false);
-  setForm({
-    inventoryId: "",
-    title: "",
-    type: "",
-    description: "",
-    quantity: "",
-    unit: "kg",
-    location: "",
-    price: "",
-    suggestedPrice: "0.00",
-    photos: [],
-  });
-};
+  useEffect(() => {
+    if (!normalizedCep) {
+      lastResolvedCepRef.current = "";
+      setCepLookupTone("idle");
+      setCepLookupMessage("");
+      setForm((current) => ({
+        ...current,
+        city: "",
+        state: "",
+        location: "",
+      }));
+      return;
+    }
 
-const handlePublish = async () => {
-  const selectedInventory = items.find((item) => item.id === form.inventoryId);
-  if (!selectedInventory || !user) {
-    return;
-  }
+    if (normalizedCep.length < 8) {
+      lastResolvedCepRef.current = "";
+      setCepLookupTone("idle");
+      setCepLookupMessage("Digite um CEP com 8 numeros.");
+      setForm((current) => ({
+        ...current,
+        city: "",
+        state: "",
+        location: "",
+      }));
+      return;
+    }
+
+    if (lastResolvedCepRef.current === normalizedCep) {
+      return;
+    }
+
+    let active = true;
+
+    setCepLookupTone("loading");
+    setCepLookupMessage("Buscando cidade e estado...");
+
+    fetchAddressByCep(normalizedCep)
+      .then(({ city, state }) => {
+        if (!active) {
+          return;
+        }
+
+        lastResolvedCepRef.current = normalizedCep;
+        setForm((current) => ({
+          ...current,
+          city,
+          state,
+          location: `${city} - ${state}`,
+        }));
+        setCepLookupTone("success");
+        setCepLookupMessage("Cidade e estado preenchidos automaticamente.");
+      })
+      .catch((error) => {
+        if (!active) {
+          return;
+        }
+
+        lastResolvedCepRef.current = "";
+        setForm((current) => ({
+          ...current,
+          city: "",
+          state: "",
+          location: "",
+        }));
+        setCepLookupTone("error");
+        setCepLookupMessage(error instanceof Error ? error.message : "Nao foi possivel consultar o CEP.");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [normalizedCep]);
+
+  const resetForm = () => {
+    setCurrentStep(0);
+    setSelectedPhotoName("");
+    setIsDraggingImage(false);
+    setIsProcessingImage(false);
+    setCepLookupTone("idle");
+    setCepLookupMessage("");
+    lastResolvedCepRef.current = "";
+    setForm({
+      inventoryId: "",
+      title: "",
+      type: "",
+      description: "",
+      quantity: "",
+      unit: "kg",
+      cep: "",
+      city: "",
+      state: "",
+      location: "",
+      price: "",
+      suggestedPrice: "0.00",
+      photos: [],
+    });
+  };
+
+  const handlePublish = async () => {
+    const selectedInventory = items.find((item) => item.id === form.inventoryId);
+    if (!selectedInventory || !user) {
+      return;
+    }
 
     const result = await addItem({
       inventoryId: selectedInventory.id,
       name: form.title,
       type: selectedInventory.type,
-      description: form.description || `Material disponível no estoque da ${user.razaoSocial}.`,
+      description: form.description || `Material disponivel no estoque da ${user.razaoSocial}.`,
       quantity: Number(form.quantity),
       unit: form.unit,
       location: form.location,
@@ -174,26 +300,11 @@ const handlePublish = async () => {
     }
 
     toast({
-      title: "Anúncio publicado",
-      description: "Seu resíduo já está disponível no marketplace.",
+      title: "Anuncio publicado",
+      description: "Seu residuo ja esta disponivel no marketplace.",
     });
 
-    setCurrentStep(0);
-    setSelectedPhotoName("");
-    setIsDraggingImage(false);
-    setIsProcessingImage(false);
-    setForm({
-      inventoryId: "",
-      title: "",
-      type: "",
-      description: "",
-      quantity: "",
-      unit: "kg",
-      location: "",
-      price: "",
-      suggestedPrice: "0.00",
-      photos: [],
-    });
+    resetForm();
   };
 
   const attachPhoto = async (file: File) => {
@@ -231,6 +342,10 @@ const handlePublish = async () => {
 
     await attachPhoto(files[0]);
   };
+
+  const isLocationReady = Boolean(form.location && form.city && form.state && normalizedCep.length === 8);
+  const canAdvanceFromDetails = Boolean(form.title && form.quantity && isLocationReady);
+  const canPublish = Boolean(form.quantity && isLocationReady);
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -334,21 +449,50 @@ const handlePublish = async () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Localizacao</Label>
-                  <Select value={form.location} onValueChange={(value) => setForm({ ...form, location: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locations.map((location) => (
-                        <SelectItem key={location} value={location}>
-                          {location}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>CEP</Label>
+                  <Input
+                    inputMode="numeric"
+                    placeholder="00000-000"
+                    value={form.cep}
+                    onChange={(e) => {
+                      lastResolvedCepRef.current = "";
+                      setForm((current) => ({
+                        ...current,
+                        cep: formatCep(e.target.value),
+                        city: "",
+                        state: "",
+                        location: "",
+                      }));
+                    }}
+                  />
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_9rem]">
+                <div className="space-y-2">
+                  <Label>Cidade</Label>
+                  <Input value={form.city} placeholder="Preenchido automaticamente" readOnly />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Estado</Label>
+                  <Input value={form.state} placeholder="UF" readOnly />
+                </div>
+              </div>
+
+              {cepLookupMessage && (
+                <p
+                  className={`text-sm ${
+                    cepLookupTone === "error"
+                      ? "text-destructive"
+                      : cepLookupTone === "success"
+                        ? "text-primary"
+                        : "text-muted-foreground"
+                  }`}
+                >
+                  {cepLookupMessage}
+                </p>
+              )}
 
               <div className="space-y-2">
                 <Label>Imagem do Material</Label>
@@ -542,8 +686,12 @@ const handlePublish = async () => {
                   </span>
                 </div>
                 <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-muted-foreground">Localizacao</span>
-                  <span className="font-medium">{form.location || "-"}</span>
+                  <span className="text-muted-foreground">CEP</span>
+                  <span className="font-medium">{form.cep || "-"}</span>
+                </div>
+                <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-muted-foreground">Cidade / Estado</span>
+                  <span className="font-medium">{locationLabel || "-"}</span>
                 </div>
                 <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-muted-foreground">Preco</span>
@@ -572,15 +720,12 @@ const handlePublish = async () => {
             {currentStep < steps.length - 1 ? (
               <Button
                 onClick={next}
-                disabled={
-                  (currentStep === 0 && !form.inventoryId) ||
-                  (currentStep === 1 && (!form.title || !form.quantity || !form.location))
-                }
+                disabled={(currentStep === 0 && !form.inventoryId) || (currentStep === 1 && !canAdvanceFromDetails)}
               >
                 Proximo
               </Button>
             ) : (
-              <Button onClick={handlePublish} disabled={!form.quantity || !form.location}>
+              <Button onClick={handlePublish} disabled={!canPublish}>
                 Publicar Anuncio
               </Button>
             )}

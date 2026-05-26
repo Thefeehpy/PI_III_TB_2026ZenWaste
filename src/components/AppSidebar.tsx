@@ -3,6 +3,7 @@ import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/logo-zenwaste.png";
+import logoIcon from "@/assets/icone-logo.png";
 import {
   Sidebar,
   SidebarContent,
@@ -40,9 +41,9 @@ export function AppSidebar() {
       <SidebarContent>
         <div className={`p-4 ${collapsed ? "flex justify-center" : "flex flex-col items-center gap-4 text-center"}`}>
           <img
-            src={logo}
+            src={collapsed ? logoIcon : logo}
             alt="ZenWaste"
-            className={collapsed ? "w-10 h-auto shrink-0" : "w-full max-w-[9.5rem] h-auto shrink-0"}
+            className={collapsed ? "h-10 w-10 shrink-0 object-contain" : "h-auto w-full max-w-[9.5rem] shrink-0"}
           />
           {!collapsed && user && (
             <div className="w-full rounded-2xl border border-sidebar-border/60 bg-sidebar-accent/35 px-4 py-3 shadow-sm">

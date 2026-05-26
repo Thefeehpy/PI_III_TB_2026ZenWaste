@@ -21,6 +21,7 @@ export default function Inventory() {
   const [movementModalOpen, setMovementModalOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [movementType, setMovementType] = useState<InventoryMovement["type"]>("entrada");
+  const [showAllRecentMovements, setShowAllRecentMovements] = useState(false);
   const { user } = useAuth();
   const { items, movements } = useInventory();
   const { items: marketplaceItems } = useMarketplace();
@@ -40,11 +41,7 @@ export default function Inventory() {
   }, [marketplaceItems, user]);
   const pendingReservations = items.filter((item) => item.quantity < item.targetQuantity).length;
   const recentMovements = movements.slice(0, 6);
-  const weeklyMovements = useMemo(() => {
-    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    return movements.filter((movement) => new Date(movement.createdAt).getTime() >= sevenDaysAgo).length;
-  }, [movements]);
-
+  const visibleRecentMovements = showAllRecentMovements ? recentMovements : recentMovements.slice(0, 2);
   const handleViewItem = (item: InventoryItem) => {
     setSelectedItemId(item.id);
     setDetailsModalOpen(true);
@@ -78,11 +75,6 @@ export default function Inventory() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="rounded-2xl border border-border/70 bg-background/80 px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Movimentacoes na semana</p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">{weeklyMovements}</p>
-              </div>
-
               <Button onClick={() => setModalOpen(true)} className="h-12 gap-2 rounded-2xl px-5">
                 <Plus className="h-4 w-4" />
                 Cadastrar item
@@ -235,42 +227,55 @@ export default function Inventory() {
                   As movimentacoes aparecerao aqui assim que voce registrar a primeira entrada ou saida.
                 </div>
               ) : (
-                recentMovements.map((movement) => {
-                  const movementMeta = inventoryMovementMap[movement.type];
+                <>
+                  {visibleRecentMovements.map((movement) => {
+                    const movementMeta = inventoryMovementMap[movement.type];
 
-                  return (
-                    <div key={movement.id} className="rounded-2xl border border-border/70 bg-card p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <p className="font-medium text-foreground">{movement.itemName}</p>
-                          <p className="text-sm text-muted-foreground">{movement.itemType}</p>
+                    return (
+                      <div key={movement.id} className="rounded-2xl border border-border/70 bg-card p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <p className="font-medium text-foreground">{movement.itemName}</p>
+                            <p className="text-sm text-muted-foreground">{movement.itemType}</p>
+                          </div>
+                          <Badge variant={movementMeta.badgeVariant} className={movementMeta.className}>
+                            {movementMeta.label}
+                          </Badge>
                         </div>
-                        <Badge variant={movementMeta.badgeVariant} className={movementMeta.className}>
-                          {movementMeta.label}
-                        </Badge>
-                      </div>
 
-                      <div className="mt-4 space-y-2 text-sm">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-muted-foreground">Quantidade</span>
-                          <span className="font-medium text-foreground">
-                            {formatInventoryQuantity(movement.quantity, movement.unit)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-muted-foreground">Saldo apos operacao</span>
-                          <span className="font-medium text-foreground">
-                            {formatInventoryQuantity(movement.resultingQuantity, movement.unit)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-muted-foreground">Registrado em</span>
-                          <span className="font-medium text-foreground">{formatInventoryDate(movement.createdAt)}</span>
+                        <div className="mt-4 space-y-2 text-sm">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-muted-foreground">Quantidade</span>
+                            <span className="font-medium text-foreground">
+                              {formatInventoryQuantity(movement.quantity, movement.unit)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-muted-foreground">Saldo apos operacao</span>
+                            <span className="font-medium text-foreground">
+                              {formatInventoryQuantity(movement.resultingQuantity, movement.unit)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-muted-foreground">Registrado em</span>
+                            <span className="font-medium text-foreground">{formatInventoryDate(movement.createdAt)}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+
+                  {recentMovements.length > 2 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full rounded-2xl shadow-[0_16px_36px_rgba(15,23,42,0.14)]"
+                      onClick={() => setShowAllRecentMovements((current) => !current)}
+                    >
+                      {showAllRecentMovements ? "Ver menos" : "Ver mais"}
+                    </Button>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

@@ -25,7 +25,7 @@ export function StockTable({ items, onViewItem }: StockTableProps) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {items.map((item) => {
         const status = inventoryStatusMap[item.status];
         const reservationGap = Math.max(item.targetQuantity - item.quantity, 0);
