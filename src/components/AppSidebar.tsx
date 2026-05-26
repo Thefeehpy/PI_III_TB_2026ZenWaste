@@ -1,3 +1,4 @@
+
 import { LayoutDashboard, Package, PlusCircle, TrendingUp, ShoppingBag, LogOut } from "lucide-react";
 import { BrandLogo, BrandMonogram } from "@/components/BrandLogo";
 import { NavLink } from "@/components/NavLink";
