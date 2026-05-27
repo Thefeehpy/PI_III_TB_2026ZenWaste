@@ -57,18 +57,26 @@ def items(request: HttpRequest):
         waste_type = str(data.get("type", "")).strip()
         unit_sigla = str(data.get("unit", "kg")).strip() or "kg"
         quantity = decimal_from_payload(data.get("quantity", 0), "quantidade")
-        target_quantity = decimal_from_payload(data.get("targetQuantity", 0), "meta")
         deadline = date_from_payload(data.get("deadline", ""), "o prazo")
+        target_quantity = None
+        raw_target_quantity = data.get("targetQuantity")
+
+        if raw_target_quantity not in [None, ""]:
+            target_quantity = decimal_from_payload(raw_target_quantity, "meta")
 
         if not name or not waste_type:
             raise ApiError("Nome e tipo do residuo sao obrigatorios.", status=400)
         if quantity < 0:
             raise ApiError("A quantidade nao pode ser negativa.", status=400)
-        if target_quantity <= 0:
+        if target_quantity is not None and target_quantity <= 0:
             raise ApiError("A meta deve ser maior que zero.", status=400)
 
         with transaction.atomic():
-            reserva = Reserva.objects.create(status_meta="em_aberto", qntd_reserva=target_quantity)
+            reserva = (
+                Reserva.objects.create(status_meta="em_aberto", qntd_reserva=target_quantity)
+                if target_quantity is not None
+                else None
+            )
             item = Produto.objects.create(
                 empresa=company,
                 nome_residuo=name[:100],

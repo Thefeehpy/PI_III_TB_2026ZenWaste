@@ -42,7 +42,7 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
       type: form.type,
       quantity: Number(form.quantity),
       unit: form.unit,
-      targetQuantity: Number(form.target),
+      targetQuantity: form.target ? Number(form.target) : undefined,
       deadline: form.deadline,
     });
 
@@ -127,15 +127,15 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="target">Reserva do cliente</Label>
+              <Label htmlFor="target">Reserva do cliente (opcional)</Label>
               <Input
                 id="target"
                 type="number"
-                min="1"
+                min="0"
                 step="0.01"
                 value={form.target}
                 onChange={(e) => setForm({ ...form, target: e.target.value })}
-                required
+                placeholder="Se nao houver reserva, deixe em branco"
               />
             </div>
           </div>

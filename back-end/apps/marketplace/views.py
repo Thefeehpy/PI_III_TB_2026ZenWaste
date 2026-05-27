@@ -116,6 +116,7 @@ def ads(request: HttpRequest):
                 nr_qntd=quantity,
             )
             if image_url:
+                product.imagens.filter(eh_capa=True).update(eh_capa=False)
                 ImagemAnuncio.objects.create(produto=product, url_arquivo=image_url, eh_capa=True)
     except ApiError as exc:
         return api_error_response(exc)

@@ -99,7 +99,9 @@ class Produto(models.Model):
     def api_status(self) -> str:
         if self.quantidade_total <= 0:
             return "em_estoque"
-        if self.reserva and self.quantidade_total >= self.reserva.qntd_reserva:
+        if not self.reserva:
+            return "concluido"
+        if self.quantidade_total >= self.reserva.qntd_reserva:
             return "concluido"
         return "em_producao"
 
@@ -107,12 +109,12 @@ class Produto(models.Model):
     def meta_quantidade(self) -> Decimal:
         if self.reserva:
             return self.reserva.qntd_reserva
-        return Decimal("1.00")
+        return Decimal("0.00")
 
     def atualizar_status(self) -> None:
         if self.quantidade_total <= 0:
             self.status = self.STATUS_SEM_SALDO
-        elif self.reserva and self.quantidade_total >= self.reserva.qntd_reserva:
+        elif not self.reserva or self.quantidade_total >= self.reserva.qntd_reserva:
             self.status = self.STATUS_CONCLUIDO
         else:
             self.status = self.STATUS_EM_PRODUCAO

@@ -8,7 +8,7 @@ interface CreateInventoryItemInput {
   type: string;
   quantity: number;
   unit: string;
-  targetQuantity: number;
+  targetQuantity?: number;
   deadline: string;
 }
 
@@ -96,14 +96,17 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       addItem: async (item) => {
         try {
           const quantity = Math.max(0, Number(item.quantity) || 0);
-          const targetQuantity = Math.max(1, Number(item.targetQuantity) || 1);
+          const targetQuantity =
+            item.targetQuantity === undefined || item.targetQuantity === null || item.targetQuantity === 0
+              ? undefined
+              : Math.max(1, Number(item.targetQuantity) || 1);
           const response = await api.createInventoryItem({
             name: item.name.trim(),
             type: item.type,
             quantity,
             unit: item.unit,
-            targetQuantity,
             deadline: item.deadline,
+            ...(targetQuantity !== undefined ? { targetQuantity } : {}),
           });
 
           setItems((current) => sortItems([response.item, ...current]));

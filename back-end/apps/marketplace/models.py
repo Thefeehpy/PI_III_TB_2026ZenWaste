@@ -31,7 +31,7 @@ class Anuncio(models.Model):
 
 class ImagemAnuncio(models.Model):
     id_imagem = models.AutoField(primary_key=True)
-    url_arquivo = models.URLField(max_length=255)
+    url_arquivo = models.TextField()
     eh_capa = models.BooleanField(default=False)
     produto = models.ForeignKey(Produto, db_column="FK_id_produto", on_delete=models.CASCADE, related_name="imagens")
 

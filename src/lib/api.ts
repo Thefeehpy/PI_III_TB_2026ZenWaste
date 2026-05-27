@@ -108,7 +108,14 @@ export const api = {
     return request<{ items: InventoryItem[] }>("/inventory/items/");
   },
 
-  async createInventoryItem(input: Omit<InventoryItem, "id" | "status" | "createdAt" | "updatedAt">) {
+  async createInventoryItem(input: {
+    name: string;
+    type: string;
+    quantity: number;
+    unit: string;
+    targetQuantity?: number;
+    deadline: string;
+  }) {
     return request<{ item: InventoryItem }>("/inventory/items/", {
       method: "POST",
       body: JSON.stringify(input),

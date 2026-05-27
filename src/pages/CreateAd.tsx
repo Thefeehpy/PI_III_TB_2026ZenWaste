@@ -288,6 +288,7 @@ export default function CreateAd() {
       unit: form.unit,
       location: form.location,
       price: Number(form.price || form.suggestedPrice),
+      imageUrl: form.photos[0] || undefined,
     });
 
     if (!result.success) {
