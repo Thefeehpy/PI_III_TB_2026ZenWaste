@@ -67,7 +67,7 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
           <DialogHeader className="text-left">
             <DialogTitle className="text-2xl">Cadastrar item de estoque</DialogTitle>
             <DialogDescription className="max-w-xl leading-6">
-              Crie um novo item para controlar saldo e movimentacoes operacionais.
+              Crie um novo item para comecar a controlar saldo e movimentacoes operacionais.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -95,7 +95,7 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-[1fr_12rem]">
             <div className="space-y-2">
               <Label htmlFor="qty">Saldo inicial</Label>
               <Input
@@ -125,8 +125,8 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
           </div>
 
           <div className="rounded-2xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-            O saldo inicial sera registrado automaticamente como a primeira entrada do item, mantendo o historico
-            operacional claro desde o cadastro.
+            O saldo inicial sera registrado automaticamente como a primeira entrada do item. Reservas de clientes e seus
+            prazos podem ser cadastrados depois, nos detalhes do produto.
           </div>
 
           <DialogFooter className="gap-3 border-t border-border pt-5 sm:justify-between sm:space-x-0">

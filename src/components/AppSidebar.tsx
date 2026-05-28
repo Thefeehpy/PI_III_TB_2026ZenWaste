@@ -1,8 +1,9 @@
 import { LayoutDashboard, Package, PlusCircle, TrendingUp, ShoppingBag, LogOut } from "lucide-react";
-import { BrandLogo, BrandMonogram } from "@/components/BrandLogo";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import logo from "@/assets/logo-zenwaste.png";
+import logoIcon from "@/assets/icone-logo.png";
 import {
   Sidebar,
   SidebarContent,
@@ -38,11 +39,20 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
-        <div className="flex items-center gap-3 p-4">
-          {collapsed ? <BrandMonogram className="size-8 rounded-xl text-xs" /> : <BrandLogo size="xs" tone="dark" />}
-          {!collapsed && (
-            <div className="min-w-0">
-              {user && <p className="text-xs text-sidebar-foreground/70">{user.razaoSocial}</p>}
+        <div className={`p-4 ${collapsed ? "flex justify-center" : "flex flex-col items-center gap-4 text-center"}`}>
+          <img
+            src={collapsed ? logoIcon : logo}
+            alt="ZenWaste"
+            className={collapsed ? "h-10 w-10 shrink-0 object-contain" : "h-auto w-full max-w-[9.5rem] shrink-0"}
+          />
+          {!collapsed && user && (
+            <div className="w-full rounded-2xl border border-sidebar-border/60 bg-sidebar-accent/35 px-4 py-3 shadow-sm">
+              <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-sidebar-foreground/45">
+                Empresa ativa
+              </p>
+              <p className="mt-2 break-words text-sm font-semibold leading-5 text-sidebar-foreground">
+                {user.razaoSocial}
+              </p>
             </div>
           )}
         </div>

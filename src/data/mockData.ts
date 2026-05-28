@@ -14,13 +14,21 @@ export interface WasteItem {
   whatsappUrl?: string;
 }
 
+export interface SellerWasteItem extends WasteItem {
+  itemId: string;
+  status: "ativo" | "inativo" | "vendido";
+  availableQuantity: number;
+}
+
 export interface InventoryItem {
   id: string;
   name: string;
   type: string;
   quantity: number;
   unit: string;
-  status: "sem_saldo" | "disponivel" | "em_estoque" | "em_producao" | "concluido";
+  targetQuantity: number;
+  deadline: string;
+  status: "em_estoque" | "em_producao" | "concluido";
   createdAt: string;
   updatedAt: string;
 }
@@ -36,33 +44,6 @@ export interface InventoryMovement {
   note?: string;
   createdAt: string;
   resultingQuantity: number;
-}
-
-export type ReservationStatus = "em_captacao" | "pronta" | "finalizada" | "cancelada";
-
-export interface Reservation {
-  id: string;
-  itemId: string;
-  itemName: string;
-  itemType: string;
-  unit: string;
-  currentQuantity: number;
-  missingQuantity: number;
-  buyerName: string;
-  buyerPhone: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  status: ReservationStatus;
-  note?: string;
-  reservedAt: string;
-  finalizedAt: string;
-}
-
-export interface SellerAd extends WasteItem {
-  itemId: string;
-  status: string;
-  availableQuantity: number;
 }
 
 export const wasteTypes = [

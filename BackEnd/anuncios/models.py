@@ -10,7 +10,7 @@ class Anuncio(models.Model):
     nr_qtd = models.DecimalField(max_digits=10, decimal_places=2)
     data_final = models.DateField(null=True, blank=True)
     localizacao = models.CharField(max_length=120, blank=True)
-    imagem_url = models.URLField(max_length=500, blank=True)
+    imagem_url = models.URLField(max_length=2000, blank=True)
 
     produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='anuncios', null=False)
 
@@ -32,6 +32,7 @@ class Reserva(models.Model):
     preco_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="em_captacao")
     observacao = models.CharField(max_length=500, blank=True)
+    prazo_reserva = models.DateField(null=True, blank=True)
     data_reserva = models.DateTimeField(auto_now_add=True)
     data_finalizacao = models.DateTimeField(null=True, blank=True)
     nome_comprador = models.CharField(max_length=120, blank=False)

@@ -14,10 +14,12 @@ from produtos.serializers import (
     ReservationInputSerializer,
     ReservationSerializer,
     ReservationStatusUpdateSerializer,
+    reservation_table_exists,
 )
 from produtos.services import (
     create_inventory_item,
     create_product_reservation,
+    delete_inventory_item,
     register_inventory_movement,
     update_inventory_item,
     update_product_reservation,
@@ -97,11 +99,13 @@ class InventoryItemDetailAPIView(ZenWasteAPIView):
         if error:
             return error
 
-        deleted, _ = Produto.objects.filter(id_produto=pk, empresa=empresa).delete()
-        if not deleted:
+        try:
+            produto = Produto.objects.get(id_produto=pk, empresa=empresa)
+        except Produto.DoesNotExist:
             return Response({"message": "Item de estoque nao encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        closed_ads = delete_inventory_item(produto)
+        return Response({"message": "Item excluido com sucesso.", "closedAds": closed_ads})
 
 
 class InventoryMovementsAPIView(ZenWasteAPIView):
@@ -141,6 +145,9 @@ class InventoryReservationsAPIView(ZenWasteAPIView):
         if error:
             return error
 
+        if not reservation_table_exists():
+            return Response({"items": []})
+
         reservations = Reserva.objects.filter(produto__empresa=empresa).select_related("produto")
         return Response({"items": ReservationSerializer(reservations, many=True).data})
 
@@ -150,6 +157,12 @@ class InventoryItemReservationsAPIView(ZenWasteAPIView):
         empresa, error = require_empresa(request)
         if error:
             return error
+
+        if not reservation_table_exists():
+            return Response(
+                {"message": "Reservas ainda nao estao disponiveis neste banco de dados."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         try:
             produto = Produto.objects.get(id_produto=pk, empresa=empresa)
@@ -168,6 +181,12 @@ class InventoryReservationDetailAPIView(ZenWasteAPIView):
         empresa, error = require_empresa(request)
         if error:
             return error
+
+        if not reservation_table_exists():
+            return Response(
+                {"message": "Reservas ainda nao estao disponiveis neste banco de dados."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         try:
             reserva = Reserva.objects.select_related("produto").get(id_reserva=pk, produto__empresa=empresa)

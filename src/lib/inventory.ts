@@ -10,40 +10,26 @@ export const inventoryStatusMap: Record<
     description: string;
   }
 > = {
-  sem_saldo: {
-    label: "Sem saldo",
-    badgeVariant: "outline",
-    className: "border-warning/30 bg-warning/10 text-warning",
-    color: "hsl(38 92% 50%)",
-    description: "Item cadastrado, mas sem quantidade disponivel no momento.",
-  },
-  disponivel: {
-    label: "Disponivel",
-    badgeVariant: "secondary",
-    className: "border-primary/25 bg-primary/10 text-primary",
-    color: "hsl(152 55% 35%)",
-    description: "Ha saldo disponivel para operacao ou anuncio.",
-  },
   em_estoque: {
     label: "Sem saldo",
     badgeVariant: "outline",
     className: "border-warning/30 bg-warning/10 text-warning",
     color: "hsl(38 92% 50%)",
-    description: "Item cadastrado, mas sem quantidade disponivel no momento.",
+    description: "Item cadastrado, mas sem quantidade disponivel para atender reservas ou novos anuncios.",
   },
   em_producao: {
-    label: "Disponivel",
+    label: "Reserva pendente",
     badgeVariant: "outline",
     className: "border-info/25 bg-info/10 text-info",
     color: "hsl(213 50% 45%)",
-    description: "Ha saldo disponivel para operacao ou anuncio.",
+    description: "Ha saldo disponivel, mas a reserva vinculada ainda nao foi totalmente coberta.",
   },
   concluido: {
-    label: "Disponivel",
+    label: "Reserva coberta",
     badgeVariant: "secondary",
     className: "border-primary/25 bg-primary/10 text-primary",
     color: "hsl(152 55% 35%)",
-    description: "Ha saldo disponivel para operacao ou anuncio.",
+    description: "O saldo atual ja cobre a quantidade reservada para este item.",
   },
 };
 
@@ -67,20 +53,76 @@ export const inventoryMovementMap: Record<
   },
 };
 
-export function getInventoryItemStatus(quantity: number): InventoryItem["status"] {
-  return quantity > 0 ? "disponivel" : "sem_saldo";
+export function getInventoryItemStatus(quantity: number, targetQuantity: number): InventoryItem["status"] {
+  const safeTarget = Math.max(targetQuantity, 1);
+
+  if (quantity <= 0) {
+    return "em_estoque";
+  }
+
+  if (quantity >= safeTarget) {
+    return "concluido";
+  }
+
+  return "em_producao";
+}
+
+export function getInventoryProgress(item: Pick<InventoryItem, "quantity" | "targetQuantity">) {
+  const safeTarget = Math.max(item.targetQuantity, 1);
+  return Math.min(100, Math.round((Math.max(item.quantity, 0) / safeTarget) * 100));
 }
 
 export function formatInventoryQuantity(value: number, unit: string) {
   return `${value.toLocaleString("pt-BR")} ${unit}`;
 }
 
+function parseInventoryDate(value: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return new Date(`${value}T00:00:00`);
+  }
+
+  return new Date(value);
+}
+
 export function formatInventoryDate(value: string) {
-  return new Date(value).toLocaleString("pt-BR", {
+  const date = parseInventoryDate(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+  });
+}
+
+export function formatInventoryChartDate(value: string) {
+  const date = parseInventoryDate(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+export function formatInventoryCalendarDate(value: string) {
+  const date = parseInventoryDate(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
   });
 }

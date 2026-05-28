@@ -10,12 +10,26 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name="produto",
-            name="meta_quantidade",
-        ),
-        migrations.RemoveField(
-            model_name="produto",
-            name="prazo_meta",
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql='ALTER TABLE "produtos_produto" DROP COLUMN IF EXISTS "meta_quantidade";',
+                    reverse_sql=migrations.RunSQL.noop,
+                ),
+                migrations.RunSQL(
+                    sql='ALTER TABLE "produtos_produto" DROP COLUMN IF EXISTS "prazo_meta";',
+                    reverse_sql=migrations.RunSQL.noop,
+                ),
+            ],
+            state_operations=[
+                migrations.RemoveField(
+                    model_name="produto",
+                    name="meta_quantidade",
+                ),
+                migrations.RemoveField(
+                    model_name="produto",
+                    name="prazo_meta",
+                ),
+            ],
         ),
     ]

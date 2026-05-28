@@ -1,11 +1,11 @@
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
-  BadgeCheck,
   BarChart3,
   Boxes,
-  Factory,
+  Building2,
   Gauge,
   Leaf,
   PackageSearch,
@@ -14,494 +14,569 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
+import logo from "@/assets/logo-zenwaste.png";
 import heroBg from "@/assets/hero-bg.jpg";
-import { BrandLogo } from "@/components/BrandLogo";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const heroStats = [
-  {
-    value: "R$ 4,8 mi",
-    label: "potencial anual capturado com revenda e reaproveitamento inteligente",
-  },
-  { value: "72h", label: "para transformar excedente operacional em oferta pronta para o mercado" },
-  { value: "98%", label: "de visibilidade sobre estoque, demanda e critérios de conformidade" },
+const mediaAssets = import.meta.glob("../assets/*", {
+  eager: true,
+  import: "default",
+  query: "?url",
+}) as Record<string, string>;
+
+const heroVideo = mediaAssets["../assets/video-bg.mp4"];
+const heroSideImage = mediaAssets["../assets/img-hero.png"];
+
+const navigationItems = [
+  { label: "Home", href: "#home" },
+  { label: "Sobre", href: "#sobre" },
+  { label: "O que é", href: "#o-que-e" },
+  { label: "Processo", href: "#processo" },
 ];
 
-const featureCards = [
+const heroPillars = [
+  { icon: Building2, label: "Marketplace B2B" },
+  { icon: Gauge, label: "Gestão Inteligente" },
+  { icon: Leaf, label: "Economia Circular" },
+];
+
+const aboutSignals = [
+  { icon: Sparkles, label: "Tecnologia" },
+  { icon: TrendingUp, label: "Inteligência de mercado" },
+  { icon: Boxes, label: "Gestão integrada" },
+];
+
+const processSteps = [
   {
+    step: "1",
+    icon: Building2,
+    title: "Cadastre sua empresa",
+    description: "Crie sua conta e acesse o ecossistema ZenWaste.",
+  },
+  {
+    step: "2",
     icon: PackageSearch,
-    title: "Marketplace com contexto técnico",
-    description:
-      "Anuncie resíduos, subprodutos e materiais com especificações claras, informações operacionais e enquadramento ideal para compradores B2B.",
-    points: ["Filtros por categoria, região e uso", "Listagens com atributos industriais relevantes"],
+    title: "Publique ou encontre materiais",
+    description: "Anuncie resíduos industriais ou encontre oportunidades no marketplace.",
   },
   {
-    icon: BarChart3,
-    title: "Precificação orientada por dados",
-    description:
-      "Visualize tendências de mercado, entenda a pressão de demanda e publique ofertas com muito mais segurança comercial.",
-    points: ["Sugestões de preço por lote", "Leitura rápida de aquecimento do mercado"],
-  },
-  {
-    icon: ShieldCheck,
-    title: "Governança para operação séria",
-    description:
-      "A plataforma apoia o time com rastreabilidade, checklist documental e visão consolidada da operação para reduzir fricção e risco.",
-    points: ["Checklist antes de publicar", "Mais clareza para sustentabilidade e comercial"],
-  },
-];
-
-const workflow = [
-  {
-    step: "01",
-    icon: Boxes,
-    title: "Organize o inventário",
-    description:
-      "Cadastre lotes, classifique materiais e centralize a visão do que hoje gera custo, ociosidade ou descarte.",
-  },
-  {
-    step: "02",
-    icon: Gauge,
-    title: "Entenda valor e demanda",
-    description:
-      "Receba sinais de mercado, apoio para precificação e mais contexto para posicionar cada oportunidade com inteligência.",
-  },
-  {
-    step: "03",
+    step: "3",
     icon: Users,
-    title: "Conecte oferta com compradores",
-    description:
-      "Publique anúncios com mais credibilidade, atraia parceiros certos e acompanhe a evolução da operação em um só lugar.",
+    title: "Negocie diretamente",
+    description: "Conecte-se com outras empresas de forma prática e rápida.",
+  },
+  {
+    step: "4",
+    icon: BarChart3,
+    title: "Gerencie tudo em um só lugar",
+    description: "Controle estoque, metas e indicadores em tempo real.",
   },
 ];
 
-const previewBars = [34, 52, 46, 68, 80, 94];
+const sectionTagClass =
+  "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em]";
 
 export default function Index() {
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <section className="relative isolate overflow-hidden gradient-hero text-secondary-foreground">
-        <div className="landing-grid absolute inset-0 opacity-40" />
-        <img
-          src={heroBg}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover opacity-20 mix-blend-soft-light"
-        />
-        <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/20 to-transparent" />
-        <div className="absolute -left-24 top-24 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
-        <div className="absolute right-0 top-10 h-96 w-96 rounded-full bg-cyan-200/10 blur-3xl" />
+  const pageRef = useRef<HTMLDivElement>(null);
 
-        <header className="relative z-10 container flex items-center justify-between gap-4 py-6">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center">
-              <BrandLogo size="md" tone="dark" />
-            </div>
-            <div>
-              <p className="sr-only">ZenWaste</p>
-              <p className="text-sm text-white/[0.65]">
-                Economia circular industrial com visão de produto
-              </p>
-            </div>
-          </div>
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) {
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const revealNodes = Array.from(page.querySelectorAll<HTMLElement>("[data-reveal]"));
+
+    if (prefersReducedMotion.matches) {
+      revealNodes.forEach((node) => node.classList.add("is-visible"));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) {
+            return;
+          }
+
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        });
+      },
+      {
+        threshold: 0.16,
+        rootMargin: "0px 0px -10% 0px",
+      },
+    );
+
+    revealNodes.forEach((node) => observer.observe(node));
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={pageRef} className="landing-page min-h-screen overflow-x-hidden bg-background text-foreground">
+      <section
+        id="home"
+        className="relative isolate flex min-h-screen flex-col overflow-hidden bg-[linear-gradient(135deg,#06101d_0%,#0b2236_42%,#0d5f52_100%)] text-white lg:min-h-[110vh]"
+      >
+        <div className="landing-grid absolute inset-0 opacity-30" />
+
+        {heroVideo ? (
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            poster={heroBg}
+            className="absolute inset-0 h-full w-full object-cover opacity-[0.28] mix-blend-screen"
+          >
+            <source src={heroVideo} type="video/mp4" />
+          </video>
+        ) : (
+          <img
+            src={heroBg}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover opacity-[0.18] mix-blend-screen"
+          />
+        )}
+
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_26%),radial-gradient(circle_at_top_right,rgba(110,231,183,0.14),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(125,211,252,0.16),transparent_30%)]" />
+        <div className="landing-glow-orb absolute -left-16 top-24 h-72 w-72 rounded-full bg-emerald-300/20" />
+        <div className="landing-glow-orb landing-glow-orb-alt absolute right-0 top-16 h-96 w-96 rounded-full bg-cyan-200/20" />
+        <div className="landing-glow-orb absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-white/[0.08]" />
+
+        <header className="relative z-20 container flex items-center justify-between gap-4 py-6">
+          <Link to="/" className="flex items-center">
+            <img src={logo} alt="ZenWaste" className="h-auto w-36 sm:w-40" />
+          </Link>
 
           <div className="flex items-center gap-3">
-            <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
-              <a href="#como-funciona" className="transition-colors hover:text-white">
-                Como funciona
-              </a>
-              <Link to="/marketplace" className="transition-colors hover:text-white">
-                Marketplace
-              </Link>
-              <Link to="/login" className="transition-colors hover:text-white">
-                Entrar
-              </Link>
+            <nav className="landing-nav-shell hidden items-center gap-5 rounded-full px-5 py-3 text-sm text-white/[0.72] lg:flex">
+              {navigationItems.map((item) => (
+                <a key={item.label} href={item.href} className="transition-colors duration-300 hover:text-white">
+                  {item.label}
+                </a>
+              ))}
             </nav>
+
+            <Button
+              asChild
+              variant="outline"
+              className="hidden h-11 rounded-full border-white/20 bg-white/[0.06] px-5 text-white hover:bg-white/10 hover:text-white sm:inline-flex"
+            >
+              <Link to="/login">Entrar</Link>
+            </Button>
+
             <ThemeToggle />
           </div>
         </header>
 
-        <div className="relative z-10 container grid gap-14 pb-24 pt-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:pb-28 lg:pt-12">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/[0.85] backdrop-blur">
-              <Sparkles className="h-4 w-4 text-emerald-200" />
-              Plataforma B2B para transformar resíduos em receita recorrente
+        <div className="container relative z-10 flex flex-1 items-center pb-24 pt-10 sm:pt-12 lg:pb-28 lg:pt-16">
+          <div className="grid w-full gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.92fr)] lg:items-center xl:gap-16">
+            <div data-reveal className="reveal-on-scroll max-w-3xl">
+              <div className={`${sectionTagClass} border-white/[0.14] bg-white/10 text-white/[0.82] backdrop-blur`}>
+                <Sparkles className="h-4 w-4 text-emerald-200" />
+                Home
+              </div>
+
+              <h1 className="mt-8 max-w-3xl font-display text-[2.7rem] font-semibold leading-[0.95] tracking-tight text-white sm:text-[2.9rem] lg:text-[3.7rem]">
+                Transforme resíduos industriais em novas oportunidades.
+              </h1>
+
+              <p className="mt-6 max-w-2xl text-base leading-8 text-white/[0.74] sm:text-lg">
+                A plataforma que conecta empresas para comprar, vender e gerenciar resíduos de forma
+                inteligente, sustentável e lucrativa.
+              </p>
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                {heroPillars.map((pillar, index) => (
+                  <div
+                    key={pillar.label}
+                    data-reveal
+                    className="reveal-on-scroll landing-nav-shell inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm text-white/[0.78]"
+                    style={{ transitionDelay: `${120 + index * 90}ms` }}
+                  >
+                    <pillar.icon className="h-4 w-4 text-emerald-200" />
+                    {pillar.label}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-12 flex flex-col gap-4 sm:flex-row sm:items-center">
+                <Button
+                  size="lg"
+                  asChild
+                  className="h-12 rounded-full bg-white px-7 text-base font-semibold text-slate-950 shadow-[0_22px_60px_rgba(255,255,255,0.18)] hover:bg-white/[0.92]"
+                >
+                  <Link to="/register">
+                    Comece agora gratuitamente
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+
+                <Link to="/login" className="text-sm font-medium text-white/[0.68] transition-colors hover:text-white">
+                  Entrar
+                </Link>
+              </div>
             </div>
 
-            <h1 className="mt-8 font-display text-5xl font-semibold leading-[0.94] tracking-tight text-white sm:text-6xl lg:text-7xl">
-              Sua operação industrial pode vender melhor o que hoje parece apenas excedente.
-            </h1>
+            <div
+              data-reveal
+              className="reveal-on-scroll relative mx-auto w-full max-w-[560px]"
+              style={{ transitionDelay: "140ms" }}
+            >
+              <div className="absolute -left-8 top-10 h-28 w-28 rounded-full bg-emerald-300/20 blur-3xl" />
+              <div className="absolute -right-4 bottom-10 h-36 w-36 rounded-full bg-cyan-200/20 blur-3xl" />
 
-            <p className="mt-6 max-w-xl text-lg leading-8 text-white/[0.72] sm:text-xl">
-              A ZenWaste reúne marketplace, inteligência de mercado e governança operacional para
-              dar mais valor aos resíduos e subprodutos que passam pela sua cadeia.
+              <div className="float-gentle relative overflow-hidden rounded-[32px]">
+                <div className="relative aspect-[4/3] overflow-hidden rounded-[32px]">
+                  {heroSideImage ? (
+                    <img
+                      src={heroSideImage}
+                      alt="Ilustração da hero ZenWaste"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center rounded-[32px] border border-dashed border-white/25 px-8 text-center">
+                      <div>
+                        <p className="font-display text-2xl font-semibold text-white">Espaço da imagem da hero</p>
+                        <p className="mt-3 text-sm leading-6 text-white/70">
+                          Adicione o arquivo `src/assets/img-hero.png` para exibir sua arte aqui.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="sobre" className="relative py-24 sm:py-28">
+        <div className="absolute inset-x-0 top-16 h-72 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.12),transparent_60%)]" />
+
+        <div className="container relative grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
+          <div data-reveal className="reveal-on-scroll max-w-xl">
+            <div className={`${sectionTagClass} border-primary/[0.16] bg-primary/[0.08] text-primary`}>
+              <Sparkles className="h-4 w-4" />
+              Sobre
+            </div>
+
+            <h2 className="mt-6 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+              Sustentabilidade com tecnologia de verdade.
+            </h2>
+
+            <p className="mt-5 text-base leading-8 text-muted-foreground sm:text-lg">
+              A ZenWaste nasceu para resolver um dos maiores desafios da indústria: o descarte
+              ineficiente de resíduos.
             </p>
 
-            <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-              <Button
-                size="lg"
-                asChild
-                className="h-12 rounded-full bg-white px-7 text-base font-semibold text-slate-950 hover:bg-white/90"
-              >
-                <Link to="/register">
-                  Cadastrar empresa
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-
-              <Button
-                size="lg"
-                variant="outline"
-                asChild
-                className="h-12 rounded-full border-white/20 bg-white/5 px-7 text-base text-white hover:bg-white/10 hover:text-white"
-              >
-                <Link to="/marketplace">Explorar marketplace</Link>
-              </Button>
-            </div>
-
-            <div className="mt-10 grid gap-3 sm:grid-cols-3">
-              {heroStats.map((stat) => (
-                <div
-                  key={stat.label}
-                  className="rounded-[24px] border border-white/12 bg-white/[0.08] p-4 backdrop-blur-xl"
-                >
-                  <p className="font-display text-2xl font-semibold text-white">{stat.value}</p>
-                  <p className="mt-2 text-sm leading-6 text-white/[0.65]">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-white/[0.68]">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.08] px-3 py-1.5">
-                <Leaf className="h-4 w-4 text-emerald-200" />
-                Sustentabilidade com resultado econômico
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.08] px-3 py-1.5">
-                <ShieldCheck className="h-4 w-4 text-emerald-200" />
-                Mais rastreabilidade e segurança operacional
-              </span>
+            <div className="mt-6 rounded-[30px] border border-border/70 bg-background/75 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur">
+              <p className="text-base leading-8 text-foreground/[0.88]">
+                Unimos tecnologia, inteligência de mercado e gestão integrada para transformar
+                materiais descartados em ativos estratégicos para outras empresas.
+              </p>
             </div>
           </div>
 
-          <div className="relative mx-auto w-full max-w-[35rem]">
-            <div className="float-soft absolute -right-6 bottom-10 hidden w-52 rounded-[28px] border border-white/10 bg-slate-950/70 p-4 shadow-[0_22px_60px_rgba(2,12,27,0.34)] backdrop-blur-xl lg:block">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-white/10 p-3 text-white">
-                  <ShieldCheck className="h-5 w-5 text-emerald-200" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white">Checklist ativo</p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.22em] text-white/40">
-                    Publicação pronta
+          <div className="grid gap-4 sm:grid-cols-3">
+            {aboutSignals.map((signal, index) => (
+              <article
+                key={signal.label}
+                data-reveal
+                className="reveal-on-scroll landing-card rounded-[28px] p-6"
+                style={{ transitionDelay: `${index * 90}ms` }}
+              >
+                <div className="flex h-full flex-col justify-between gap-10">
+                  <div className="w-fit rounded-2xl bg-accent p-3 text-accent-foreground">
+                    <signal.icon className="h-6 w-6" />
+                  </div>
+                  <p className="font-display text-2xl font-semibold tracking-tight text-foreground">
+                    {signal.label}
                   </p>
                 </div>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-white/60">
-                Documentação, lote e descrição revisados antes de entrar no mercado.
-              </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="o-que-e" className="relative overflow-hidden bg-muted/[0.35] py-24 sm:py-28">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        <div className="absolute right-0 top-12 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" />
+
+        <div className="container relative">
+          <div data-reveal className="reveal-on-scroll max-w-2xl">
+            <div className={`${sectionTagClass} border-primary/[0.16] bg-primary/[0.08] text-primary`}>
+              <Sparkles className="h-4 w-4" />
+              O que é
             </div>
 
-            <div className="surface-panel-dark relative overflow-hidden rounded-[34px] border border-white/12 p-4 shadow-[0_28px_80px_rgba(2,12,27,0.38)]">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(110,231,183,0.18),transparent_35%)]" />
-              <div className="relative rounded-[30px] border border-white/10 bg-slate-950/65 p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-white/[0.42]">
-                      Painel ZenWaste
-                    </p>
-                    <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight text-white">
-                      Visão comercial e operacional no mesmo lugar
-                    </h2>
-                  </div>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-medium text-emerald-50">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    IA ativa
-                  </span>
+            <h2 className="mt-6 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+              Muito além de um marketplace.
+            </h2>
+
+            <p className="mt-5 text-base leading-8 text-muted-foreground sm:text-lg">
+              A ZenWaste é uma plataforma inteligente que conecta indústrias interessadas em
+              reutilizar resíduos e reduzir custos operacionais.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-5 xl:grid-cols-[1.16fr_0.84fr]">
+            <article
+              data-reveal
+              className="reveal-on-scroll landing-card rounded-[34px] p-7 sm:p-8"
+            >
+              <div className="max-w-3xl">
+                <p className="text-lg leading-8 text-foreground/[0.9] sm:text-xl sm:leading-9">
+                  Com ela, sua empresa pode publicar resíduos disponíveis para venda, encontrar
+                  materiais com menor custo, gerenciar estoque interno, acompanhar metas e
+                  indicadores e receber sugestões inteligentes de precificação.
+                </p>
+
+                <p className="mt-6 text-base leading-8 text-muted-foreground sm:text-lg">
+                  Tudo acontece em um ambiente seguro, moderno e pensado para o mercado industrial,
+                  com uma experiência mais fluida, visual e estratégica para conectar oferta,
+                  demanda e operação em um único lugar.
+                </p>
+              </div>
+            </article>
+
+            <article
+              data-reveal
+              className="reveal-on-scroll landing-card-dark overflow-hidden rounded-[34px] p-7 sm:p-8"
+              style={{ transitionDelay: "120ms" }}
+            >
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(110,231,183,0.2),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(125,211,252,0.18),transparent_32%)]" />
+              <div className="relative z-10">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.08] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white/[0.72]">
+                  <ShieldCheck className="h-4 w-4 text-emerald-200" />
+                  Ambiente seguro
                 </div>
 
-                <div className="mt-6 grid gap-4 sm:grid-cols-[1.15fr_0.85fr]">
-                  <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-sm text-white/[0.58]">Lote em destaque</p>
-                        <p className="mt-2 text-xl font-semibold text-white">
-                          Aparas de alumínio série 6000
-                        </p>
+                <p className="mt-6 font-display text-2xl font-semibold leading-tight text-white sm:text-3xl">
+                  Menos atrito para vender, comprar e gerenciar resíduos com visão comercial e
+                  operacional.
+                </p>
+
+                <p className="mt-5 text-base leading-8 text-white/[0.7]">
+                  A proposta da ZenWaste é transformar uma rotina normalmente fragmentada em um
+                  fluxo centralizado, claro e pronto para gerar novas oportunidades entre empresas.
+                </p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="processo" className="relative overflow-hidden py-24 sm:py-28">
+        <div className="absolute left-1/2 top-24 h-80 w-80 -translate-x-1/2 rounded-full bg-cyan-200/[0.14] blur-3xl" />
+
+        <div className="container relative">
+          <div data-reveal className="reveal-on-scroll mx-auto max-w-2xl text-center">
+            <div className={`${sectionTagClass} border-primary/[0.16] bg-primary/[0.08] text-primary`}>
+              <Sparkles className="h-4 w-4" />
+              Processo
+            </div>
+
+            <h2 className="mt-6 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+              Simples, rápido e eficiente.
+            </h2>
+          </div>
+
+          <div className="mt-16 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {processSteps.map((item, index) => {
+              const darkCard = index % 2 === 1;
+
+              return (
+                <article
+                  key={item.step}
+                  data-reveal
+                  className={`reveal-on-scroll rounded-[30px] p-6 sm:p-7 ${
+                    darkCard ? "landing-card-dark" : "landing-card"
+                  }`}
+                  style={{ transitionDelay: `${index * 90}ms` }}
+                >
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between gap-4">
+                      <div
+                        className={`rounded-full px-4 py-2 font-display text-2xl font-semibold ${
+                          darkCard
+                            ? "border border-white/[0.12] bg-white/[0.08] text-white"
+                            : "border border-primary/[0.14] bg-primary/10 text-primary"
+                        }`}
+                      >
+                        {item.step}
                       </div>
-                      <div className="rounded-2xl bg-white/10 p-3">
-                        <Factory className="h-5 w-5 text-emerald-200" />
+
+                      <div
+                        className={`rounded-2xl p-3 ${
+                          darkCard ? "bg-white/10 text-emerald-100" : "bg-accent text-accent-foreground"
+                        }`}
+                      >
+                        <item.icon className="h-6 w-6" />
                       </div>
                     </div>
 
-                    <div className="mt-6 rounded-[22px] border border-white/[0.06] bg-gradient-to-b from-white/[0.06] to-transparent p-4">
-                      <div className="flex h-36 items-end gap-3">
-                        {previewBars.map((height, index) => (
-                          <div
-                            key={`${height}-${index}`}
-                            className="flex-1 rounded-t-[14px] bg-gradient-to-t from-emerald-400 via-teal-300 to-cyan-200 shadow-[0_0_18px_rgba(74,222,128,0.25)]"
-                            style={{ height: `${height}%` }}
-                          />
-                        ))}
-                      </div>
-                    </div>
+                    <h3
+                      className={`mt-8 font-display text-2xl font-semibold tracking-tight ${
+                        darkCard ? "text-white" : "text-foreground"
+                      }`}
+                    >
+                      {item.title}
+                    </h3>
 
-                    <div className="mt-4 flex items-center justify-between text-sm">
-                      <span className="text-white/[0.56]">Preço sugerido por tonelada</span>
-                      <span className="font-semibold text-white">R$ 4.720</span>
-                    </div>
+                    <p
+                      className={`mt-4 text-base leading-7 ${
+                        darkCard ? "text-white/[0.72]" : "text-muted-foreground"
+                      }`}
+                    >
+                      {item.description}
+                    </p>
                   </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
-                  <div className="space-y-4">
-                    <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-white/[0.58]">Demanda aquecida</span>
-                        <TrendingUp className="h-5 w-5 text-emerald-200" />
+      <section className="container pb-24 sm:pb-28">
+        <div className="rounded-[42px] bg-[linear-gradient(135deg,rgba(6,16,29,0.88),rgba(11,34,54,0.9),rgba(13,95,82,0.9),rgba(245,158,11,0.28))] p-[1px] shadow-[0_34px_100px_rgba(15,23,42,0.24)]">
+          <div className="relative overflow-hidden rounded-[41px] border border-white/[0.08] bg-[linear-gradient(135deg,#07121e_0%,#0d2840_34%,#0f6a5d_74%,#1f8a72_100%)] px-8 py-10 text-white md:px-12 md:py-14">
+            <div className="landing-glow-orb absolute -right-8 top-0 h-56 w-56 rounded-full bg-emerald-300/24" />
+            <div className="landing-glow-orb landing-glow-orb-alt absolute left-0 top-0 h-48 w-48 rounded-full bg-cyan-200/[0.2]" />
+            <div className="landing-glow-orb absolute bottom-0 right-1/3 h-56 w-56 rounded-full bg-amber-300/[0.22]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.16),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.16),transparent_28%)]" />
+            <div className="absolute inset-[1px] rounded-[40px] border border-white/[0.08]" />
+
+            <div className="relative z-10 grid gap-10 lg:grid-cols-[1fr_0.92fr] lg:items-center">
+              <div data-reveal className="reveal-on-scroll max-w-2xl">
+                <div className={`${sectionTagClass} border-white/[0.12] bg-white/10 text-white/[0.82]`}>
+                  <Sparkles className="h-4 w-4 text-emerald-200" />
+                  Cadastro
+                </div>
+
+                <h2 className="mt-6 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+                  O futuro da gestão sustentável começa agora.
+                </h2>
+
+                <p className="mt-5 text-base leading-8 text-white/[0.76] sm:text-lg">
+                  Reduza custos, gere novas oportunidades e conecte sua empresa ao mercado da
+                  economia circular.
+                </p>
+
+                <p className="mt-4 font-display text-2xl font-semibold text-white">
+                  Faça parte da ZenWaste.
+                </p>
+
+                <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+                  <Button
+                    size="lg"
+                    asChild
+                    className="h-12 rounded-full bg-white px-7 text-base font-semibold text-slate-950 hover:bg-white/[0.92]"
+                  >
+                    <Link to="/register">
+                      Criar conta gratuitamente
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
+
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    asChild
+                    className="h-12 rounded-full border-white/20 bg-white/[0.08] px-7 text-base text-white hover:bg-white/[0.12] hover:text-white"
+                  >
+                    <Link to="/login">Entrar</Link>
+                  </Button>
+                </div>
+              </div>
+
+              <div data-reveal className="reveal-on-scroll">
+                <div className="relative mx-auto max-w-xl">
+                  <div className="absolute -right-6 top-10 h-36 w-36 rounded-full bg-emerald-300/[0.18] blur-3xl" />
+                  <div className="absolute -left-4 bottom-8 h-28 w-28 rounded-full bg-amber-300/[0.18] blur-3xl" />
+
+                  <div className="landing-card-dark rounded-[34px] p-6 sm:p-7">
+                    <div className="relative z-10">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.08] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white/[0.72]">
+                        <Building2 className="h-4 w-4 text-emerald-200" />
+                        Cadastro empresarial
                       </div>
-                      <p className="mt-4 font-display text-4xl font-semibold text-white">+18%</p>
-                      <p className="mt-2 text-sm leading-6 text-white/60">
-                        Mais compradores buscando material compatível nas últimas 2 semanas.
-                      </p>
-                    </div>
 
-                    <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-2xl bg-emerald-300/15 p-3">
-                          <ShieldCheck className="h-5 w-5 text-emerald-100" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-white/[0.58]">Checklist documental</p>
-                          <p className="mt-1 text-lg font-semibold text-white">Conforme para publicar</p>
-                        </div>
-                      </div>
+                      <h3 className="mt-6 font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                        Entrada rápida em uma plataforma feita para conectar operação, mercado e
+                        sustentabilidade.
+                      </h3>
 
-                      <div className="mt-4 space-y-3">
+                      <div className="mt-6 grid gap-3">
                         {[
-                          "MTR e licenças revisados",
-                          "Descrição técnica validada",
-                          "Baixo risco operacional",
+                          {
+                            icon: Gauge,
+                            title: "Ativação fluida",
+                            text: "Comece com uma experiência clara, leve e pronta para escalar.",
+                          },
+                          {
+                            icon: Sparkles,
+                            title: "Mais presença visual",
+                            text: "Um bloco de cadastro com mais brilho, profundidade e contraste.",
+                          },
+                          {
+                            icon: ShieldCheck,
+                            title: "Base segura",
+                            text: "Fluxo moderno para empresas entrarem com mais confiança no ecossistema.",
+                          },
                         ].map((item) => (
-                          <div key={item} className="flex items-center gap-2 text-sm text-white/[0.64]">
-                            <BadgeCheck className="h-4 w-4 text-emerald-200" />
-                            {item}
+                          <div
+                            key={item.title}
+                            className="rounded-[24px] border border-white/[0.08] bg-white/[0.04] p-4"
+                          >
+                            <div className="flex items-start gap-4">
+                              <div className="rounded-2xl bg-white/[0.08] p-3 text-emerald-100">
+                                <item.icon className="h-5 w-5" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-white">{item.title}</p>
+                                <p className="mt-2 text-sm leading-6 text-white/[0.68]">{item.text}</p>
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                  {[
-                    { label: "Lotes ativos", value: "148", detail: "com rastreio por categoria" },
-                    { label: "Conversão média", value: "31%", detail: "em contatos qualificados" },
-                    { label: "Alertas estratégicos", value: "12", detail: "oportunidades de margem" },
-                  ].map((metric) => (
-                    <div
-                      key={metric.label}
-                      className="rounded-[22px] border border-white/[0.08] bg-white/[0.03] px-4 py-4"
-                    >
-                      <p className="text-xs uppercase tracking-[0.2em] text-white/[0.38]">
-                        {metric.label}
-                      </p>
-                      <p className="mt-2 font-display text-3xl font-semibold text-white">
-                        {metric.value}
-                      </p>
-                      <p className="mt-2 text-sm text-white/[0.56]">{metric.detail}</p>
+                  <div className="landing-nav-shell absolute -left-6 bottom-6 hidden rounded-[22px] px-4 py-3 text-sm text-white/[0.78] lg:block">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-emerald-200" />
+                      Economia circular com entrada imediata
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="relative z-20 -mt-10">
-        <div className="container">
-          <div className="surface-panel grid gap-8 rounded-[32px] border border-white/60 p-6 md:p-8 xl:grid-cols-[1.1fr_0.9fr]">
-            <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">
-                Oportunidade real de negócio
-              </p>
-              <h2 className="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                A landing agora comunica valor com mais clareza, maturidade e desejo de uso.
-              </h2>
-              <p className="mt-4 text-base leading-7 text-muted-foreground">
-                Em vez de parecer apenas institucional, a página passa a vender uma experiência de
-                produto: mais confiança, mais modernidade e percepção clara do ganho para a operação.
-              </p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              {[
-                { value: "B2B", label: "posicionamento mais premium e confiável" },
-                { value: "UX", label: "escaneável, elegante e com CTA forte" },
-                { value: "UI", label: "camadas, contraste e atmosfera de produto" },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-[24px] border border-border/60 bg-card/75 p-5 backdrop-blur"
-                >
-                  <p className="font-display text-3xl font-semibold tracking-tight text-foreground">
-                    {item.value}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-muted/40 py-24">
-        <div className="container">
-          <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">
-              Experiência de produto
-            </p>
-            <h2 className="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground md:text-5xl">
-              Uma narrativa visual pensada para operação, sustentabilidade e comercial.
-            </h2>
-            <p className="mt-4 text-lg leading-8 text-muted-foreground">
-              A home agora combina linguagem executiva, contexto industrial e uma estética mais atual
-              para que o usuário entenda rápido por que a ZenWaste merece atenção.
-            </p>
-          </div>
-
-          <div className="mt-12 grid gap-5 lg:grid-cols-3">
-            {featureCards.map((feature, index) => (
-              <article
-                key={feature.title}
-                className="surface-panel rounded-[30px] border border-border/60 p-7 shadow-[0_18px_45px_rgba(15,23,42,0.05)]"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-display text-4xl font-semibold tracking-tight text-foreground/90">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <div className="rounded-2xl bg-accent p-3 text-accent-foreground">
-                    <feature.icon className="h-6 w-6" />
-                  </div>
-                </div>
-
-                <h3 className="mt-8 font-display text-2xl font-semibold tracking-tight text-foreground">
-                  {feature.title}
-                </h3>
-                <p className="mt-4 text-base leading-8 text-muted-foreground">{feature.description}</p>
-
-                <div className="mt-6 space-y-3">
-                  {feature.points.map((point) => (
-                    <div
-                      key={point}
-                      className="rounded-[22px] border border-border/60 bg-background/80 px-4 py-4 text-sm leading-6 text-foreground/[0.85]"
-                    >
-                      {point}
-                    </div>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="como-funciona" className="bg-muted/40 py-24">
-        <div className="container">
-          <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">
-              Como funciona
-            </p>
-            <h2 className="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground md:text-5xl">
-              Um fluxo simples para dar inteligência ao que antes virava custo.
-            </h2>
-          </div>
-
-          <div className="mt-12 grid gap-5 lg:grid-cols-3">
-            {workflow.map((item) => (
-              <article
-                key={item.step}
-                className="surface-panel rounded-[30px] border border-border/60 p-7 shadow-[0_18px_45px_rgba(15,23,42,0.05)]"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-display text-4xl font-semibold tracking-tight text-foreground/90">
-                    {item.step}
-                  </span>
-                  <div className="rounded-2xl bg-accent p-3 text-accent-foreground">
-                    <item.icon className="h-6 w-6" />
-                  </div>
-                </div>
-
-                <h3 className="mt-8 font-display text-2xl font-semibold tracking-tight text-foreground">
-                  {item.title}
-                </h3>
-                <p className="mt-4 text-base leading-8 text-muted-foreground">{item.description}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="container py-24">
-        <div className="relative overflow-hidden rounded-[36px] border border-border/60 bg-[linear-gradient(135deg,rgba(7,44,35,0.98),rgba(15,23,42,0.96))] px-8 py-10 text-white shadow-[0_28px_80px_rgba(15,23,42,0.18)] md:px-12 md:py-14">
-          <div className="absolute -right-12 top-0 h-52 w-52 rounded-full bg-emerald-300/15 blur-3xl" />
-          <div className="absolute left-0 top-0 h-40 w-40 rounded-full bg-cyan-200/10 blur-3xl" />
-
-          <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-100/70">
-                Próximo passo
-              </p>
-              <h2 className="mt-4 font-display text-3xl font-semibold tracking-tight md:text-5xl">
-                Coloque sua operação em uma vitrine mais inteligente e mais rentável.
-              </h2>
-              <p className="mt-4 text-lg leading-8 text-white/[0.72]">
-                Crie sua conta empresarial, organize seu inventário e publique com muito mais
-                contexto, confiança e percepção de valor.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-4 sm:flex-row">
-              <Button
-                size="lg"
-                asChild
-                className="h-12 rounded-full bg-white px-7 text-base font-semibold text-slate-950 hover:bg-white/90"
-              >
-                <Link to="/register">
-                  Criar conta empresarial
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-
-              <Button
-                size="lg"
-                variant="outline"
-                asChild
-                className="h-12 rounded-full border-white/20 bg-white/5 px-7 text-base text-white hover:bg-white/10 hover:text-white"
-              >
-                <Link to="/login">Já tenho conta</Link>
-              </Button>
             </div>
           </div>
         </div>
       </section>
 
       <footer className="border-t border-border/80 py-8">
-        <div className="container flex flex-col gap-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <BrandLogo size="sm" />
-            <div>
-              <p className="sr-only">ZenWaste</p>
-              <p>Plataforma de economia circular industrial</p>
-            </div>
-          </div>
+        <div className="container flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <Link to="/" className="flex items-center">
+            <img src={logo} alt="ZenWaste" className="h-auto w-28" />
+          </Link>
 
-          <div className="flex flex-wrap gap-4">
-            <Link to="/marketplace" className="transition-colors hover:text-foreground">
-              Marketplace
-            </Link>
+          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+            {navigationItems.map((item) => (
+              <a key={item.label} href={item.href} className="transition-colors hover:text-foreground">
+                {item.label}
+              </a>
+            ))}
             <Link to="/login" className="transition-colors hover:text-foreground">
               Entrar
-            </Link>
-            <Link to="/register" className="transition-colors hover:text-foreground">
-              Cadastrar empresa
             </Link>
           </div>
         </div>

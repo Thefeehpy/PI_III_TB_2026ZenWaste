@@ -1,4 +1,4 @@
-import type { InventoryItem, InventoryMovement, Reservation, ReservationStatus, SellerAd, WasteItem } from "@/data/mockData";
+import type { InventoryItem, InventoryMovement, SellerWasteItem, WasteItem } from "@/data/mockData";
 
 const API_URL = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api").replace(/\/$/, "");
 const TOKEN_STORAGE_KEY = "zenwaste.auth-token";
@@ -29,6 +29,40 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.status = status;
   }
+}
+
+function readApiErrorMessage(data: unknown, fallback: string) {
+  if (!data || typeof data !== "object") {
+    return fallback;
+  }
+
+  const record = data as Record<string, unknown>;
+  const directMessage = record.message || record.detail || record.error;
+
+  if (typeof directMessage === "string" && directMessage.trim()) {
+    return directMessage;
+  }
+
+  const firstFieldError = Object.values(record).find((value) => {
+    if (typeof value === "string") {
+      return value.trim().length > 0;
+    }
+
+    return Array.isArray(value) && value.some((item) => typeof item === "string" && item.trim());
+  });
+
+  if (typeof firstFieldError === "string") {
+    return firstFieldError;
+  }
+
+  if (Array.isArray(firstFieldError)) {
+    const firstMessage = firstFieldError.find((item) => typeof item === "string" && item.trim());
+    if (typeof firstMessage === "string") {
+      return firstMessage;
+    }
+  }
+
+  return fallback;
 }
 
 export function getStoredAuthToken() {
@@ -70,10 +104,18 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
+  let data: unknown = {};
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = {};
+    }
+  }
 
   if (!response.ok) {
-    throw new ApiError(data.message || "A requisicao nao pode ser concluida.", response.status);
+    throw new ApiError(readApiErrorMessage(data, "A requisicao nao pode ser concluida."), response.status);
   }
 
   return data as T;
@@ -108,10 +150,33 @@ export const api = {
     return request<{ items: InventoryItem[] }>("/inventory/items/");
   },
 
-  async createInventoryItem(input: Pick<InventoryItem, "name" | "type" | "quantity" | "unit">) {
+  async createInventoryItem(input: {
+    name: string;
+    type: string;
+    quantity: number;
+    unit: string;
+    targetQuantity?: number;
+    deadline?: string;
+  }) {
     return request<{ item: InventoryItem }>("/inventory/items/", {
       method: "POST",
       body: JSON.stringify(input),
+    });
+  },
+
+  async updateInventoryItem(
+    itemId: string,
+    input: Partial<Pick<InventoryItem, "name" | "type" | "unit" | "targetQuantity" | "deadline">>,
+  ) {
+    return request<{ item: InventoryItem }>(`/inventory/items/${itemId}/`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+
+  async deleteInventoryItem(itemId: string) {
+    return request<{ message: string; closedAds: number }>(`/inventory/items/${itemId}/`, {
+      method: "DELETE",
     });
   },
 
@@ -156,58 +221,24 @@ export const api = {
     });
   },
 
-  async listSellerAds() {
-    return request<{ items: SellerAd[] }>("/marketplace/ads/mine/");
+  async listSellerMarketplaceItems() {
+    return request<{ items: SellerWasteItem[] }>("/marketplace/ads/mine/");
   },
 
-  async finalizeMarketplaceAd(input: {
-    adId: string;
-    soldQuantity: number;
-    buyerName?: string;
-    buyerPhone?: string;
-    reservationQuantity?: number;
-    reservationUnitPrice?: number;
-    reservationNote?: string;
-  }) {
+  async deleteMarketplaceItem(adId: string) {
+    return request<void>(`/marketplace/ads/${adId}/`, {
+      method: "DELETE",
+    });
+  },
+
+  async finalizeMarketplaceItem(adId: string, soldQuantity: number) {
     return request<{
-      ad: SellerAd;
+      ad: SellerWasteItem;
       item: InventoryItem;
       movement: InventoryMovement;
-      reservation?: Reservation;
-    }>(`/marketplace/ads/${input.adId}/finalize/`, {
+    }>(`/marketplace/ads/${adId}/finalize/`, {
       method: "POST",
-      body: JSON.stringify(input),
-    });
-  },
-
-  async createReservation(input: {
-    itemId: string;
-    quantity: number;
-    unitPrice: number;
-    buyerName: string;
-    buyerPhone: string;
-    note?: string;
-  }) {
-    return request<{ reservation: Reservation }>(`/inventory/items/${input.itemId}/reservations/`, {
-      method: "POST",
-      body: JSON.stringify({
-        quantity: input.quantity,
-        unitPrice: input.unitPrice,
-        buyerName: input.buyerName,
-        buyerPhone: input.buyerPhone,
-        note: input.note || "",
-      }),
-    });
-  },
-
-  async listReservations() {
-    return request<{ items: Reservation[] }>("/inventory/reservations/");
-  },
-
-  async updateReservationStatus(input: { reservationId: string; status: ReservationStatus }) {
-    return request<{ reservation: Reservation }>(`/inventory/reservations/${input.reservationId}/`, {
-      method: "PATCH",
-      body: JSON.stringify({ status: input.status }),
+      body: JSON.stringify({ soldQuantity }),
     });
   },
 
@@ -219,8 +250,37 @@ export const api = {
     }>("/market/prices/");
   },
 
-  async getSuggestedPrice(type: string) {
-    const params = new URLSearchParams({ type });
-    return request<{ suggestedPrice: number; insight: string }>(`/market/suggest-price/?${params.toString()}`);
+  async getSuggestedPrice(input: string | {
+    name?: string;
+    type: string;
+    quantity?: number;
+    unit?: string;
+    location?: string;
+  }) {
+    const payload = typeof input === "string" ? { type: input } : input;
+
+    return request<{ suggestedPrice: number; insight: string; source: "ai" | "fallback"; aiAvailable: boolean }>(
+      "/market/suggest-price/",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async getSuggestedDescription(input: {
+    name: string;
+    type: string;
+    quantity?: number;
+    unit?: string;
+    location?: string;
+  }) {
+    return request<{ description: string; source: "ai" | "fallback"; aiAvailable: boolean }>(
+      "/market/suggest-description/",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
   },
 };

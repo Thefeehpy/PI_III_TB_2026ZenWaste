@@ -5,7 +5,28 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from anuncios.models import Reserva
+from authentication.services import normalize_text
+from anuncios.models import Anuncio
 from produtos.models import MovimentacaoEstoque, Produto
+from produtos.serializers import reservation_table_exists
+
+
+def clean_inventory_name(name):
+    return " ".join(str(name or "").strip().split())
+
+
+def validate_unique_inventory_name(empresa, name, current_product=None):
+    normalized_name = normalize_text(name)
+    products = Produto.objects.filter(empresa=empresa)
+
+    if current_product:
+        products = products.exclude(id_produto=current_product.id_produto)
+
+    for product in products.only("id_produto", "descricao_produto"):
+        if normalize_text(product.descricao_produto) == normalized_name:
+            raise serializers.ValidationError({
+                "message": "Ja existe um item cadastrado com esse nome. Use o item existente ou escolha outro nome."
+            })
 
 
 def sync_status(produto):
@@ -14,9 +35,12 @@ def sync_status(produto):
 
 
 def create_inventory_item(empresa, data):
+    name = clean_inventory_name(data["name"])
+    validate_unique_inventory_name(empresa, name)
+
     produto = Produto(
         empresa=empresa,
-        descricao_produto=data["name"].strip(),
+        descricao_produto=name,
         tipo_produto=data["type"].strip(),
         quantidade=data["quantity"],
         unidade=(data.get("unit") or "kg").strip() or "kg",
@@ -34,10 +58,29 @@ def create_inventory_item(empresa, data):
             saldo_resultante=produto.quantidade,
         )
 
+    target_quantity = data.get("targetQuantity")
+    if target_quantity and reservation_table_exists():
+        create_product_reservation(produto, {
+            "quantity": target_quantity,
+            "unitPrice": Decimal("0"),
+            "buyerName": "Reserva do cliente",
+            "buyerPhone": "-",
+            "deadline": data.get("deadline"),
+            "note": "Reserva registrada no cadastro do item.",
+        })
+        produto._target_quantity = target_quantity
+
+    if data.get("deadline"):
+        produto._deadline = data["deadline"]
+
     return produto
 
 
 def update_inventory_item(produto, data):
+    if "name" in data:
+        data["name"] = clean_inventory_name(data["name"])
+        validate_unique_inventory_name(produto.empresa, data["name"], current_product=produto)
+
     field_map = {
         "name": "descricao_produto",
         "type": "tipo_produto",
@@ -53,7 +96,45 @@ def update_inventory_item(produto, data):
 
     sync_status(produto)
     produto.save()
+
+    target_quantity = data.get("targetQuantity")
+    if target_quantity and reservation_table_exists():
+        reserva = Reserva.objects.filter(
+            produto=produto,
+            status__in=("em_captacao", "pronta"),
+        ).order_by("data_reserva").first()
+
+        if reserva:
+            reserva.quantidade_reservada = target_quantity
+            reserva.prazo_reserva = data.get("deadline")
+            reserva.status = calculate_reservation_status(produto, target_quantity)
+            reserva.save(update_fields=["quantidade_reservada", "prazo_reserva", "status"])
+        else:
+            create_product_reservation(produto, {
+                "quantity": target_quantity,
+                "unitPrice": Decimal("0"),
+                "buyerName": "Reserva do cliente",
+                "buyerPhone": "-",
+                "deadline": data.get("deadline"),
+                "note": "Reserva registrada no detalhe do item.",
+            })
+
+        produto._target_quantity = target_quantity
+
+    if data.get("deadline"):
+        produto._deadline = data["deadline"]
+
     return produto
+
+
+@transaction.atomic
+def delete_inventory_item(produto):
+    closed_ads = Anuncio.objects.filter(produto=produto, status_anuncio="ativo").update(
+        status_anuncio="inativo",
+        data_final=timezone.localdate(),
+    )
+    produto.delete()
+    return closed_ads
 
 
 def calculate_reservation_status(produto, quantidade_reservada):
@@ -63,6 +144,9 @@ def calculate_reservation_status(produto, quantidade_reservada):
 
 
 def refresh_product_reservations(produto):
+    if not reservation_table_exists():
+        return
+
     open_reservations = Reserva.objects.filter(
         produto=produto,
         status__in=("em_captacao", "pronta"),
@@ -77,12 +161,16 @@ def refresh_product_reservations(produto):
 
 @transaction.atomic
 def create_product_reservation(produto, data):
+    if not reservation_table_exists():
+        raise serializers.ValidationError({"message": "Reservas ainda nao estao disponiveis neste banco de dados."})
+
     reserva = Reserva(
         produto=produto,
         quantidade_reservada=data["quantity"],
         preco_unitario=data["unitPrice"],
         nome_comprador=data["buyerName"].strip(),
         numero_comprador=data["buyerPhone"].strip(),
+        prazo_reserva=data.get("deadline"),
         observacao=(data.get("note") or "").strip(),
     )
     reserva.status = calculate_reservation_status(produto, reserva.quantidade_reservada)

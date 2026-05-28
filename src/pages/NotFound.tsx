@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 
-import { BrandLogo } from "@/components/BrandLogo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import logo from "@/assets/logo-zenwaste.png";
 
 const NotFound = () => {
   const location = useLocation();
@@ -15,8 +15,9 @@ const NotFound = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="container flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center">
-            <BrandLogo size="sm" />
+          <Link to="/" className="flex items-center gap-2">
+            <img src={logo} alt="ZenWaste" className="w-28 h-auto" />
+            <span className="font-bold text-lg text-foreground sm:text-xl">ZenWaste</span>
           </Link>
           <ThemeToggle />
         </div>

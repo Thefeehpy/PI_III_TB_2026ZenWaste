@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Leaf, Lock, Mail } from "lucide-react";
 
-import { BrandLogo } from "@/components/BrandLogo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import heroBg from "@/assets/hero-bg.jpg";
+import logo from "@/assets/logo-zenwaste.png";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -56,8 +56,8 @@ export default function Login() {
             className="absolute inset-0 h-full w-full object-cover mix-blend-overlay opacity-30"
           />
           <div className="relative z-10 space-y-6 p-12 text-center">
-            <div className="flex items-center justify-center">
-              <BrandLogo size="xl" tone="dark" />
+            <div className="flex items-center justify-center gap-3">
+              <img src={logo} alt="ZenWaste" className="w-56 h-auto max-w-full" />
             </div>
             <p className="mx-auto max-w-md text-lg text-secondary-foreground/80">
               Transforme residuos em ativos financeiros. A plataforma inteligente para a economia circular industrial.
@@ -73,7 +73,7 @@ export default function Login() {
           <Card className="w-full max-w-md border-0 shadow-none lg:border lg:shadow-sm">
             <CardHeader className="text-center">
               <div className="mb-2 flex items-center justify-center lg:hidden">
-                <BrandLogo size="sm" />
+                <img src={logo} alt="ZenWaste" className="w-32 h-auto shrink-0" />
               </div>
               <CardTitle className="text-2xl">Bem-vindo de volta</CardTitle>
               <CardDescription>Entre com suas credenciais para acessar o painel</CardDescription>

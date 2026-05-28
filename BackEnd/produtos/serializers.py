@@ -1,9 +1,16 @@
 from decimal import Decimal
+from functools import lru_cache
 
+from django.db import connection
 from rest_framework import serializers
 
 from anuncios.models import Reserva
 from produtos.models import MovimentacaoEstoque, Produto
+
+
+@lru_cache(maxsize=1)
+def reservation_table_exists():
+    return Reserva._meta.db_table in connection.introspection.table_names()
 
 
 class ProdutoSerializer(serializers.ModelSerializer):
@@ -17,12 +24,28 @@ class InventoryItemInputSerializer(serializers.Serializer):
     type = serializers.CharField(max_length=50)
     quantity = serializers.DecimalField(max_digits=10, decimal_places=3, min_value=Decimal("0"))
     unit = serializers.CharField(max_length=12, required=False, allow_blank=True, default="kg")
+    targetQuantity = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        min_value=Decimal("0.001"),
+        required=False,
+        allow_null=True,
+    )
+    deadline = serializers.DateField(required=False, allow_null=True)
 
 
 class InventoryItemUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=256, required=False)
     type = serializers.CharField(max_length=50, required=False)
     unit = serializers.CharField(max_length=12, required=False, allow_blank=True)
+    targetQuantity = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        min_value=Decimal("0.001"),
+        required=False,
+        allow_null=True,
+    )
+    deadline = serializers.DateField(required=False, allow_null=True)
 
 
 class InventoryMovementInputSerializer(serializers.Serializer):
@@ -36,6 +59,7 @@ class ReservationInputSerializer(serializers.Serializer):
     unitPrice = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"))
     buyerName = serializers.CharField(max_length=120)
     buyerPhone = serializers.CharField(max_length=20)
+    deadline = serializers.DateField(required=False, allow_null=True)
     note = serializers.CharField(max_length=500, required=False, allow_blank=True)
 
 
@@ -49,6 +73,9 @@ class InventoryItemSerializer(serializers.ModelSerializer):
     type = serializers.CharField(source="tipo_produto")
     quantity = serializers.SerializerMethodField()
     unit = serializers.CharField(source="unidade")
+    targetQuantity = serializers.SerializerMethodField()
+    deadline = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
     createdAt = serializers.SerializerMethodField()
     updatedAt = serializers.SerializerMethodField()
 
@@ -60,6 +87,8 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             "type",
             "quantity",
             "unit",
+            "targetQuantity",
+            "deadline",
             "status",
             "createdAt",
             "updatedAt",
@@ -70,6 +99,47 @@ class InventoryItemSerializer(serializers.ModelSerializer):
 
     def get_quantity(self, produto):
         return float(produto.quantidade)
+
+    def get_targetQuantity(self, produto):
+        if hasattr(produto, "_target_quantity"):
+            return float(produto._target_quantity)
+
+        if not reservation_table_exists():
+            return 0
+
+        total = Decimal("0")
+        reservas = getattr(produto, "reservas", None)
+        if reservas is not None:
+            total = sum(
+                (reserva.quantidade_reservada for reserva in reservas.filter(status__in=("em_captacao", "pronta"))),
+                Decimal("0"),
+            )
+
+        return float(total)
+
+    def get_deadline(self, produto):
+        if hasattr(produto, "_deadline") and produto._deadline:
+            return produto._deadline.isoformat()
+
+        if reservation_table_exists():
+            reserva = produto.reservas.filter(status__in=("em_captacao", "pronta")).order_by("data_reserva").first()
+            if reserva and reserva.prazo_reserva:
+                return reserva.prazo_reserva.isoformat()
+            if reserva:
+                return reserva.data_reserva.date().isoformat()
+
+        return produto.data_registro.isoformat()
+
+    def get_status(self, produto):
+        target_quantity = Decimal(str(self.get_targetQuantity(produto)))
+
+        if produto.quantidade <= 0:
+            return "em_estoque"
+
+        if target_quantity > 0 and produto.quantidade < target_quantity:
+            return "em_producao"
+
+        return "concluido"
 
     def get_createdAt(self, produto):
         return produto.data_registro.isoformat()
@@ -136,6 +206,7 @@ class ReservationSerializer(serializers.ModelSerializer):
     unitPrice = serializers.SerializerMethodField()
     totalPrice = serializers.SerializerMethodField()
     note = serializers.CharField(source="observacao")
+    deadline = serializers.SerializerMethodField()
     reservedAt = serializers.SerializerMethodField()
     finalizedAt = serializers.SerializerMethodField()
 
@@ -156,6 +227,7 @@ class ReservationSerializer(serializers.ModelSerializer):
             "totalPrice",
             "status",
             "note",
+            "deadline",
             "reservedAt",
             "finalizedAt",
         )
@@ -181,6 +253,9 @@ class ReservationSerializer(serializers.ModelSerializer):
 
     def get_totalPrice(self, reserva):
         return float(reserva.quantidade_reservada * reserva.preco_unitario)
+
+    def get_deadline(self, reserva):
+        return reserva.prazo_reserva.isoformat() if reserva.prazo_reserva else ""
 
     def get_reservedAt(self, reserva):
         return reserva.data_reserva.isoformat()

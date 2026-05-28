@@ -34,10 +34,10 @@ class LoginAPIView(ZenWasteAPIView):
         try:
             empresa = Empresa.objects.get(email__iexact=email)
         except Empresa.DoesNotExist:
-            return Response({"message": "E-mail ou senha invalidos."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"message": "E-mail ou senha inválidos."}, status=status.HTTP_401_UNAUTHORIZED)
 
         if not empresa.validar_senha(password):
-            return Response({"message": "E-mail ou senha invalidos."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"message": "E-mail ou senha inválidos."}, status=status.HTTP_401_UNAUTHORIZED)
 
         if empresa.senha == password:
             empresa.definir_senha(password)
@@ -108,10 +108,10 @@ class LoginView(ZenWasteAPIView):
         try:
             empresa = Empresa.objects.get(email__iexact=email)
         except Empresa.DoesNotExist:
-            return Response({"message": "E-mail ou senha invalidos."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"message": "E-mail ou senha inválidos."}, status=status.HTTP_401_UNAUTHORIZED)
 
         if not empresa.validar_senha(password):
-            return Response({"message": "E-mail ou senha invalidos."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"message": "E-mail ou senha inválidos."}, status=status.HTTP_401_UNAUTHORIZED)
 
         if empresa.senha == password:
             empresa.definir_senha(password)

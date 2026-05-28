@@ -5,7 +5,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from empresas.views import EmpresaCreateListView, EmpresaRetrieveUpdateDestroy
 from login.views import LoginView
 from produtos.views import ProdutoCreateListView, ProdutoRetrieveUpdateDestroy
-
+from anuncios.views import AnuncioCreateListView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -16,10 +16,11 @@ urlpatterns = [
     path("produto", ProdutoCreateListView.as_view(), name="criar-produto"),
     path("produto/<int:pk>", ProdutoRetrieveUpdateDestroy.as_view(), name="produto-detail-view"),
     path("login", LoginView.as_view(), name="Login"),
+    path("auth/login/", LoginView.as_view(), name="legacy-auth-login"),
     path("authentication/token/", TokenObtainPairView.as_view(), name="token-obtain-pair"),
     path("authentication/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("authentication/token/verify/", TokenVerifyView.as_view(), name="token-verify"),
-
+    path("anuncio", AnuncioCreateListView.as_view(), name="Criar-anuncio"),
     # API consumida pelo front-end React.
     path("api/auth/", include("login.urls")),
     path("api/inventory/", include("produtos.urls")),

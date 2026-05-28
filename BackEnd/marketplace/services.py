@@ -4,7 +4,12 @@ from rest_framework import serializers
 
 from anuncios.models import Anuncio
 from produtos.models import Produto
-from produtos.services import create_product_reservation, register_inventory_movement
+from produtos.services import (
+    clean_inventory_name,
+    create_product_reservation,
+    register_inventory_movement,
+    validate_unique_inventory_name,
+)
 
 
 def list_active_ads(filters):
@@ -30,7 +35,9 @@ def resolve_product_for_ad(empresa, data):
         produto = Produto.objects.filter(id_produto=inventory_id, empresa=empresa).first()
 
     if produto:
-        produto.descricao_produto = data["name"].strip()
+        name = clean_inventory_name(data["name"])
+        validate_unique_inventory_name(empresa, name, current_product=produto)
+        produto.descricao_produto = name
         produto.tipo_produto = data["type"].strip()
         produto.unidade = (data.get("unit") or produto.unidade or "kg").strip() or "kg"
         if data["quantity"] > produto.quantidade:
@@ -41,9 +48,11 @@ def resolve_product_for_ad(empresa, data):
         produto.save()
         return produto
 
+    name = clean_inventory_name(data["name"])
+    validate_unique_inventory_name(empresa, name)
     produto = Produto(
         empresa=empresa,
-        descricao_produto=data["name"].strip(),
+        descricao_produto=name,
         tipo_produto=data["type"].strip(),
         quantidade=0,
         unidade=(data.get("unit") or "kg").strip() or "kg",
@@ -96,6 +105,9 @@ def update_ad(anuncio, data):
     for request_field, model_field in product_fields.items():
         if request_field in data:
             value = data[request_field]
+            if request_field == "name":
+                value = clean_inventory_name(value)
+                validate_unique_inventory_name(produto.empresa, value, current_product=produto)
             if request_field == "unit":
                 value = (value or produto.unidade or "kg").strip() or "kg"
             setattr(produto, model_field, value)
@@ -128,6 +140,11 @@ def finalize_ad_sale(anuncio, data):
     if sold_quantity > produto.quantidade:
         raise serializers.ValidationError({
             "message": "A quantidade vendida nao pode ultrapassar o saldo atual do produto."
+        })
+
+    if sold_quantity > anuncio.nr_qtd:
+        raise serializers.ValidationError({
+            "message": "A quantidade vendida nao pode ultrapassar a quantidade anunciada."
         })
 
     movimento = register_inventory_movement(produto, produto.empresa, {
