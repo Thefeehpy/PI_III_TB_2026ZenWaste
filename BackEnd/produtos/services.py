@@ -211,25 +211,36 @@ def update_product_reservation(reserva, status_value):
     return reserva
 
 
+@transaction.atomic
 def register_inventory_movement(produto, empresa, data):
+    if not empresa or produto.empresa_id != empresa.id_empresa:
+        raise serializers.ValidationError({"message": "Este item de estoque nao pertence ao usuario autenticado."})
+
+    try:
+        produto_bloqueado = Produto.objects.select_for_update().get(
+            id_produto=produto.id_produto,
+            empresa=empresa,
+        )
+    except Produto.DoesNotExist:
+        raise serializers.ValidationError({"message": "Item de estoque nao encontrado para este usuario."})
     quantity = data["quantity"]
     movement_type = data["type"]
 
     resulting_quantity = (
-        produto.quantidade + quantity
+        produto_bloqueado.quantidade + quantity
         if movement_type == "entrada"
-        else produto.quantidade - quantity
+        else produto_bloqueado.quantidade - quantity
     )
 
     if resulting_quantity < Decimal("0"):
         raise serializers.ValidationError({"message": "Saida maior que a quantidade disponivel."})
 
-    produto.quantidade = resulting_quantity
-    sync_status(produto)
-    produto.save()
+    produto_bloqueado.quantidade = resulting_quantity
+    sync_status(produto_bloqueado)
+    produto_bloqueado.save()
 
     movement = MovimentacaoEstoque.objects.create(
-        produto=produto,
+        produto=produto_bloqueado,
         empresa=empresa,
         tipo=movement_type,
         quantidade=quantity,
@@ -237,5 +248,10 @@ def register_inventory_movement(produto, empresa, data):
         saldo_resultante=resulting_quantity,
     )
 
-    refresh_product_reservations(produto)
+    refresh_product_reservations(produto_bloqueado)
+
+    produto.quantidade = produto_bloqueado.quantidade
+    produto.status = produto_bloqueado.status
+    produto.atualizado_em = produto_bloqueado.atualizado_em
+
     return movement

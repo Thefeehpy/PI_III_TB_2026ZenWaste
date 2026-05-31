@@ -1,7 +1,8 @@
 from rest_framework import generics, status
+from rest_framework.exceptions import NotAuthenticated
 from rest_framework.response import Response
 
-from authentication.services import ZenWasteAPIView, require_empresa
+from authentication.services import ZenWasteAPIView, empresa_from_request, require_empresa
 from anuncios.models import Reserva
 from produtos.models import MovimentacaoEstoque, Produto
 from produtos.serializers import (
@@ -26,34 +27,49 @@ from produtos.services import (
 )
 
 
-class ProdutoCreateListView(generics.ListCreateAPIView):
-    queryset = Produto.objects.all()
+class EmpresaScopedProdutoMixin:
+    authentication_classes = []
+    permission_classes = []
     serializer_class = ProdutoSerializer
 
+    def get_empresa(self):
+        empresa = empresa_from_request(self.request)
+        if empresa is None:
+            raise NotAuthenticated("Autenticacao obrigatoria.")
+        return empresa
 
-class ProdutoRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Produto.objects.all()
-    serializer_class = ProdutoSerializer
+    def get_queryset(self):
+        return Produto.objects.filter(empresa=self.get_empresa())
 
+    def perform_create(self, serializer):
+        serializer.save(empresa=self.get_empresa())
 
-class ProdutoCreate(generics.CreateAPIView):
-    queryset = Produto.objects.all()
-    serializer_class = ProdutoSerializer
-
-
-class ProdutoUpdate(generics.UpdateAPIView):
-    queryset = Produto.objects.all()
-    serializer_class = ProdutoSerializer
-
-
-class ProdutoDestroy(generics.DestroyAPIView):
-    queryset = Produto.objects.all()
-    serializer_class = ProdutoSerializer
+    def perform_update(self, serializer):
+        serializer.save(empresa=self.get_empresa())
 
 
-class ProdutoRetrieve(generics.RetrieveAPIView):
-    queryset = Produto.objects.all()
-    serializer_class = ProdutoSerializer
+class ProdutoCreateListView(EmpresaScopedProdutoMixin, generics.ListCreateAPIView):
+    pass
+
+
+class ProdutoRetrieveUpdateDestroy(EmpresaScopedProdutoMixin, generics.RetrieveUpdateDestroyAPIView):
+    pass
+
+
+class ProdutoCreate(EmpresaScopedProdutoMixin, generics.CreateAPIView):
+    pass
+
+
+class ProdutoUpdate(EmpresaScopedProdutoMixin, generics.UpdateAPIView):
+    pass
+
+
+class ProdutoDestroy(EmpresaScopedProdutoMixin, generics.DestroyAPIView):
+    pass
+
+
+class ProdutoRetrieve(EmpresaScopedProdutoMixin, generics.RetrieveAPIView):
+    pass
 
 
 class InventoryItemsAPIView(ZenWasteAPIView):
@@ -114,7 +130,7 @@ class InventoryMovementsAPIView(ZenWasteAPIView):
         if error:
             return error
 
-        movements = MovimentacaoEstoque.objects.filter(empresa=empresa).select_related("produto")
+        movements = MovimentacaoEstoque.objects.filter(empresa=empresa, produto__empresa=empresa).select_related("produto")
         return Response({"movements": InventoryMovementSerializer(movements, many=True).data})
 
 

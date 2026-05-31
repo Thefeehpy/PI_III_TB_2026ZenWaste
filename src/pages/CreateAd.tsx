@@ -290,7 +290,7 @@ export default function CreateAd() {
       inventoryId: selectedInventory.id,
       name: form.title,
       type: selectedInventory.type,
-      description: form.description || `Material disponivel no estoque da ${user.razaoSocial}.`,
+      description: form.description.trim(),
       quantity: Number(form.quantity),
       unit: form.unit,
       location: form.location,
@@ -375,7 +375,10 @@ export default function CreateAd() {
       setForm((current) => ({ ...current, description: response.description }));
       toast({
         title: response.source === "ai" ? "Descricao gerada por IA" : "Descricao sugerida",
-        description: response.source === "ai" ? "Revise o texto antes de publicar." : "IA indisponivel; usei uma sugestao padrao.",
+        description:
+          response.source === "ai"
+            ? "Revise o texto antes de publicar."
+            : response.message || "IA indisponivel; usei uma sugestao padrao.",
       });
     } catch (error) {
       toast({
@@ -409,7 +412,10 @@ export default function CreateAd() {
       setPriceInsight(response.insight);
       toast({
         title: response.source === "ai" ? "Preco sugerido por IA" : "Preco sugerido",
-        description: response.source === "ai" ? "Revise o valor antes de publicar." : "IA indisponivel; usei historico de mercado.",
+        description:
+          response.source === "ai"
+            ? "Revise o valor antes de publicar."
+            : response.message || "IA indisponivel; usei historico de mercado.",
       });
     } catch (error) {
       toast({

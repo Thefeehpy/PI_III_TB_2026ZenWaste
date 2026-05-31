@@ -6,10 +6,14 @@ import {
   BarChart3,
   Boxes,
   Building2,
+  CheckCircle2,
   Gauge,
   Leaf,
+  MessageCircle,
   PackageSearch,
+  Search,
   ShieldCheck,
+  ShoppingCart,
   Sparkles,
   TrendingUp,
   Users,
@@ -31,6 +35,7 @@ const navigationItems = [
   { label: "Home", href: "#home" },
   { label: "Sobre", href: "#sobre" },
   { label: "O que é", href: "#o-que-e" },
+  { label: "Comprar", href: "#comprar" },
   { label: "Processo", href: "#processo" },
 ];
 
@@ -70,6 +75,24 @@ const processSteps = [
     icon: BarChart3,
     title: "Gerencie tudo em um só lugar",
     description: "Controle estoque, metas e indicadores em tempo real.",
+  },
+];
+
+const buyerSteps = [
+  {
+    icon: Search,
+    title: "Busque por material",
+    description: "Filtre resíduos por tipo, localização, preço e quantidade disponível.",
+  },
+  {
+    icon: CheckCircle2,
+    title: "Compare oportunidades",
+    description: "Veja fornecedores, especificações e condições para escolher a melhor oferta.",
+  },
+  {
+    icon: MessageCircle,
+    title: "Negocie a compra",
+    description: "Entre em contato com o vendedor e avance para a compra do resíduo.",
   },
 ];
 
@@ -368,6 +391,168 @@ export default function Index() {
                 </p>
               </div>
             </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="comprar" className="relative overflow-hidden bg-muted/[0.28] py-24 sm:py-28">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        <div className="absolute left-0 top-10 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
+
+        <div className="container relative">
+          <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+            <div data-reveal className="reveal-on-scroll max-w-2xl">
+              <div className={`${sectionTagClass} border-primary/[0.16] bg-primary/[0.08] text-primary`}>
+                <ShoppingCart className="h-4 w-4" />
+                Para compradores
+              </div>
+
+              <h2 className="mt-6 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                Entre no marketplace e compre resíduos para sua operação.
+              </h2>
+
+              <p className="mt-5 text-base leading-8 text-muted-foreground sm:text-lg">
+                Encontre materiais industriais disponíveis, compare ofertas e fale direto com o
+                vendedor para transformar descarte em insumo com mais rapidez.
+              </p>
+
+              <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+                <Button
+                  size="lg"
+                  asChild
+                  className="h-12 rounded-full px-7 text-base font-semibold shadow-[0_18px_45px_rgba(16,185,129,0.18)]"
+                >
+                  <Link to="/marketplace">
+                    Entrar no marketplace
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+
+                <Button
+                  size="lg"
+                  variant="outline"
+                  asChild
+                  className="h-12 rounded-full px-7 text-base"
+                >
+                  <Link to="/marketplace">Ver resíduos disponíveis</Link>
+                </Button>
+              </div>
+
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                {["Resíduos filtráveis", "Compra B2B", "Contato direto"].map((label) => (
+                  <div
+                    key={label}
+                    className="rounded-[22px] border border-border/70 bg-background/75 px-4 py-3 text-sm font-semibold text-foreground shadow-[0_12px_35px_rgba(15,23,42,0.06)]"
+                  >
+                    {label}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div
+              data-reveal
+              className="reveal-on-scroll"
+              style={{ transitionDelay: "120ms" }}
+            >
+              <div className="landing-card-dark rounded-[34px] p-5 sm:p-6">
+                <div className="relative z-10">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-100/80">
+                        Marketplace
+                      </p>
+                      <h3 className="mt-2 font-display text-2xl font-semibold tracking-tight text-white">
+                        Ofertas prontas para compra
+                      </h3>
+                    </div>
+
+                    <div className="w-fit rounded-full border border-emerald-200/20 bg-emerald-300/10 px-4 py-2 text-sm font-semibold text-emerald-100">
+                      Disponível agora
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex items-center gap-3 rounded-[24px] border border-white/[0.08] bg-white/[0.06] px-4 py-3 text-sm text-white/[0.72]">
+                    <Search className="h-4 w-4 text-emerald-200" />
+                    Buscar plástico, metal, papelão...
+                  </div>
+
+                  <div className="mt-5 grid gap-3">
+                    {[
+                      {
+                        name: "Aparas de PEAD",
+                        type: "Plástico Industrial",
+                        price: "R$ 2,80/kg",
+                        location: "São Paulo - SP",
+                      },
+                      {
+                        name: "Sucata de Aço Inox 304",
+                        type: "Sucata Metálica",
+                        price: "R$ 8,50/kg",
+                        location: "Campinas - SP",
+                      },
+                      {
+                        name: "Papelão Ondulado",
+                        type: "Papel e Papelão",
+                        price: "R$ 0,45/kg",
+                        location: "Curitiba - PR",
+                      },
+                    ].map((item) => (
+                      <div
+                        key={item.name}
+                        className="rounded-[24px] border border-white/[0.08] bg-white/[0.04] p-4"
+                      >
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="font-semibold text-white">{item.name}</p>
+                            <p className="mt-1 text-sm text-white/[0.62]">{item.type}</p>
+                          </div>
+
+                          <div className="text-left sm:text-right">
+                            <p className="font-display text-lg font-semibold text-emerald-100">
+                              {item.price}
+                            </p>
+                            <p className="mt-1 text-sm text-white/[0.58]">{item.location}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button
+                    asChild
+                    className="mt-5 h-12 w-full rounded-full bg-white text-slate-950 hover:bg-white/[0.92]"
+                  >
+                    <Link to="/marketplace">
+                      Comprar resíduos no marketplace
+                      <ShoppingCart className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-12 grid gap-4 md:grid-cols-3">
+            {buyerSteps.map((step, index) => (
+              <article
+                key={step.title}
+                data-reveal
+                className="reveal-on-scroll landing-card rounded-[28px] p-6"
+                style={{ transitionDelay: `${index * 90}ms` }}
+              >
+                <div className="relative z-10">
+                  <div className="w-fit rounded-2xl bg-accent p-3 text-accent-foreground">
+                    <step.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="mt-6 font-display text-xl font-semibold tracking-tight text-foreground">
+                    {step.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{step.description}</p>
+                </div>
+              </article>
+            ))}
           </div>
         </div>
       </section>

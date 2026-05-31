@@ -2,9 +2,9 @@ import re
 from decimal import Decimal, InvalidOperation
 
 from gemini_api.cliente import (
+    get_ai_status,
     get_anounce_ai_description,
     get_anounce_price_ai_description,
-    is_ai_available,
 )
 from market.pricing import suggested_price_for_type
 
@@ -55,11 +55,13 @@ def fallback_description(data):
 def suggest_ad_description(data):
     context = build_ad_context(data)
     description = get_anounce_ai_description(context) if context else None
+    ai_status = get_ai_status()
 
     return {
         "description": (description or fallback_description(data))[:300],
         "source": "ai" if description else "fallback",
-        "aiAvailable": is_ai_available(),
+        "aiAvailable": ai_status["available"],
+        "message": "" if description else ai_status["message"],
     }
 
 
@@ -69,6 +71,7 @@ def suggest_ad_price(data):
     ai_price = parse_price(ai_text)
     fallback_price = suggested_price_for_type(data.get("type", ""))
     price = ai_price if ai_price and ai_price > 0 else fallback_price
+    ai_status = get_ai_status()
 
     return {
         "suggestedPrice": float(round(price, 2)),
@@ -78,5 +81,6 @@ def suggest_ad_price(data):
             else "Sugestao baseada em historico de mercado e anuncios ativos similares."
         ),
         "source": "ai" if ai_price else "fallback",
-        "aiAvailable": is_ai_available(),
+        "aiAvailable": ai_status["available"],
+        "message": "" if ai_price else ai_status["message"],
     }

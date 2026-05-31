@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.db import DatabaseError, connection
 from django.db.models import Avg
 
 from anuncios.models import Anuncio
@@ -85,10 +86,16 @@ def suggested_price_for_type(waste_type):
             matched_key = key
             break
 
-    avg_price = Anuncio.objects.filter(
-        produto__tipo_produto__icontains=waste_type,
-        status_anuncio="ativo",
-    ).aggregate(media=Avg("preco_final"))["media"]
+    avg_price = None
+
+    try:
+        if Anuncio._meta.db_table in connection.introspection.table_names():
+            avg_price = Anuncio.objects.filter(
+                produto__tipo_produto__icontains=waste_type,
+                status_anuncio="ativo",
+            ).aggregate(media=Avg("preco_final"))["media"]
+    except DatabaseError:
+        avg_price = None
 
     if avg_price:
         return Decimal(avg_price)

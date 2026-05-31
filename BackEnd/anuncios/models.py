@@ -10,7 +10,7 @@ class Anuncio(models.Model):
     nr_qtd = models.DecimalField(max_digits=10, decimal_places=2)
     data_final = models.DateField(null=True, blank=True)
     localizacao = models.CharField(max_length=120, blank=True)
-    imagem_url = models.URLField(max_length=2000, blank=True)
+    imagem_url = models.TextField(blank=True)
 
     produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='anuncios', null=False)
 

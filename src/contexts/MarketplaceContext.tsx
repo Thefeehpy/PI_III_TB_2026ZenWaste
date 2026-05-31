@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { marketplaceItems as fallbackMarketplaceItems, type SellerWasteItem, type WasteItem } from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 
 interface CreateMarketplaceItemInput {
@@ -33,9 +34,24 @@ interface MarketplaceContextValue {
 const MarketplaceContext = createContext<MarketplaceContextValue | undefined>(undefined);
 
 export function MarketplaceProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const authUserId = user?.id ?? null;
+  const activeUserIdRef = useRef<string | null>(authUserId);
   const [items, setItems] = useState<WasteItem[]>(fallbackMarketplaceItems);
   const [sellerItems, setSellerItems] = useState<SellerWasteItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    activeUserIdRef.current = authUserId;
+
+    if (!authUserId) {
+      setSellerItems([]);
+    }
+  }, [authUserId]);
+
+  const canApplySellerResponse = useCallback((requestUserId: string | null) => {
+    return Boolean(requestUserId) && activeUserIdRef.current === requestUserId;
+  }, []);
 
   const refreshMarketplace = useCallback(async () => {
     setIsLoading(true);
@@ -50,13 +66,23 @@ export function MarketplaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshSellerItems = useCallback(async () => {
+    const requestUserId = authUserId;
+    if (!requestUserId) {
+      setSellerItems([]);
+      return;
+    }
+
     try {
       const response = await api.listSellerMarketplaceItems();
-      setSellerItems(response.items);
+      if (canApplySellerResponse(requestUserId)) {
+        setSellerItems(response.items);
+      }
     } catch {
-      setSellerItems([]);
+      if (canApplySellerResponse(requestUserId)) {
+        setSellerItems([]);
+      }
     }
-  }, []);
+  }, [authUserId, canApplySellerResponse]);
 
   useEffect(() => {
     void refreshMarketplace();
@@ -71,10 +97,20 @@ export function MarketplaceProvider({ children }: { children: ReactNode }) {
       refreshMarketplace,
       refreshSellerItems,
       addItem: async (item) => {
+        const requestUserId = authUserId;
+        if (!requestUserId) {
+          return {
+            success: false,
+            message: "Autenticacao obrigatoria.",
+          };
+        }
+
         try {
           const response = await api.createMarketplaceItem(item);
           setItems((current) => [response.item, ...current.filter((candidate) => candidate.id !== response.item.id)]);
-          await refreshSellerItems();
+          if (canApplySellerResponse(requestUserId)) {
+            await refreshSellerItems();
+          }
           return { success: true };
         } catch (error) {
           return {
@@ -84,10 +120,20 @@ export function MarketplaceProvider({ children }: { children: ReactNode }) {
         }
       },
       deactivateItem: async (adId) => {
+        const requestUserId = authUserId;
+        if (!requestUserId) {
+          return {
+            success: false,
+            message: "Autenticacao obrigatoria.",
+          };
+        }
+
         try {
           await api.deleteMarketplaceItem(adId);
           setItems((current) => current.filter((item) => item.id !== adId));
-          await refreshSellerItems();
+          if (canApplySellerResponse(requestUserId)) {
+            await refreshSellerItems();
+          }
           return { success: true, message: "Anuncio encerrado com sucesso." };
         } catch (error) {
           return {
@@ -97,10 +143,20 @@ export function MarketplaceProvider({ children }: { children: ReactNode }) {
         }
       },
       finalizeItem: async (adId, soldQuantity) => {
+        const requestUserId = authUserId;
+        if (!requestUserId) {
+          return {
+            success: false,
+            message: "Autenticacao obrigatoria.",
+          };
+        }
+
         try {
           await api.finalizeMarketplaceItem(adId, soldQuantity);
           setItems((current) => current.filter((item) => item.id !== adId));
-          await refreshSellerItems();
+          if (canApplySellerResponse(requestUserId)) {
+            await refreshSellerItems();
+          }
           return { success: true, message: "Anuncio finalizado e saldo atualizado." };
         } catch (error) {
           return {
@@ -110,7 +166,7 @@ export function MarketplaceProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [isLoading, items, refreshMarketplace, refreshSellerItems, sellerItems],
+    [authUserId, canApplySellerResponse, isLoading, items, refreshMarketplace, refreshSellerItems, sellerItems],
   );
 
   return <MarketplaceContext.Provider value={value}>{children}</MarketplaceContext.Provider>;

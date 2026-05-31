@@ -259,7 +259,13 @@ export const api = {
   }) {
     const payload = typeof input === "string" ? { type: input } : input;
 
-    return request<{ suggestedPrice: number; insight: string; source: "ai" | "fallback"; aiAvailable: boolean }>(
+    return request<{
+      suggestedPrice: number;
+      insight: string;
+      source: "ai" | "fallback";
+      aiAvailable: boolean;
+      message?: string;
+    }>(
       "/market/suggest-price/",
       {
         method: "POST",
@@ -275,7 +281,7 @@ export const api = {
     unit?: string;
     location?: string;
   }) {
-    return request<{ description: string; source: "ai" | "fallback"; aiAvailable: boolean }>(
+    return request<{ description: string; source: "ai" | "fallback"; aiAvailable: boolean; message?: string }>(
       "/market/suggest-description/",
       {
         method: "POST",
