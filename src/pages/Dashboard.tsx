@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Activity, Boxes, Layers3, PackageCheck, Sparkles, Weight } from "lucide-react";
+import { Activity, Boxes, Layers3, Sparkles, Weight } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

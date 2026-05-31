@@ -10,12 +10,16 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.next
+*.tsbuildinfo
 *.local
 .env
 
 # Python / Django
 __pycache__/
 *.py[cod]
+BackEnd/**/__pycache__/
+BackEnd/**/*.py[cod]
 back-end/.venv/
 back-end/db.sqlite3
 .workspace/
