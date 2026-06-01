@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+﻿import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { InventoryItem, InventoryMovement } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
@@ -8,8 +8,6 @@ interface CreateInventoryItemInput {
   type: string;
   quantity: number;
   unit: string;
-  targetQuantity: number;
-  deadline: string;
 }
 
 interface AdjustInventoryQuantityInput {
@@ -17,6 +15,15 @@ interface AdjustInventoryQuantityInput {
   quantity: number;
   type: InventoryMovement["type"];
   note?: string;
+}
+
+interface UpdateInventoryItemInput {
+  itemId: string;
+  name?: string;
+  type?: string;
+  unit?: string;
+  targetQuantity?: number;
+  deadline?: string;
 }
 
 interface InventoryActionResult {
@@ -30,7 +37,9 @@ interface InventoryContextValue {
   isLoading: boolean;
   refreshInventory: () => Promise<void>;
   addItem: (item: CreateInventoryItemInput) => Promise<InventoryActionResult>;
+  updateItem: (input: UpdateInventoryItemInput) => Promise<InventoryActionResult>;
   adjustItemQuantity: (input: AdjustInventoryQuantityInput) => Promise<InventoryActionResult>;
+  deleteItem: (itemId: string) => Promise<InventoryActionResult>;
 }
 
 const InventoryContext = createContext<InventoryContextValue | undefined>(undefined);
@@ -44,15 +53,34 @@ function sortMovements(movements: InventoryMovement[]) {
 }
 
 export function InventoryProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
+  const authUserId = user?.id ?? null;
+  const activeUserIdRef = useRef<string | null>(authUserId);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const refreshInventory = useCallback(async () => {
-    if (!isAuthenticated) {
+  useEffect(() => {
+    activeUserIdRef.current = authUserId;
+
+    if (!authUserId) {
       setItems([]);
       setMovements([]);
+      setIsLoading(false);
+    }
+  }, [authUserId]);
+
+  const canApplyResponse = useCallback((requestUserId: string | null) => {
+    return Boolean(requestUserId) && activeUserIdRef.current === requestUserId;
+  }, []);
+
+  const refreshInventory = useCallback(async () => {
+    const requestUserId = authUserId;
+
+    if (!requestUserId) {
+      setItems([]);
+      setMovements([]);
+      setIsLoading(false);
       return;
     }
 
@@ -63,15 +91,21 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         api.listInventoryMovements(),
       ]);
 
-      setItems(sortItems(itemsResponse.items));
-      setMovements(sortMovements(movementsResponse.movements));
+      if (canApplyResponse(requestUserId)) {
+        setItems(sortItems(itemsResponse.items));
+        setMovements(sortMovements(movementsResponse.movements));
+      }
     } catch {
-      setItems([]);
-      setMovements([]);
+      if (canApplyResponse(requestUserId)) {
+        setItems([]);
+        setMovements([]);
+      }
     } finally {
-      setIsLoading(false);
+      if (canApplyResponse(requestUserId)) {
+        setIsLoading(false);
+      }
     }
-  }, [isAuthenticated]);
+  }, [authUserId, canApplyResponse]);
 
   useEffect(() => {
     void refreshInventory();
@@ -84,22 +118,31 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       isLoading,
       refreshInventory,
       addItem: async (item) => {
+        const requestUserId = authUserId;
+        if (!requestUserId) {
+          return {
+            success: false,
+            message: "Autenticação obrigatória.",
+          };
+        }
+
         try {
           const quantity = Math.max(0, Number(item.quantity) || 0);
-          const targetQuantity = Math.max(1, Number(item.targetQuantity) || 1);
           const response = await api.createInventoryItem({
             name: item.name.trim(),
             type: item.type,
             quantity,
             unit: item.unit,
-            targetQuantity,
-            deadline: item.deadline,
           });
 
-          setItems((current) => sortItems([response.item, ...current]));
+          if (canApplyResponse(requestUserId)) {
+            setItems((current) => sortItems([response.item, ...current]));
+          }
 
           const movementsResponse = await api.listInventoryMovements();
-          setMovements(sortMovements(movementsResponse.movements));
+          if (canApplyResponse(requestUserId)) {
+            setMovements(sortMovements(movementsResponse.movements));
+          }
 
           return {
             success: true,
@@ -108,17 +151,75 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         } catch (error) {
           return {
             success: false,
-            message: error instanceof Error ? error.message : "Nao foi possivel cadastrar o item.",
+            message: error instanceof Error ? error.message : "Não foi possível cadastrar o item.",
+          };
+        }
+      },
+      updateItem: async (input) => {
+        const requestUserId = authUserId;
+        if (!requestUserId) {
+          return {
+            success: false,
+            message: "Autenticação obrigatória.",
+          };
+        }
+
+        try {
+          const payload: Partial<Pick<InventoryItem, "name" | "type" | "unit" | "targetQuantity" | "deadline">> = {};
+
+          if (input.name !== undefined) {
+            payload.name = input.name.trim();
+          }
+
+          if (input.type !== undefined) {
+            payload.type = input.type;
+          }
+
+          if (input.unit !== undefined) {
+            payload.unit = input.unit;
+          }
+
+          if (input.targetQuantity !== undefined) {
+            const targetQuantity = Math.max(1, Number(input.targetQuantity) || 1);
+            payload.targetQuantity = targetQuantity;
+          }
+
+          if (input.deadline !== undefined) {
+            payload.deadline = input.deadline;
+          }
+
+          const response = await api.updateInventoryItem(input.itemId, payload);
+
+          if (canApplyResponse(requestUserId)) {
+            setItems((current) => sortItems([response.item, ...current.filter((item) => item.id !== response.item.id)]));
+          }
+
+          return {
+            success: true,
+            message: "Reserva atualizada com sucesso.",
+          };
+        } catch (error) {
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : "Não foi possível atualizar a reserva.",
           };
         }
       },
       adjustItemQuantity: async (input) => {
+        const requestUserId = authUserId;
+        if (!requestUserId) {
+          return {
+            success: false,
+            message: "Autenticação obrigatória.",
+          };
+        }
+
         try {
           const quantity = Number(input.quantity);
           if (!Number.isFinite(quantity) || quantity <= 0) {
             return {
               success: false,
-              message: "Informe uma quantidade valida para registrar a movimentacao.",
+              message: "Informe uma quantidade válida para registrar a movimentação.",
             };
           }
 
@@ -127,8 +228,10 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
             quantity,
           });
 
-          setItems((current) => sortItems([response.item, ...current.filter((item) => item.id !== response.item.id)]));
-          setMovements((current) => sortMovements([response.movement, ...current]));
+          if (canApplyResponse(requestUserId)) {
+            setItems((current) => sortItems([response.item, ...current.filter((item) => item.id !== response.item.id)]));
+            setMovements((current) => sortMovements([response.movement, ...current]));
+          }
 
           return {
             success: true,
@@ -137,12 +240,42 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         } catch (error) {
           return {
             success: false,
-            message: error instanceof Error ? error.message : "Nao foi possivel registrar a movimentacao.",
+            message: error instanceof Error ? error.message : "Não foi possível registrar a movimentação.",
+          };
+        }
+      },
+      deleteItem: async (itemId) => {
+        const requestUserId = authUserId;
+        if (!requestUserId) {
+          return {
+            success: false,
+            message: "Autenticação obrigatória.",
+          };
+        }
+
+        try {
+          const response = await api.deleteInventoryItem(itemId);
+          if (canApplyResponse(requestUserId)) {
+            setItems((current) => current.filter((item) => item.id !== itemId));
+            setMovements((current) => current.filter((movement) => movement.itemId !== itemId));
+          }
+
+          return {
+            success: true,
+            message:
+              response.closedAds > 0
+                ? "Item excluído e anúncios vinculados encerrados."
+                : "Item excluído com sucesso.",
+          };
+        } catch (error) {
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : "Não foi possível excluir o item.",
           };
         }
       },
     }),
-    [isLoading, items, movements, refreshInventory],
+    [authUserId, canApplyResponse, isLoading, items, movements, refreshInventory],
   );
 
   return <InventoryContext.Provider value={value}>{children}</InventoryContext.Provider>;
@@ -157,3 +290,4 @@ export function useInventory() {
 
   return context;
 }
+

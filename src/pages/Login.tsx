@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Leaf, Lock, Mail } from "lucide-react";
 
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import heroBg from "@/assets/hero-bg.jpg";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo-zenwaste.png";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -28,7 +28,7 @@ export default function Login() {
     const result = await login(email, password);
     if (!result.success) {
       toast({
-        title: "Nao foi possivel entrar",
+        title: "Não foi possível entrar",
         description: result.message,
         variant: "destructive",
       });
@@ -37,7 +37,7 @@ export default function Login() {
 
     toast({
       title: "Login realizado",
-      description: "Sua sessao foi restaurada e continuara ativa neste navegador.",
+      description: "Sua sessão foi restaurada e continuará ativa neste navegador.",
     });
     navigate(redirectTo, { replace: true });
   };
@@ -57,15 +57,14 @@ export default function Login() {
           />
           <div className="relative z-10 space-y-6 p-12 text-center">
             <div className="flex items-center justify-center gap-3">
-              <img src={logo} alt="ZenWaste" className="h-16 w-16" />
+              <img src={logo} alt="ZenWaste" className="w-56 h-auto max-w-full" />
             </div>
-            <h1 className="text-4xl font-bold text-secondary-foreground">ZenWaste</h1>
             <p className="mx-auto max-w-md text-lg text-secondary-foreground/80">
-              Transforme residuos em ativos financeiros. A plataforma inteligente para a economia circular industrial.
+              Transforme resíduos em ativos financeiros. A plataforma inteligente para a economia circular industrial.
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-secondary-foreground/60">
               <Leaf className="h-4 w-4" />
-              <span>Economia Circular · Sustentabilidade · Inovacao</span>
+              <span>Economia Circular Â· Sustentabilidade Â· Inovação</span>
             </div>
           </div>
         </div>
@@ -73,9 +72,8 @@ export default function Login() {
         <div className="flex w-full items-center justify-center p-8 lg:w-1/2">
           <Card className="w-full max-w-md border-0 shadow-none lg:border lg:shadow-sm">
             <CardHeader className="text-center">
-              <div className="mb-2 flex items-center justify-center gap-2 lg:hidden">
-                <img src={logo} alt="ZenWaste" className="h-10 w-10" />
-                <span className="font-bold text-xl text-foreground">ZenWaste</span>
+              <div className="mb-2 flex items-center justify-center lg:hidden">
+                <img src={logo} alt="ZenWaste" className="w-32 h-auto shrink-0" />
               </div>
               <CardTitle className="text-2xl">Bem-vindo de volta</CardTitle>
               <CardDescription>Entre com suas credenciais para acessar o painel</CardDescription>
@@ -105,7 +103,7 @@ export default function Login() {
                     <Input
                       id="password"
                       type="password"
-                      placeholder="••••••••"
+                      placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                       className="pl-10"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -120,7 +118,7 @@ export default function Login() {
               </form>
 
               <p className="mt-6 text-center text-sm text-muted-foreground">
-                Nao tem conta?{" "}
+                Não tem conta?{" "}
                 <Link to="/register" className="font-medium text-primary hover:underline">
                   Cadastrar empresa
                 </Link>
@@ -132,3 +130,4 @@ export default function Login() {
     </div>
   );
 }
+

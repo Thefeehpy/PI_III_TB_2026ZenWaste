@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Building2, Lock, Mail, Phone } from "lucide-react";
 
@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { formatCNPJ, validateCNPJ } from "@/utils/cnpj";
 import heroBg from "@/assets/hero-bg.jpg";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo-zenwaste.png";
 
 const segments = [
   "Metalurgia",
@@ -20,7 +20,7 @@ const segments = [
   "Alimentos e Bebidas",
   "Papel e Celulose",
   "Automotivo",
-  "Construcao Civil",
+  "Construção Civil",
   "Textil",
   "Eletronico",
   "Farmaceutico",
@@ -81,7 +81,7 @@ export default function Register() {
 
     if (!result.success) {
       toast({
-        title: "Cadastro nao concluido",
+        title: "Cadastro não concluído",
         description: result.message,
         variant: "destructive",
       });
@@ -90,7 +90,7 @@ export default function Register() {
 
     toast({
       title: "Conta criada",
-      description: "Agora voce ja pode entrar com seu e-mail e senha.",
+      description: "Agora você já pode entrar com seu e-mail e senha.",
     });
     navigate("/login");
   };
@@ -110,8 +110,7 @@ export default function Register() {
         <header className="border-b border-white/10 bg-slate-950/10 backdrop-blur">
           <div className="container flex h-16 items-center justify-between">
             <Link to="/" className="flex items-center gap-2 text-white">
-              <img src={logo} alt="ZenWaste" className="h-9 w-9" />
-              <span className="font-bold text-lg sm:text-xl">ZenWaste</span>
+              <img src={logo} alt="ZenWaste" className="w-28 h-auto" />
             </Link>
             <ThemeToggle />
           </div>
@@ -121,8 +120,7 @@ export default function Register() {
           <Card className="w-full max-w-lg animate-fade-in border-border/70 bg-background/90 shadow-[0_28px_80px_rgba(15,23,42,0.32)] backdrop-blur-xl">
             <CardHeader className="text-center">
               <div className="mb-2 flex items-center justify-center gap-2">
-                <img src={logo} alt="ZenWaste" className="h-10 w-10" />
-                <span className="font-bold text-xl text-foreground">ZenWaste</span>
+                <img src={logo} alt="ZenWaste" className="w-32 h-auto shrink-0" />
               </div>
               <CardTitle className="text-2xl">Cadastro Empresarial</CardTitle>
               <CardDescription>Apenas empresas com CNPJ valido podem se cadastrar</CardDescription>
@@ -130,12 +128,12 @@ export default function Register() {
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="razao">Razao Social</Label>
+                  <Label htmlFor="razao">Razão Social</Label>
                   <div className="relative">
                     <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="razao"
-                      placeholder="Razao Social da Empresa"
+                      placeholder="Razão Social da Empresa"
                       className="pl-10"
                       value={form.razaoSocial}
                       onChange={(e) => setForm({ ...form, razaoSocial: e.target.value })}
@@ -157,7 +155,7 @@ export default function Register() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Segmento de Atuacao</Label>
+                  <Label>Segmento de Atuação</Label>
                   <Select
                     value={form.segmento}
                     onValueChange={(value) => setForm({ ...form, segmento: value })}
@@ -216,7 +214,7 @@ export default function Register() {
                       <Input
                         id="pass"
                         type="password"
-                        placeholder="••••••••"
+                        placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                         className="pl-10"
                         value={form.password}
                         onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -232,7 +230,7 @@ export default function Register() {
                       <Input
                         id="confirm"
                         type="password"
-                        placeholder="••••••••"
+                        placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                         className="pl-10"
                         value={form.confirmPassword}
                         onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
@@ -248,7 +246,7 @@ export default function Register() {
               </form>
 
               <p className="mt-6 text-center text-sm text-muted-foreground">
-                Ja tem conta?{" "}
+                Já tem conta?{" "}
                 <Link to="/login" className="font-medium text-primary hover:underline">
                   Fazer login
                 </Link>
@@ -260,3 +258,4 @@ export default function Register() {
     </div>
   );
 }
+

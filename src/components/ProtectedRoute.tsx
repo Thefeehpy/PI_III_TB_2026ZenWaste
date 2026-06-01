@@ -1,4 +1,4 @@
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+﻿import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function ProtectedRoute() {
@@ -6,7 +6,7 @@ export function ProtectedRoute() {
   const location = useLocation();
 
   if (isLoading) {
-    return <div className="p-6 text-sm text-muted-foreground">Carregando sessao...</div>;
+    return <div className="p-6 text-sm text-muted-foreground">Carregando sessão...</div>;
   }
 
   if (!isAuthenticated) {
@@ -15,3 +15,4 @@ export function ProtectedRoute() {
 
   return <Outlet />;
 }
+

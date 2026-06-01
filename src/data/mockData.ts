@@ -14,6 +14,12 @@ export interface WasteItem {
   whatsappUrl?: string;
 }
 
+export interface SellerWasteItem extends WasteItem {
+  itemId: string;
+  status: "ativo" | "inativo" | "vendido";
+  availableQuantity: number;
+}
+
 export interface InventoryItem {
   id: string;
   name: string;

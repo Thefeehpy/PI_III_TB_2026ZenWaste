@@ -1,4 +1,4 @@
-import {
+﻿import {
   CartesianGrid,
   Legend,
   Line,
@@ -56,7 +56,7 @@ export default function MarketIntelligence() {
       <div>
         <h1 className="mb-2 text-3xl font-bold text-foreground">Bolsa de Valores de Residuos</h1>
         <p className="text-muted-foreground">
-          Inteligencia de mercado com tendencias e precos medios atualizados
+          Inteligência de mercado com tendências e preços médios atualizados
         </p>
       </div>
 
@@ -105,7 +105,7 @@ export default function MarketIntelligence() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Evolucao de Precos (Ultimos 6 meses)</CardTitle>
+          <CardTitle>Evolução de Preços (Últimos 6 meses)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[320px] sm:h-[400px]">
@@ -158,3 +158,4 @@ export default function MarketIntelligence() {
     </div>
   );
 }
+

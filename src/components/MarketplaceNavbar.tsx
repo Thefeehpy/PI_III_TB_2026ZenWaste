@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, LogIn, LogOut, Menu, ShoppingBag, TrendingUp } from "lucide-react";
 
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/contexts/AuthContext";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo-zenwaste.png";
 
 const links = [
   { to: "/marketplace", label: "Marketplace", icon: ShoppingBag },
@@ -32,9 +32,8 @@ export function MarketplaceNavbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container flex h-16 items-center gap-3">
-        <Link to="/" className="flex min-w-0 items-center gap-2">
-          <img src={logo} alt="ZenWaste" className="h-8 w-8" />
-          <span className="truncate font-bold text-lg text-foreground sm:text-xl">ZenWaste</span>
+        <Link to="/" className="flex min-w-0 items-center">
+          <img src={logo} alt="ZenWaste" className="w-32 h-auto shrink-0 sm:w-36" />
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
@@ -68,7 +67,7 @@ export function MarketplaceNavbar() {
             <>
               <div className="hidden text-right lg:block">
                 <p className="text-sm font-medium text-foreground">{user?.razaoSocial}</p>
-                <p className="text-xs text-muted-foreground">Sessao ativa</p>
+                <p className="text-xs text-muted-foreground">Sessão ativa</p>
               </div>
               <Button size="sm" variant="secondary" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
@@ -101,7 +100,10 @@ export function MarketplaceNavbar() {
       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
         <SheetContent side="right" className="w-full max-w-xs border-l border-border bg-background p-6">
           <SheetHeader>
-            <SheetTitle>ZenWaste</SheetTitle>
+            <div className="flex justify-center">
+              <img src={logo} alt="ZenWaste" className="w-36 h-auto" />
+            </div>
+            <SheetTitle className="sr-only">Menu ZenWaste</SheetTitle>
             <SheetDescription>Navegue pelo marketplace e acesse sua conta.</SheetDescription>
           </SheetHeader>
 
@@ -136,7 +138,7 @@ export function MarketplaceNavbar() {
                 <>
                   <div className="rounded-2xl border border-border bg-card px-4 py-3">
                     <p className="text-sm font-medium text-foreground">{user?.razaoSocial}</p>
-                    <p className="text-xs text-muted-foreground">Sessao ativa</p>
+                    <p className="text-xs text-muted-foreground">Sessão ativa</p>
                   </div>
                   <Button className="w-full justify-start" variant="secondary" onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
@@ -158,3 +160,4 @@ export function MarketplaceNavbar() {
     </header>
   );
 }
+

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+﻿import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import {
   api,
@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (error) {
           return {
             success: false,
-            message: error instanceof Error ? error.message : "Nao foi possivel entrar.",
+            message: error instanceof Error ? error.message : "Não foi possível entrar.",
           };
         }
       },
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (error) {
           return {
             success: false,
-            message: error instanceof Error ? error.message : "Cadastro nao concluido.",
+            message: error instanceof Error ? error.message : "Cadastro não concluído.",
           };
         }
       },
@@ -107,3 +107,4 @@ export function useAuth() {
 
   return context;
 }
+

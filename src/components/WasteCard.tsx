@@ -1,4 +1,4 @@
-import { Building2, MapPin, MessageCircle } from "lucide-react";
+﻿import { Building2, MapPin, MessageCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ interface WasteCardProps {
 
 export function WasteCard({ item }: WasteCardProps) {
   const whatsappMessage = encodeURIComponent(
-    `Ola! Vi o anuncio "${item.name}" na ZenWaste e tenho interesse. Podemos negociar?`,
+    `Olá! Vi o anúncio "${item.name}" na ZenWaste e tenho interesse. Podemos negociar?`,
   );
   const whatsappUrl = item.whatsappUrl || `https://wa.me/?text=${whatsappMessage}`;
 
@@ -51,7 +51,7 @@ export function WasteCard({ item }: WasteCardProps) {
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-muted-foreground">Preco / {item.unit}</p>
+            <p className="text-xs text-muted-foreground">Preço / {item.unit}</p>
             <p className="text-lg font-bold text-primary">R$ {item.price.toFixed(2).replace(".", ",")}</p>
           </div>
         </div>
@@ -65,3 +65,4 @@ export function WasteCard({ item }: WasteCardProps) {
     </Card>
   );
 }
+

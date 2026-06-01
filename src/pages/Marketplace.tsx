@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 
 import { FilterSidebar, emptyFilters, type Filters } from "@/components/FilterSidebar";
@@ -40,7 +40,7 @@ export default function Marketplace() {
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Buscar residuos por nome ou tipo..."
+          placeholder="Buscar resíduos por nome ou tipo..."
           className="w-full max-w-xl pl-10"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -53,7 +53,7 @@ export default function Marketplace() {
           {filtered.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground">
               <p className="text-lg">Nenhum resultado encontrado</p>
-              <p className="text-sm">Tente ajustar os filtros ou publique um novo anuncio</p>
+              <p className="text-sm">Tente ajustar os filtros ou publique um novo anúncio</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
@@ -67,3 +67,4 @@ export default function Marketplace() {
     </div>
   );
 }
+

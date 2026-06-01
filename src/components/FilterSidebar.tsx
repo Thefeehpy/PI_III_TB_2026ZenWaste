@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
 
 import { locations, wasteTypes } from "@/data/mockData";
@@ -54,7 +54,7 @@ export function FilterSidebar({ filters, onChange, onClear }: FilterSidebarProps
       </div>
 
       <div className="space-y-2">
-        <Label>Localizacao</Label>
+        <Label>Localização</Label>
         <Select value={filters.location} onValueChange={(value) => onChange({ ...filters, location: value })}>
           <SelectTrigger>
             <SelectValue placeholder="Todas" />
@@ -71,7 +71,7 @@ export function FilterSidebar({ filters, onChange, onClear }: FilterSidebarProps
       </div>
 
       <div className="space-y-2">
-        <Label>Faixa de Preco (R$/un)</Label>
+        <Label>Faixa de Preço (R$/un)</Label>
         <div className="grid grid-cols-2 gap-2">
           <Input
             type="number"
@@ -112,3 +112,4 @@ export function FilterSidebar({ filters, onChange, onClear }: FilterSidebarProps
     </>
   );
 }
+
