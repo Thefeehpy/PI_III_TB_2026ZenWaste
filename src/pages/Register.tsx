@@ -214,7 +214,7 @@ export default function Register() {
                       <Input
                         id="pass"
                         type="password"
-                        placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                        placeholder="senha"
                         className="pl-10"
                         value={form.password}
                         onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -230,7 +230,7 @@ export default function Register() {
                       <Input
                         id="confirm"
                         type="password"
-                        placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                        placeholder="senha"
                         className="pl-10"
                         value={form.confirmPassword}
                         onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
