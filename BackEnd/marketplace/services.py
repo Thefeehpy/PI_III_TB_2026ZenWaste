@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from anuncios.models import Anuncio
 from produtos.models import Produto
+
 from produtos.services import (
     clean_inventory_name,
     create_product_reservation,
@@ -11,6 +12,7 @@ from produtos.services import (
     validate_unique_inventory_name,
 )
 
+from marketplace.builders import VendaAdBuilder
 
 def list_active_ads(filters):
     ads = Anuncio.objects.filter(status_anuncio="ativo").select_related("produto", "produto__empresa")
@@ -131,53 +133,14 @@ def list_seller_ads(empresa):
 
 @transaction.atomic
 def finalize_ad_sale(anuncio, data):
-    produto = anuncio.produto
-    sold_quantity = data["soldQuantity"]
-
-    if anuncio.status_anuncio != "ativo":
-        raise serializers.ValidationError({"message": "Apenas anuncios ativos podem ser finalizados."})
-
-    if sold_quantity > produto.quantidade:
-        raise serializers.ValidationError({
-            "message": "A quantidade vendida nao pode ultrapassar o saldo atual do produto."
-        })
-
-    if sold_quantity > anuncio.nr_qtd:
-        raise serializers.ValidationError({
-            "message": "A quantidade vendida nao pode ultrapassar a quantidade anunciada."
-        })
-
-    movimento = register_inventory_movement(produto, produto.empresa, {
-        "type": "saida",
-        "quantity": sold_quantity,
-        "note": f"Venda finalizada pelo anuncio #{anuncio.id_anuncio}",
-    })
-
-    anuncio.status_anuncio = "vendido"
-    anuncio.data_final = timezone.localdate()
-    anuncio.save(update_fields=["status_anuncio", "data_final"])
-
-    reserva = None
-    reservation_quantity = data.get("reservationQuantity")
-    if reservation_quantity:
-        buyer_name = (data.get("buyerName") or "").strip()
-        buyer_phone = (data.get("buyerPhone") or "").strip()
-
-        if not buyer_name or not buyer_phone:
-            raise serializers.ValidationError({
-                "message": "Informe nome e numero do comprador para criar a reserva."
-            })
-
-        reserva = create_product_reservation(produto, {
-            "quantity": reservation_quantity,
-            "unitPrice": data.get("reservationUnitPrice") or anuncio.preco_final,
-            "buyerName": buyer_name,
-            "buyerPhone": buyer_phone,
-            "note": data.get("reservationNote", ""),
-        })
-
-    return {
-        "ad": anuncio,
-        "movement": movimento,
-        "reservation": reserva,
-    }
+    builder = VendaAdBuilder(anuncio)
+    
+    # Orquestração fluida (Method Chaining)
+    resultado = (
+        builder
+        .com_quantidade_vendida(data["soldQuantity"])
+        .adicionar_reserva(data)
+        .executar()
+    )
+    
+    return resultado
