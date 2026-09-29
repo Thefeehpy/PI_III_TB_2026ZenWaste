@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'anuncios',
     'marketplace',
     'market',
+    'transportes',
 ]
 
 MIDDLEWARE = [

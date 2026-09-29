@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.hashers import check_password, identify_hasher, make_password
 from django.db import models
 from localflavor.br.models import BRCNPJField
@@ -32,4 +33,37 @@ class Empresa(models.Model):
 
         return self.senha == senha_pura
 
-    
+
+class PapelFuncionario(models.TextChoices):
+    ADMIN = 'admin', 'Administrador'
+    GESTOR_LOGISTICA = 'gestor_logistica', 'Gestor de Logística'
+    ENTREGADOR = 'entregador', 'Entregador (Motorista)'
+    OPERADOR = 'operador', 'Operador de Pátio'
+
+
+class Funcionario(models.Model):
+    id_funcionario = models.AutoField(primary_key=True)
+    usuario = models.OneToOneField(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name="perfil_funcionario"
+    )
+    empresa = models.ForeignKey(
+        Empresa, 
+        on_delete=models.CASCADE, 
+        related_name="funcionarios"
+    )
+    papel = models.CharField(
+        max_length=20, 
+        choices=PapelFuncionario.choices, 
+        default=PapelFuncionario.OPERADOR
+    )
+    is_ativo = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('usuario', 'empresa')
+
+    def __str__(self):
+        # Utiliza o método get_full_name do User, caso exista, ou retorna a string base do usuário
+        nome = getattr(self.usuario, 'get_full_name', lambda: str(self.usuario))()
+        return f"{nome} - {self.get_papel_display()}"
