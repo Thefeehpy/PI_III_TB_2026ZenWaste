@@ -87,18 +87,26 @@ WSGI_APPLICATION = 'app.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 #
-# The project uses PostgreSQL in every environment. Configure these values
-# through environment variables when they differ from the local defaults.
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('ZENWASTE_DB_NAME', 'zenwaste'),
-        'USER': os.getenv('ZENWASTE_DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('ZENWASTE_DB_PASSWORD', '123'),
-        'HOST': os.getenv('ZENWASTE_DB_HOST', 'localhost'),
-        'PORT': os.getenv('ZENWASTE_DB_PORT', '5432'),
+DB_ENGINE = os.getenv('ZENWASTE_DB_ENGINE', 'sqlite').lower()
+
+if DB_ENGINE == 'postgresql':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('ZENWASTE_DB_NAME', 'zenwaste'),
+            'USER': os.getenv('ZENWASTE_DB_USER', 'postgres'),
+            'PASSWORD': os.getenv('ZENWASTE_DB_PASSWORD', '123'),
+            'HOST': os.getenv('ZENWASTE_DB_HOST', 'localhost'),
+            'PORT': os.getenv('ZENWASTE_DB_PORT', '5432'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.getenv('ZENWASTE_SQLITE_NAME', BASE_DIR / 'db.sqlite3'),
+        }
+    }
 
 
 # Password validation

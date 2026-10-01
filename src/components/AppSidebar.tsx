@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, PlusCircle, TrendingUp, ShoppingBag, LogOut } from "lucide-react";
+import { ClipboardCheck, LayoutDashboard, Megaphone, Package, PlusCircle, TrendingUp, ShoppingBag, LogOut, Truck } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +20,9 @@ import {
 const dashboardItems = [
   { title: "Visão Geral", url: "/dashboard", icon: LayoutDashboard },
   { title: "Estoque", url: "/dashboard/inventory", icon: Package },
+  { title: "Reservas", url: "/dashboard/reservations", icon: ClipboardCheck },
+  { title: "Auditoria de Fretes", url: "/dashboard/freight-audit", icon: Truck },
+  { title: "Meus Anúncios", url: "/dashboard/ads", icon: Megaphone },
   { title: "Criar Anúncio", url: "/dashboard/create-ad", icon: PlusCircle },
 ];
 

@@ -18,6 +18,9 @@ import MarketIntelligence from "./pages/MarketIntelligence";
 import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import CreateAd from "./pages/CreateAd";
+import MyAds from "./pages/MyAds";
+import Reservations from "./pages/Reservations";
+import FreightAudit from "./pages/FreightAudit";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +51,9 @@ const App = () => (
                     <Route path="/dashboard" element={<DashboardLayout />}>
                       <Route index element={<Dashboard />} />
                       <Route path="inventory" element={<Inventory />} />
+                      <Route path="reservations" element={<Reservations />} />
+                      <Route path="ads" element={<MyAds />} />
+                      <Route path="freight-audit" element={<FreightAudit />} />
                       <Route path="create-ad" element={<CreateAd />} />
                     </Route>
                   </Route>
