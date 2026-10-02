@@ -1,6 +1,6 @@
 ﻿import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Building2, Lock, Mail, Phone } from "lucide-react";
+import { Building2, Lock, Mail, Phone, Truck, UserCheck, type LucideIcon } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -27,10 +27,50 @@ const segments = [
   "Outro",
 ];
 
+type AccessProfile = "company" | "driver" | "client";
+
+const accessProfiles: Array<{
+  id: AccessProfile;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+}> = [
+  {
+    id: "company",
+    title: "Empresa",
+    description: "Cadastrar com CNPJ",
+    icon: Building2,
+  },
+  {
+    id: "driver",
+    title: "Entregador",
+    description: "Acesso às entregas",
+    icon: Truck,
+  },
+  {
+    id: "client",
+    title: "Cliente",
+    description: "Canhoto digital",
+    icon: UserCheck,
+  },
+];
+
+const profileRoutes: Record<Exclude<AccessProfile, "company">, string> = {
+  driver: "/driver/deliveries",
+  client: "/delivery-signature/5842",
+};
+
+const profileButtonLabel: Record<AccessProfile, string> = {
+  company: "Criar Conta",
+  driver: "Continuar como entregador",
+  client: "Continuar como cliente",
+};
+
 export default function Register() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { register } = useAuth();
+  const [profile, setProfile] = useState<AccessProfile>("company");
   const [form, setForm] = useState({
     razaoSocial: "",
     cnpj: "",
@@ -55,6 +95,27 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (profile !== "company") {
+      if (form.password !== form.confirmPassword) {
+        toast({
+          title: "Senhas diferentes",
+          description: "Confirme a mesma senha nos dois campos.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Cadastro preparado",
+        description:
+          profile === "driver"
+            ? "Abrindo o ambiente de entregas e canhotos digitais."
+            : "Abrindo a experiência de assinatura do canhoto digital.",
+      });
+      navigate(profileRoutes[profile]);
+      return;
+    }
 
     if (!validateCNPJ(form.cnpj)) {
       setCnpjError("CNPJ invalido. Apenas empresas podem se cadastrar.");
@@ -117,61 +178,126 @@ export default function Register() {
         </header>
 
         <div className="flex flex-1 items-center justify-center p-4">
-          <Card className="w-full max-w-lg animate-fade-in border-border/70 bg-background/90 shadow-[0_28px_80px_rgba(15,23,42,0.32)] backdrop-blur-xl">
+          <Card className="w-full max-w-2xl animate-fade-in border-border/70 bg-background/90 shadow-[0_28px_80px_rgba(15,23,42,0.32)] backdrop-blur-xl">
             <CardHeader className="text-center">
               <div className="mb-2 flex items-center justify-center gap-2">
                 <img src={logo} alt="ZenWaste" className="w-32 h-auto shrink-0" />
               </div>
-              <CardTitle className="text-2xl">Cadastro Empresarial</CardTitle>
-              <CardDescription>Apenas empresas com CNPJ valido podem se cadastrar</CardDescription>
+              <CardTitle className="text-2xl">
+                {profile === "company" ? "Cadastro Empresarial" : "Criar acesso"}
+              </CardTitle>
+              <CardDescription>
+                {profile === "company"
+                  ? "Apenas empresas com CNPJ valido podem se cadastrar"
+                  : "Escolha seu perfil para acessar o fluxo correto"}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="razao">Razão Social</Label>
-                  <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="razao"
-                      placeholder="Razão Social da Empresa"
-                      className="pl-10"
-                      value={form.razaoSocial}
-                      onChange={(e) => setForm({ ...form, razaoSocial: e.target.value })}
-                      required
-                    />
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {accessProfiles.map((accessProfile) => {
+                    const Icon = accessProfile.icon;
+                    const isSelected = profile === accessProfile.id;
+
+                    return (
+                      <button
+                        key={accessProfile.id}
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => {
+                          setProfile(accessProfile.id);
+                          setCnpjError("");
+                        }}
+                        className={`rounded-2xl border p-3 text-left transition-all duration-200 ${
+                          isSelected
+                            ? "border-primary/70 bg-primary/10 shadow-[0_12px_35px_rgba(52,211,153,0.18)]"
+                            : "border-border/80 bg-background/80 hover:border-primary/40 hover:bg-primary/5"
+                        }`}
+                      >
+                        <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span className="block text-sm font-semibold text-foreground">
+                          {accessProfile.title}
+                        </span>
+                        <span className="mt-1 block text-xs leading-snug text-muted-foreground">
+                          {accessProfile.description}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {profile === "company" ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="razao">Razão Social</Label>
+                      <div className="relative">
+                        <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          id="razao"
+                          placeholder="Razão Social da Empresa"
+                          className="pl-10"
+                          value={form.razaoSocial}
+                          onChange={(e) => setForm({ ...form, razaoSocial: e.target.value })}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="cnpj">CNPJ</Label>
+                      <Input
+                        id="cnpj"
+                        placeholder="00.000.000/0000-00"
+                        value={form.cnpj}
+                        onChange={(e) => handleCnpjChange(e.target.value)}
+                        required
+                      />
+                      {cnpjError && <p className="text-sm text-destructive">{cnpjError}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Segmento de Atuação</Label>
+                      <Select
+                        value={form.segmento}
+                        onValueChange={(value) => setForm({ ...form, segmento: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {segments.map((segment) => (
+                            <SelectItem key={segment} value={segment}>
+                              {segment}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="razao">Nome completo</Label>
+                    <div className="relative">
+                      {profile === "driver" ? (
+                        <Truck className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      ) : (
+                        <UserCheck className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      )}
+                      <Input
+                        id="razao"
+                        placeholder={
+                          profile === "driver" ? "Nome do entregador" : "Nome do responsável"
+                        }
+                        className="pl-10"
+                        value={form.razaoSocial}
+                        onChange={(e) => setForm({ ...form, razaoSocial: e.target.value })}
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="cnpj">CNPJ</Label>
-                  <Input
-                    id="cnpj"
-                    placeholder="00.000.000/0000-00"
-                    value={form.cnpj}
-                    onChange={(e) => handleCnpjChange(e.target.value)}
-                    required
-                  />
-                  {cnpjError && <p className="text-sm text-destructive">{cnpjError}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Segmento de Atuação</Label>
-                  <Select
-                    value={form.segmento}
-                    onValueChange={(value) => setForm({ ...form, segmento: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {segments.map((segment) => (
-                        <SelectItem key={segment} value={segment}>
-                          {segment}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                )}
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
@@ -181,7 +307,9 @@ export default function Register() {
                       <Input
                         id="email"
                         type="email"
-                        placeholder="contato@empresa.com"
+                        placeholder={
+                          profile === "company" ? "contato@empresa.com" : "seu@email.com"
+                        }
                         className="pl-10"
                         value={form.email}
                         onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -241,7 +369,7 @@ export default function Register() {
                 </div>
 
                 <Button type="submit" className="w-full">
-                  Criar Conta
+                  {profileButtonLabel[profile]}
                 </Button>
               </form>
 

@@ -1,6 +1,6 @@
 ﻿import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Leaf, Lock, Mail } from "lucide-react";
+import { Building2, Leaf, Lock, Mail, Truck, UserCheck, type LucideIcon } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,49 @@ import { useToast } from "@/hooks/use-toast";
 import heroBg from "@/assets/hero-bg.jpg";
 import logo from "@/assets/logo-zenwaste.png";
 
+type AccessProfile = "company" | "driver" | "client";
+
+const accessProfiles: Array<{
+  id: AccessProfile;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+}> = [
+  {
+    id: "company",
+    title: "Empresa",
+    description: "Painel completo",
+    icon: Building2,
+  },
+  {
+    id: "driver",
+    title: "Entregador",
+    description: "Entregas e canhotos",
+    icon: Truck,
+  },
+  {
+    id: "client",
+    title: "Cliente",
+    description: "Assinar entrega",
+    icon: UserCheck,
+  },
+];
+
+const profileRoutes: Record<Exclude<AccessProfile, "company">, string> = {
+  driver: "/driver/deliveries",
+  client: "/delivery-signature/5842",
+};
+
+const profileButtonLabel: Record<AccessProfile, string> = {
+  company: "Entrar no painel",
+  driver: "Entrar como entregador",
+  client: "Abrir canhoto digital",
+};
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [profile, setProfile] = useState<AccessProfile>("company");
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -24,6 +64,18 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (profile !== "company") {
+      toast({
+        title: "Acesso liberado",
+        description:
+          profile === "driver"
+            ? "Abrindo a rota de entregas e canhotos digitais."
+            : "Abrindo a assinatura digital da entrega.",
+      });
+      navigate(profileRoutes[profile]);
+      return;
+    }
 
     const result = await login(email, password);
     if (!result.success) {
@@ -80,6 +132,37 @@ export default function Login() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {accessProfiles.map((accessProfile) => {
+                    const Icon = accessProfile.icon;
+                    const isSelected = profile === accessProfile.id;
+
+                    return (
+                      <button
+                        key={accessProfile.id}
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => setProfile(accessProfile.id)}
+                        className={`rounded-2xl border p-3 text-left transition-all duration-200 ${
+                          isSelected
+                            ? "border-primary/70 bg-primary/10 shadow-[0_12px_35px_rgba(52,211,153,0.18)]"
+                            : "border-border/80 bg-background hover:border-primary/40 hover:bg-primary/5"
+                        }`}
+                      >
+                        <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span className="block text-sm font-semibold text-foreground">
+                          {accessProfile.title}
+                        </span>
+                        <span className="mt-1 block text-xs leading-snug text-muted-foreground">
+                          {accessProfile.description}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="email">E-mail</Label>
                   <div className="relative">
@@ -113,7 +196,7 @@ export default function Login() {
                 </div>
 
                 <Button type="submit" className="w-full">
-                  Entrar
+                  {profileButtonLabel[profile]}
                 </Button>
               </form>
 
