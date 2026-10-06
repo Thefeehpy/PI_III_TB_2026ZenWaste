@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  ArrowRight,
   AlertTriangle,
   BadgeCheck,
   CalendarClock,
@@ -106,6 +107,29 @@ type NewOrderForm = {
   forecastDate: string;
 };
 
+type PublishedTransport = {
+  id: string;
+  orderNumber: string;
+  material: string;
+  origin: string;
+  destination: string;
+  weightTon: number;
+  cubicMeters: number;
+  suggestedValue: number;
+  pickupWindow: string;
+  vehicleType: string;
+  notes: string;
+  proposals: number;
+  publishedAt: string;
+};
+
+type PublishTransportForm = {
+  suggestedValue: string;
+  pickupWindow: string;
+  vehicleType: string;
+  notes: string;
+};
+
 type QuoteForm = {
   carrier: string;
   value: string;
@@ -201,6 +225,13 @@ const emptyQuoteForm: QuoteForm = {
   value: "",
   deliveryDays: "2",
   note: "",
+};
+
+const emptyPublishTransportForm: PublishTransportForm = {
+  suggestedValue: "",
+  pickupWindow: "",
+  vehicleType: "",
+  notes: "",
 };
 
 const initialFreights: FreightProcess[] = [
@@ -336,6 +367,39 @@ const initialFreights: FreightProcess[] = [
   },
 ];
 
+const initialPublishedTransports: PublishedTransport[] = [
+  {
+    id: "pub-5841",
+    orderNumber: "5841",
+    material: "Papel e Papelão",
+    origin: "São Paulo - SP",
+    destination: "Campinas - SP",
+    weightTon: 4.2,
+    cubicMeters: 18,
+    suggestedValue: 680,
+    pickupWindow: "Amanhã, 08:00 - 11:00",
+    vehicleType: "Baú médio",
+    notes: "Coleta em doca, carga prensada e paletizada.",
+    proposals: 4,
+    publishedAt: "2026-10-04T09:30:00",
+  },
+  {
+    id: "pub-5843",
+    orderNumber: "5843",
+    material: "Sucata Metálica",
+    origin: "Belo Horizonte - MG",
+    destination: "Contagem - MG",
+    weightTon: 8.1,
+    cubicMeters: 10,
+    suggestedValue: 520,
+    pickupWindow: "Hoje, 15:00 - 17:00",
+    vehicleType: "Truck reforçado",
+    notes: "Necessário lona e amarração.",
+    proposals: 2,
+    publishedAt: "2026-10-04T11:10:00",
+  },
+];
+
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", {
     style: "currency",
@@ -395,10 +459,13 @@ export default function FreightAudit() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
+  const [publishTransportOpen, setPublishTransportOpen] = useState(false);
   const [treatmentOpen, setTreatmentOpen] = useState(false);
   const [deliveryOpen, setDeliveryOpen] = useState(false);
+  const [publishedTransports, setPublishedTransports] = useState<PublishedTransport[]>(initialPublishedTransports);
   const [newOrderForm, setNewOrderForm] = useState<NewOrderForm>(emptyOrderForm);
   const [quoteForm, setQuoteForm] = useState<QuoteForm>(emptyQuoteForm);
+  const [publishTransportForm, setPublishTransportForm] = useState<PublishTransportForm>(emptyPublishTransportForm);
   const [documentForm, setDocumentForm] = useState<DocumentForm>({ fileName: "", cteNumber: "", cteValue: "" });
   const [treatmentNote, setTreatmentNote] = useState("");
   const [receiverName, setReceiverName] = useState("");
@@ -496,6 +563,53 @@ export default function FreightAudit() {
     setNewOrderForm(emptyOrderForm);
     setNewOrderOpen(false);
     setDetailsOpen(true);
+  };
+
+  const openPublishTransport = (processId?: string) => {
+    if (processId) {
+      setSelectedProcessId(processId);
+    }
+
+    setPublishTransportOpen(true);
+  };
+
+  const handlePublishTransport = () => {
+    if (!selectedProcess || Number(publishTransportForm.suggestedValue) <= 0) {
+      return;
+    }
+
+    const publishedTransport: PublishedTransport = {
+      id: `pub-${Date.now()}`,
+      orderNumber: selectedProcess.orderNumber,
+      material: selectedProcess.material,
+      origin: selectedProcess.origin,
+      destination: selectedProcess.destination,
+      weightTon: selectedProcess.weightTon,
+      cubicMeters: selectedProcess.cubicMeters,
+      suggestedValue: Number(publishTransportForm.suggestedValue),
+      pickupWindow: publishTransportForm.pickupWindow.trim() || "Janela a combinar",
+      vehicleType: publishTransportForm.vehicleType.trim() || "Veículo compatível com a carga",
+      notes: publishTransportForm.notes.trim() || "Oportunidade publicada para transportadoras parceiras.",
+      proposals: 0,
+      publishedAt: new Date().toISOString(),
+    };
+
+    setPublishedTransports((current) => [publishedTransport, ...current]);
+    updateProcess(selectedProcess.id, (process) => ({
+      ...process,
+      status: process.status === "awaiting_quote" ? "quoting" : process.status,
+      treatments: [
+        ...process.treatments,
+        {
+          id: `tr-${Date.now()}`,
+          at: new Date().toISOString(),
+          author: "Faturamento",
+          note: "Transporte publicado para transportadoras enviarem propostas.",
+        },
+      ],
+    }));
+    setPublishTransportForm(emptyPublishTransportForm);
+    setPublishTransportOpen(false);
   };
 
   const handleAddQuote = () => {
@@ -648,10 +762,20 @@ export default function FreightAudit() {
             </div>
           </div>
 
-          <Button className="h-12 rounded-2xl bg-white px-5 text-emerald-800 hover:bg-white/90" onClick={() => setNewOrderOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Adicionar pedido
-          </Button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button className="h-12 rounded-2xl bg-white px-5 text-emerald-800 hover:bg-white/90" onClick={() => setNewOrderOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar pedido
+            </Button>
+            <Button
+              variant="outline"
+              className="h-12 rounded-2xl border-white/40 bg-white/10 px-5 text-white hover:bg-white/20 hover:text-white"
+              onClick={() => openPublishTransport()}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              Lançar transporte
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -675,6 +799,54 @@ export default function FreightAudit() {
           </Card>
         ))}
       </div>
+
+      <Card className="rounded-[34px] border-primary/20 bg-[linear-gradient(135deg,hsl(var(--primary)/0.12),hsl(var(--card)))] shadow-[0_18px_52px_rgba(15,23,42,0.06)]">
+        <CardHeader className="gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <CardTitle className="text-2xl">Transportes publicados para transportadoras</CardTitle>
+            <CardDescription>
+              Demandas lançadas pela empresa vendedora para receber propostas de frete.
+            </CardDescription>
+          </div>
+          <Button className="rounded-2xl" onClick={() => openPublishTransport()}>
+            <Send className="mr-2 h-4 w-4" />
+            Publicar transporte
+          </Button>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-2">
+          {publishedTransports.map((transport) => (
+            <article key={transport.id} className="rounded-[26px] border border-border/70 bg-background/80 p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-lg font-semibold text-foreground">Pedido #{transport.orderNumber}</p>
+                    <Badge variant="outline" className="rounded-full border-primary/25 bg-primary/10 text-primary">
+                      {transport.proposals} proposta(s)
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">{transport.material}</p>
+                </div>
+                <div className="text-left sm:text-right">
+                  <p className="text-xs text-muted-foreground">Valor sugerido</p>
+                  <p className="mt-1 text-xl font-semibold text-foreground">{formatCurrency(transport.suggestedValue)}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <Info label="Origem" value={transport.origin} />
+                <Info label="Destino" value={transport.destination} />
+                <Info label="Carga" value={`${transport.weightTon} ton / ${transport.cubicMeters} m³`} />
+                <Info label="Coleta" value={transport.pickupWindow} />
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
+                <p className="text-sm font-semibold text-foreground">{transport.vehicleType}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{transport.notes}</p>
+              </div>
+            </article>
+          ))}
+        </CardContent>
+      </Card>
 
       <Card className="rounded-[34px] border-border/70 bg-card/95 shadow-[0_18px_52px_rgba(15,23,42,0.06)]">
         <CardHeader className="gap-4">
@@ -787,7 +959,11 @@ export default function FreightAudit() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-end">
+                    <div className="flex flex-col items-stretch justify-end gap-2 sm:flex-row xl:flex-col">
+                      <Button type="button" className="w-full rounded-2xl xl:w-auto" onClick={() => openPublishTransport(process.id)}>
+                        <Send className="mr-2 h-4 w-4" />
+                        Lançar
+                      </Button>
                       <Button type="button" variant="outline" className="w-full rounded-2xl xl:w-auto" onClick={() => openDetails(process.id)}>
                         Ver detalhes
                       </Button>
@@ -966,7 +1142,7 @@ export default function FreightAudit() {
       )}
 
       <Dialog open={newOrderOpen} onOpenChange={setNewOrderOpen}>
-        <DialogContent className="max-w-3xl rounded-[28px]">
+        <DialogContent className="max-h-[calc(100svh-2rem)] w-[calc(100vw-1rem)] max-w-3xl overflow-y-auto rounded-[28px] sm:w-[calc(100vw-2rem)]">
           <DialogHeader>
             <DialogTitle>Adicionar pedido</DialogTitle>
             <DialogDescription>Crie um processo de frete mockado para demonstrar o fluxo completo.</DialogDescription>
@@ -984,6 +1160,88 @@ export default function FreightAudit() {
           <DialogFooter>
             <Button variant="outline" className="rounded-2xl" onClick={() => setNewOrderOpen(false)}>Cancelar</Button>
             <Button className="rounded-2xl" onClick={handleCreateOrder}>Adicionar pedido</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={publishTransportOpen} onOpenChange={setPublishTransportOpen}>
+        <DialogContent className="max-w-3xl rounded-[28px]">
+          <DialogHeader>
+            <DialogTitle>Lançar transporte para transportadoras</DialogTitle>
+            <DialogDescription>
+              Publique uma demanda de frete para que transportadoras parceiras possam enviar propostas.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedProcess && (
+            <div className="space-y-5">
+              <div className="space-y-3 rounded-[24px] border border-border/70 bg-muted/20 p-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <Info label="Pedido" value={`#${selectedProcess.orderNumber}`} />
+                <Info label="Material" value={selectedProcess.material} />
+                <Info label="Peso" value={`${selectedProcess.weightTon} ton`} />
+                <Info label="Cubagem" value={`${selectedProcess.cubicMeters} m³`} />
+                <Info label="Cliente" value={selectedProcess.client} />
+                </div>
+
+                <div className="rounded-[22px] border border-primary/20 bg-[linear-gradient(135deg,hsl(var(--primary)/0.12),hsl(var(--background)/0.86))] p-3 sm:p-4">
+                  <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-primary">
+                    <Route className="h-4 w-4" />
+                    Rota do transporte
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center">
+                    <div className="min-w-0 rounded-2xl border border-border/70 bg-background/80 p-3 sm:p-4">
+                      <p className="text-xs text-muted-foreground">Origem</p>
+                      <p className="mt-1 break-words text-sm font-semibold leading-6 text-foreground">
+                        {selectedProcess.origin}
+                      </p>
+                    </div>
+                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-primary shadow-[0_12px_28px_rgba(16,185,129,0.18)] md:h-11 md:w-11">
+                      <ArrowRight className="h-5 w-5 rotate-90 md:rotate-0" />
+                    </div>
+                    <div className="min-w-0 rounded-2xl border border-border/70 bg-background/80 p-3 sm:p-4">
+                      <p className="text-xs text-muted-foreground">Destino</p>
+                      <p className="mt-1 break-words text-sm font-semibold leading-6 text-foreground">
+                        {selectedProcess.destination}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                  label="Valor sugerido para o frete"
+                  value={publishTransportForm.suggestedValue}
+                  onChange={(value) => setPublishTransportForm((current) => ({ ...current, suggestedValue: value }))}
+                  type="number"
+                />
+                <Field
+                  label="Janela de coleta"
+                  value={publishTransportForm.pickupWindow}
+                  onChange={(value) => setPublishTransportForm((current) => ({ ...current, pickupWindow: value }))}
+                  placeholder="Ex.: Amanhã, 08:00 - 11:00"
+                />
+                <Field
+                  label="Tipo de veículo necessário"
+                  value={publishTransportForm.vehicleType}
+                  onChange={(value) => setPublishTransportForm((current) => ({ ...current, vehicleType: value }))}
+                  placeholder="Ex.: Baú médio, truck, roll-on"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Observações para a transportadora</Label>
+                <Textarea
+                  value={publishTransportForm.notes}
+                  onChange={(event) => setPublishTransportForm((current) => ({ ...current, notes: event.target.value }))}
+                  placeholder="Informe restrições de coleta, necessidade de lona, doca, empilhadeira, documentação e cuidados com o resíduo."
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" className="rounded-2xl" onClick={() => setPublishTransportOpen(false)}>Cancelar</Button>
+            <Button className="rounded-2xl" onClick={handlePublishTransport}>Publicar transporte</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1059,16 +1317,24 @@ function Field({
   value,
   onChange,
   type = "text",
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
+  placeholder?: string;
 }) {
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-2xl" />
+      <Input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 rounded-2xl"
+      />
     </div>
   );
 }

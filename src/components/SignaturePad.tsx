@@ -34,7 +34,7 @@ export function SignaturePad({ value, onChange }: SignaturePadProps) {
     const point = getPoint(event);
     isDrawingRef.current = true;
     canvas.setPointerCapture(event.pointerId);
-    context.strokeStyle = "hsl(var(--foreground))";
+    context.strokeStyle = "#ffffff";
     context.lineWidth = 3;
     context.lineCap = "round";
     context.beginPath();
