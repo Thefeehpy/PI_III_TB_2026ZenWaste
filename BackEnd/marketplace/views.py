@@ -56,9 +56,12 @@ class MarketplaceAdDetailAPIView(ZenWasteAPIView):
         if error:
             return error
 
-        updated = Anuncio.objects.filter(id_anuncio=pk, produto__empresa=empresa).update(status_anuncio="inativo")
-        if not updated:
+        try:
+            anuncio = Anuncio.objects.get(id_anuncio=pk, produto__empresa=empresa)
+        except Anuncio.DoesNotExist:
             return Response({"message": "Anuncio nao encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        anuncio.cancelar()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 

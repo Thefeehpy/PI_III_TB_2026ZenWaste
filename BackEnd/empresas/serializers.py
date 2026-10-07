@@ -29,18 +29,10 @@ class EmpresaSerializer(serializers.ModelSerializer):
         senha = validated_data.pop("senha")
         empresa = Empresa(**validated_data)
         empresa.definir_senha(senha)
-        empresa.save()
+        empresa.cadastrar_empresa()
         return empresa
 
     def update(self, instance, validated_data):
-        senha = validated_data.pop("senha", None)
-
-        for atributo, valor in validated_data.items():
-            setattr(instance, atributo, valor)
-
-        if senha:
-            instance.definir_senha(senha)
-
-        instance.save()
+        instance.atualizar_dados(**validated_data)
         return instance
 

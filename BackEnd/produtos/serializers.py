@@ -18,6 +18,18 @@ class ProdutoSerializer(serializers.ModelSerializer):
         model = Produto
         fields = "__all__"
 
+    def create(self, validated_data):
+        produto = Produto(**validated_data)
+        produto.cadastrar_produto()
+        return produto
+
+    def update(self, instance, validated_data):
+        empresa = validated_data.pop("empresa", None)
+        if empresa is not None:
+            instance.empresa = empresa
+        instance.atualizar_produto(**validated_data)
+        return instance
+
 
 class InventoryItemInputSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=256)

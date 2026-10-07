@@ -1,7 +1,6 @@
 from decimal import Decimal
 
 from django.db import transaction
-from django.utils import timezone
 from rest_framework import serializers
 
 from anuncios.models import Reserva
@@ -9,6 +8,8 @@ from authentication.services import normalize_text
 from anuncios.models import Anuncio
 from produtos.models import MovimentacaoEstoque, Produto
 from produtos.serializers import reservation_table_exists
+
+from produtos.factories import MovimentacaoEstoqueFactory
 
 
 def clean_inventory_name(name):
@@ -29,11 +30,6 @@ def validate_unique_inventory_name(empresa, name, current_product=None):
             })
 
 
-def sync_status(produto):
-    produto.atualizar_status()
-    return produto
-
-
 def create_inventory_item(empresa, data):
     name = clean_inventory_name(data["name"])
     validate_unique_inventory_name(empresa, name)
@@ -45,8 +41,7 @@ def create_inventory_item(empresa, data):
         quantidade=data["quantity"],
         unidade=(data.get("unit") or "kg").strip() or "kg",
     )
-    sync_status(produto)
-    produto.save()
+    produto.cadastrar_produto()
 
     if produto.quantidade > 0:
         MovimentacaoEstoque.objects.create(
@@ -87,15 +82,15 @@ def update_inventory_item(produto, data):
         "unit": "unidade",
     }
 
+    dados_produto = {}
     for request_field, model_field in field_map.items():
         if request_field in data:
             value = data[request_field]
             if request_field == "unit":
                 value = (value or "kg").strip() or "kg"
-            setattr(produto, model_field, value)
+            dados_produto[model_field] = value
 
-    sync_status(produto)
-    produto.save()
+    produto.atualizar_produto(**dados_produto)
 
     target_quantity = data.get("targetQuantity")
     if target_quantity and reservation_table_exists():
@@ -107,8 +102,8 @@ def update_inventory_item(produto, data):
         if reserva:
             reserva.quantidade_reservada = target_quantity
             reserva.prazo_reserva = data.get("deadline")
-            reserva.status = calculate_reservation_status(produto, target_quantity)
-            reserva.save(update_fields=["quantidade_reservada", "prazo_reserva", "status"])
+            reserva.save(update_fields=["quantidade_reservada", "prazo_reserva"])
+            reserva.atualizar_status()
         else:
             create_product_reservation(produto, {
                 "quantity": target_quantity,
@@ -129,18 +124,11 @@ def update_inventory_item(produto, data):
 
 @transaction.atomic
 def delete_inventory_item(produto):
-    closed_ads = Anuncio.objects.filter(produto=produto, status_anuncio="ativo").update(
-        status_anuncio="inativo",
-        data_final=timezone.localdate(),
-    )
-    produto.delete()
-    return closed_ads
-
-
-def calculate_reservation_status(produto, quantidade_reservada):
-    if produto.quantidade >= quantidade_reservada:
-        return "pronta"
-    return "em_captacao"
+    anuncios_ativos = list(Anuncio.objects.filter(produto=produto, status_anuncio="ativo"))
+    for anuncio in anuncios_ativos:
+        anuncio.cancelar()
+    produto.excluir_produto()
+    return len(anuncios_ativos)
 
 
 def refresh_product_reservations(produto):
@@ -153,10 +141,7 @@ def refresh_product_reservations(produto):
     )
 
     for reserva in open_reservations:
-        next_status = calculate_reservation_status(produto, reserva.quantidade_reservada)
-        if reserva.status != next_status:
-            reserva.status = next_status
-            reserva.save(update_fields=["status"])
+        reserva.atualizar_status()
 
 
 @transaction.atomic
@@ -173,8 +158,7 @@ def create_product_reservation(produto, data):
         prazo_reserva=data.get("deadline"),
         observacao=(data.get("note") or "").strip(),
     )
-    reserva.status = calculate_reservation_status(produto, reserva.quantidade_reservada)
-    reserva.save()
+    reserva.criar_reserva()
     return reserva
 
 
@@ -184,9 +168,7 @@ def update_product_reservation(reserva, status_value):
         raise serializers.ValidationError({"message": "Reservas finalizadas nao podem ser alteradas."})
 
     if status_value == "cancelada":
-        reserva.status = "cancelada"
-        reserva.data_finalizacao = timezone.now()
-        reserva.save()
+        reserva.cancelar_reserva()
         return reserva
 
     if status_value == "finalizada":
@@ -200,16 +182,12 @@ def update_product_reservation(reserva, status_value):
             "quantity": reserva.quantidade_reservada,
             "note": f"Venda finalizada pela reserva #{reserva.id_reserva}",
         })
-        reserva.status = "finalizada"
-        reserva.data_finalizacao = timezone.now()
-        reserva.save()
+        reserva.finalizar_reserva()
         refresh_product_reservations(reserva.produto)
         return reserva
 
-    reserva.status = calculate_reservation_status(reserva.produto, reserva.quantidade_reservada)
-    reserva.save(update_fields=["status"])
+    reserva.atualizar_status()
     return reserva
-
 
 @transaction.atomic
 def register_inventory_movement(produto, empresa, data):
@@ -217,27 +195,26 @@ def register_inventory_movement(produto, empresa, data):
         raise serializers.ValidationError({"message": "Este item de estoque nao pertence ao usuario autenticado."})
 
     try:
+        # Bloqueia a linha da tabela para evitar concorrência
         produto_bloqueado = Produto.objects.select_for_update().get(
             id_produto=produto.id_produto,
             empresa=empresa,
         )
     except Produto.DoesNotExist:
         raise serializers.ValidationError({"message": "Item de estoque nao encontrado para este usuario."})
+        
     quantity = data["quantity"]
     movement_type = data["type"]
 
-    resulting_quantity = (
-        produto_bloqueado.quantidade + quantity
-        if movement_type == "entrada"
-        else produto_bloqueado.quantidade - quantity
-    )
+    # 1. Delega à Factory a criação da estratégia correta
+    movimentacao = MovimentacaoEstoqueFactory.criar(movement_type, produto_bloqueado, quantity)
+    
+    # 2. Calcula e valida usando a classe específica
+    resulting_quantity = movimentacao.calcular_saldo()
+    movimentacao.validar(resulting_quantity)
 
-    if resulting_quantity < Decimal("0"):
-        raise serializers.ValidationError({"message": "Saida maior que a quantidade disponivel."})
-
-    produto_bloqueado.quantidade = resulting_quantity
-    sync_status(produto_bloqueado)
-    produto_bloqueado.save()
+    # 3. Persiste a alteração no banco
+    produto_bloqueado.atualizar_produto(quantidade=resulting_quantity)
 
     movement = MovimentacaoEstoque.objects.create(
         produto=produto_bloqueado,
@@ -250,6 +227,7 @@ def register_inventory_movement(produto, empresa, data):
 
     refresh_product_reservations(produto_bloqueado)
 
+    # 4. Sincroniza a instância em memória original
     produto.quantidade = produto_bloqueado.quantidade
     produto.status = produto_bloqueado.status
     produto.atualizado_em = produto_bloqueado.atualizado_em

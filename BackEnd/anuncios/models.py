@@ -1,7 +1,10 @@
 from django.db import models
+from django.utils import timezone
 from produtos.models import Produto
 
 class Anuncio(models.Model):
+    """Entidade de domínio que representa a publicação de um produto."""
+
     id_anuncio = models.AutoField(primary_key=True)
     preco_final = models.DecimalField(max_digits=10, decimal_places=2)
     status_anuncio = models.CharField(max_length=20, blank=False, default='ativo')
@@ -17,8 +20,50 @@ class Anuncio(models.Model):
     def __str__(self):
         return str(self.id_anuncio)
 
+    def publicar(self):
+        self.status_anuncio = "ativo"
+        self.save(force_insert=True)
+        return True
+
+    def editar_anuncio(self, **dados):
+        campos_atualizaveis = {
+            "descricao_especifica",
+            "nr_qtd",
+            "localizacao",
+            "imagem_url",
+        }
+        houve_alteracao = False
+
+        for campo, valor in dados.items():
+            if campo in campos_atualizaveis:
+                setattr(self, campo, valor)
+                houve_alteracao = True
+
+        if houve_alteracao:
+            self.save()
+        return True
+
+    def alterar_preco(self, preco):
+        self.preco_final = preco
+        self.save(update_fields=["preco_final"])
+        return True
+
+    def finalizar_venda(self):
+        self.status_anuncio = "vendido"
+        self.data_final = timezone.localdate()
+        self.save(update_fields=["status_anuncio", "data_final"])
+        return True
+
+    def cancelar(self):
+        self.status_anuncio = "inativo"
+        self.data_final = timezone.localdate()
+        self.save(update_fields=["status_anuncio", "data_final"])
+        return True
+
 
 class Reserva(models.Model):
+    """Entidade de domínio da reserva de produto para um comprador."""
+
     STATUS_CHOICES = (
         ("em_captacao", "Em captacao"),
         ("pronta", "Pronta"),
@@ -43,3 +88,41 @@ class Reserva(models.Model):
 
     def __str__(self):
         return f"Reserva {self.id_reserva} - {self.produto}"
+
+    def _status_calculado(self):
+        if self.produto.quantidade >= self.quantidade_reservada:
+            return "pronta"
+        return "em_captacao"
+
+    def criar_reserva(self):
+        self.status = self._status_calculado()
+        self.save(force_insert=True)
+        return True
+
+    def atualizar_status(self):
+        if self.status in ("finalizada", "cancelada"):
+            return False
+
+        status_calculado = self._status_calculado()
+        if self.status != status_calculado:
+            self.status = status_calculado
+            self.save(update_fields=["status"])
+        return True
+
+    def finalizar_reserva(self):
+        if self.status in ("finalizada", "cancelada"):
+            return False
+
+        self.status = "finalizada"
+        self.data_finalizacao = timezone.now()
+        self.save(update_fields=["status", "data_finalizacao"])
+        return True
+
+    def cancelar_reserva(self):
+        if self.status in ("finalizada", "cancelada"):
+            return False
+
+        self.status = "cancelada"
+        self.data_finalizacao = timezone.now()
+        self.save(update_fields=["status", "data_finalizacao"])
+        return True

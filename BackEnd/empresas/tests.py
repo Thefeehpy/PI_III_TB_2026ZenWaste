@@ -19,13 +19,14 @@ class LoginViewTests(TestCase):
 
     def test_login_com_senha_legada_atualiza_para_hash(self):
         response = self.client.post(
-            "/auth/login/",
+            "/api/auth/login/",
             {"email": "contato@zenwaste.com", "password": "senha123"},
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["empresa"]["email"], self.empresa.email)
+        self.assertEqual(response.data["user"]["email"], self.empresa.email)
+        self.assertIn("token", response.data)
 
         self.empresa.refresh_from_db()
         self.assertNotEqual(self.empresa.senha, "senha123")
@@ -33,10 +34,20 @@ class LoginViewTests(TestCase):
 
     def test_login_retorna_401_quando_senha_invalida(self):
         response = self.client.post(
-            "/auth/login/",
+            "/api/auth/login/",
             {"email": "contato@zenwaste.com", "password": "senha-incorreta"},
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(response.data["message"], "E-mail ou senha inválidos.")
+
+    def test_atualizar_dados_altera_somente_campos_cadastrais(self):
+        self.assertTrue(self.empresa.atualizar_dados(
+            razao_social="ZenWaste Reciclagem LTDA",
+            descricao_segmento="Economia circular",
+            id_empresa=999,
+        ))
+        self.empresa.refresh_from_db()
+        self.assertEqual(self.empresa.razao_social, "ZenWaste Reciclagem LTDA")
+        self.assertNotEqual(self.empresa.id_empresa, 999)

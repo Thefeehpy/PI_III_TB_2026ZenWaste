@@ -47,10 +47,10 @@ INSTALLED_APPS = [
     'authentication',
     'empresas',
     'produtos',     
-    'login',
     'anuncios',
     'marketplace',
     'market',
+    'transportes',
 ]
 
 MIDDLEWARE = [

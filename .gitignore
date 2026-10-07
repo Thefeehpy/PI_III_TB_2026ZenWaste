@@ -22,6 +22,8 @@ BackEnd/**/__pycache__/
 BackEnd/**/*.py[cod]
 back-end/.venv/
 back-end/db.sqlite3
+BackEnd/.venv/
+BackEnd/db.sqlite3
 .workspace/
 
 # Editor directories and files

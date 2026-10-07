@@ -1,9 +1,9 @@
 from django.db import transaction
-from django.utils import timezone
 from rest_framework import serializers
 
 from anuncios.models import Anuncio
 from produtos.models import Produto
+
 from produtos.services import (
     clean_inventory_name,
     create_product_reservation,
@@ -11,6 +11,7 @@ from produtos.services import (
     validate_unique_inventory_name,
 )
 
+from marketplace.builders import VendaAdBuilder
 
 def list_active_ads(filters):
     ads = Anuncio.objects.filter(status_anuncio="ativo").select_related("produto", "produto__empresa")
@@ -37,15 +38,15 @@ def resolve_product_for_ad(empresa, data):
     if produto:
         name = clean_inventory_name(data["name"])
         validate_unique_inventory_name(empresa, name, current_product=produto)
-        produto.descricao_produto = name
-        produto.tipo_produto = data["type"].strip()
-        produto.unidade = (data.get("unit") or produto.unidade or "kg").strip() or "kg"
         if data["quantity"] > produto.quantidade:
             raise serializers.ValidationError({
                 "message": "A quantidade anunciada nao pode ultrapassar o saldo atual do produto."
             })
-        produto.atualizar_status()
-        produto.save()
+        produto.atualizar_produto(
+            descricao_produto=name,
+            tipo_produto=data["type"].strip(),
+            unidade=(data.get("unit") or produto.unidade or "kg").strip() or "kg",
+        )
         return produto
 
     name = clean_inventory_name(data["name"])
@@ -57,8 +58,7 @@ def resolve_product_for_ad(empresa, data):
         quantidade=0,
         unidade=(data.get("unit") or "kg").strip() or "kg",
     )
-    produto.atualizar_status()
-    produto.save()
+    produto.cadastrar_produto()
     if data["quantity"] > 0:
         register_inventory_movement(produto, empresa, {
             "type": "entrada",
@@ -71,7 +71,7 @@ def resolve_product_for_ad(empresa, data):
 def create_ad(empresa, data):
     produto = resolve_product_for_ad(empresa, data)
 
-    return Anuncio.objects.create(
+    anuncio = Anuncio(
         produto=produto,
         preco_final=data["price"],
         descricao_especifica=(data.get("description") or "").strip(),
@@ -79,6 +79,8 @@ def create_ad(empresa, data):
         localizacao=(data.get("location") or "").strip(),
         imagem_url=(data.get("imageUrl") or "").strip(),
     )
+    anuncio.publicar()
+    return anuncio
 
 
 def update_ad(anuncio, data):
@@ -102,6 +104,7 @@ def update_ad(anuncio, data):
             "message": "A quantidade anunciada nao pode ultrapassar o saldo atual do produto."
         })
 
+    dados_produto = {}
     for request_field, model_field in product_fields.items():
         if request_field in data:
             value = data[request_field]
@@ -110,15 +113,19 @@ def update_ad(anuncio, data):
                 validate_unique_inventory_name(produto.empresa, value, current_product=produto)
             if request_field == "unit":
                 value = (value or produto.unidade or "kg").strip() or "kg"
-            setattr(produto, model_field, value)
+            dados_produto[model_field] = value
 
+    dados_anuncio = {}
     for request_field, model_field in ad_fields.items():
-        if request_field in data:
-            setattr(anuncio, model_field, data[request_field])
+        if request_field in data and request_field != "price":
+            dados_anuncio[model_field] = data[request_field]
 
-    produto.atualizar_status()
-    produto.save()
-    anuncio.save()
+    if dados_produto:
+        produto.atualizar_produto(**dados_produto)
+    anuncio.editar_anuncio(**dados_anuncio)
+
+    if "price" in data:
+        anuncio.alterar_preco(data["price"])
     return anuncio
 
 
@@ -131,53 +138,14 @@ def list_seller_ads(empresa):
 
 @transaction.atomic
 def finalize_ad_sale(anuncio, data):
-    produto = anuncio.produto
-    sold_quantity = data["soldQuantity"]
-
-    if anuncio.status_anuncio != "ativo":
-        raise serializers.ValidationError({"message": "Apenas anuncios ativos podem ser finalizados."})
-
-    if sold_quantity > produto.quantidade:
-        raise serializers.ValidationError({
-            "message": "A quantidade vendida nao pode ultrapassar o saldo atual do produto."
-        })
-
-    if sold_quantity > anuncio.nr_qtd:
-        raise serializers.ValidationError({
-            "message": "A quantidade vendida nao pode ultrapassar a quantidade anunciada."
-        })
-
-    movimento = register_inventory_movement(produto, produto.empresa, {
-        "type": "saida",
-        "quantity": sold_quantity,
-        "note": f"Venda finalizada pelo anuncio #{anuncio.id_anuncio}",
-    })
-
-    anuncio.status_anuncio = "vendido"
-    anuncio.data_final = timezone.localdate()
-    anuncio.save(update_fields=["status_anuncio", "data_final"])
-
-    reserva = None
-    reservation_quantity = data.get("reservationQuantity")
-    if reservation_quantity:
-        buyer_name = (data.get("buyerName") or "").strip()
-        buyer_phone = (data.get("buyerPhone") or "").strip()
-
-        if not buyer_name or not buyer_phone:
-            raise serializers.ValidationError({
-                "message": "Informe nome e numero do comprador para criar a reserva."
-            })
-
-        reserva = create_product_reservation(produto, {
-            "quantity": reservation_quantity,
-            "unitPrice": data.get("reservationUnitPrice") or anuncio.preco_final,
-            "buyerName": buyer_name,
-            "buyerPhone": buyer_phone,
-            "note": data.get("reservationNote", ""),
-        })
-
-    return {
-        "ad": anuncio,
-        "movement": movimento,
-        "reservation": reserva,
-    }
+    builder = VendaAdBuilder(anuncio)
+    
+    # Orquestração fluida (Method Chaining)
+    resultado = (
+        builder
+        .com_quantidade_vendida(data["soldQuantity"])
+        .adicionar_reserva(data)
+        .executar()
+    )
+    
+    return resultado

@@ -100,3 +100,50 @@ class InventoryTenantIsolationTests(TestCase):
         movements = response.json()["movements"]
         self.assertEqual(len(movements), 1)
         self.assertEqual(movements[0]["itemId"], str(self.produto_b.id_produto))
+
+    def test_produto_atualiza_status_e_dados_pelo_dominio(self):
+        self.assertTrue(self.produto_a.atualizar_produto(
+            descricao_produto="Aparas de PEAD lavadas",
+            quantidade=Decimal("0.000"),
+            empresa=self.empresa_b,
+        ))
+        self.produto_a.refresh_from_db()
+        self.assertEqual(self.produto_a.descricao_produto, "Aparas de PEAD lavadas")
+        self.assertEqual(self.produto_a.status, "sem_saldo")
+        self.assertEqual(self.produto_a.empresa, self.empresa_a)
+
+    def test_cadastrar_e_excluir_produto(self):
+        produto = Produto(
+            empresa=self.empresa_a,
+            tipo_produto="Vidro",
+            quantidade=Decimal("3.000"),
+            descricao_produto="Garrafas de vidro",
+            unidade="kg",
+        )
+        self.assertTrue(produto.cadastrar_produto())
+        self.assertEqual(produto.status, "disponivel")
+        produto_id = produto.id_produto
+        self.assertTrue(produto.excluir_produto())
+        self.assertFalse(Produto.objects.filter(id_produto=produto_id).exists())
+
+    def test_endpoints_de_estoque_mantem_contrato_das_telas(self):
+        self.authenticate_as(self.empresa_a)
+        create_response = self.client.post(
+            "/api/inventory/items/",
+            {"name": "Caixas de papelao", "type": "Papel", "quantity": "8.000", "unit": "kg"},
+            format="json",
+        )
+        self.assertEqual(create_response.status_code, 201)
+        item = create_response.json()["item"]
+
+        update_response = self.client.patch(
+            f"/api/inventory/items/{item['id']}/",
+            {"name": "Caixas de papelão prensadas", "unit": "fardo"},
+            format="json",
+        )
+        self.assertEqual(update_response.status_code, 200)
+        self.assertEqual(update_response.json()["item"]["unit"], "fardo")
+
+        delete_response = self.client.delete(f"/api/inventory/items/{item['id']}/")
+        self.assertEqual(delete_response.status_code, 200)
+        self.assertEqual(delete_response.json()["closedAds"], 0)

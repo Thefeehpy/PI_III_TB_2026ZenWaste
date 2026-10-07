@@ -56,22 +56,6 @@ class ProdutoRetrieveUpdateDestroy(EmpresaScopedProdutoMixin, generics.RetrieveU
     pass
 
 
-class ProdutoCreate(EmpresaScopedProdutoMixin, generics.CreateAPIView):
-    pass
-
-
-class ProdutoUpdate(EmpresaScopedProdutoMixin, generics.UpdateAPIView):
-    pass
-
-
-class ProdutoDestroy(EmpresaScopedProdutoMixin, generics.DestroyAPIView):
-    pass
-
-
-class ProdutoRetrieve(EmpresaScopedProdutoMixin, generics.RetrieveAPIView):
-    pass
-
-
 class InventoryItemsAPIView(ZenWasteAPIView):
     def get(self, request):
         empresa, error = require_empresa(request)
