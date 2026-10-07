@@ -1,24 +1,25 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   CalendarClock,
   CheckCircle2,
   Clock3,
+  ExternalLink,
   MapPin,
   Navigation,
   PackageCheck,
+  QrCode,
   Route,
   Search,
-  Send,
-  Signature,
+  ShieldCheck,
   Truck,
 } from "lucide-react";
 
-import { SignaturePad } from "@/components/SignaturePad";
+import { QrCodePreview } from "@/components/QrCodePreview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 type DriverDelivery = {
@@ -31,6 +32,9 @@ type DriverDelivery = {
   forecast: string;
   volume: string;
   status: "pending" | "route" | "delivered";
+  qrToken: string;
+  authorizedReceiverName: string;
+  authorizedReceiverCpf: string;
   receiverName?: string;
   confirmedAt?: string;
 };
@@ -46,6 +50,9 @@ const initialDeliveries: DriverDelivery[] = [
     forecast: "Hoje, 14:30",
     volume: "24 m³ / 6,5 ton",
     status: "route",
+    qrToken: "canhoto-5842-rota-segura",
+    authorizedReceiverName: "Maria Souza",
+    authorizedReceiverCpf: "123.456.789-01",
   },
   {
     id: "del-5846",
@@ -57,6 +64,9 @@ const initialDeliveries: DriverDelivery[] = [
     forecast: "Hoje, 16:00",
     volume: "18 m³ / 4,1 ton",
     status: "pending",
+    qrToken: "canhoto-5846-coleta-verde",
+    authorizedReceiverName: "Carlos Andrade",
+    authorizedReceiverCpf: "987.654.321-00",
   },
   {
     id: "del-5845",
@@ -68,6 +78,9 @@ const initialDeliveries: DriverDelivery[] = [
     forecast: "Ontem, 17:20",
     volume: "12 m³ / 3,4 ton",
     status: "delivered",
+    qrToken: "canhoto-5845-confirmado",
+    authorizedReceiverName: "Paulo Nogueira",
+    authorizedReceiverCpf: "456.789.123-88",
     receiverName: "Paulo Nogueira",
     confirmedAt: "30/09/2026 às 17:18",
   },
@@ -89,13 +102,16 @@ const deliveryStatus = {
 };
 
 export default function DriverDeliveries() {
-  const [deliveries, setDeliveries] = useState<DriverDelivery[]>(initialDeliveries);
+  const deliveries = initialDeliveries;
   const [selectedDeliveryId, setSelectedDeliveryId] = useState(initialDeliveries[0].id);
   const [searchTerm, setSearchTerm] = useState("");
-  const [receiverName, setReceiverName] = useState("");
-  const [signatureData, setSignatureData] = useState("");
 
   const selectedDelivery = deliveries.find((delivery) => delivery.id === selectedDeliveryId) ?? deliveries[0];
+  const signatureUrl = useMemo(() => {
+    const origin = typeof window === "undefined" ? "" : window.location.origin;
+
+    return `${origin}/delivery-signature/${selectedDelivery.orderNumber}?token=${selectedDelivery.qrToken}`;
+  }, [selectedDelivery.orderNumber, selectedDelivery.qrToken]);
 
   const filteredDeliveries = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -111,33 +127,6 @@ export default function DriverDeliveries() {
 
   const pendingCount = deliveries.filter((delivery) => delivery.status !== "delivered").length;
   const deliveredCount = deliveries.filter((delivery) => delivery.status === "delivered").length;
-
-  const handleConfirmDelivery = () => {
-    if (!receiverName.trim() || !selectedDelivery) {
-      return;
-    }
-
-    setDeliveries((current) =>
-      current.map((delivery) =>
-        delivery.id === selectedDelivery.id
-          ? {
-              ...delivery,
-              status: "delivered",
-              receiverName: receiverName.trim(),
-              confirmedAt: new Date().toLocaleString("pt-BR", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
-            }
-          : delivery,
-      ),
-    );
-    setReceiverName("");
-    setSignatureData("");
-  };
 
   return (
     <main className="min-h-screen bg-background">
@@ -221,10 +210,15 @@ export default function DriverDeliveries() {
             </Badge>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <Info icon={MapPin} label="Destino" value={`${selectedDelivery.address}, ${selectedDelivery.city}`} />
               <Info icon={Clock3} label="Previsão" value={selectedDelivery.forecast} />
               <Info icon={PackageCheck} label="Mercadoria" value={selectedDelivery.volume} />
+              <Info
+                icon={ShieldCheck}
+                label="Recebedor cadastrado"
+                value={`${selectedDelivery.authorizedReceiverName} • ${selectedDelivery.authorizedReceiverCpf}`}
+              />
             </div>
 
             {selectedDelivery.status === "delivered" ? (
@@ -241,32 +235,59 @@ export default function DriverDeliveries() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-5 rounded-[28px] border border-border/70 bg-muted/20 p-5">
-                <div className="flex items-center gap-3">
-                  <Signature className="h-5 w-5 text-primary" />
+              <div className="grid gap-5 rounded-[30px] border border-primary/20 bg-[linear-gradient(135deg,hsl(var(--primary)/0.10),hsl(var(--card)))] p-5 md:grid-cols-[17rem_minmax(0,1fr)]">
+                <div className="rounded-[30px] border border-white/60 bg-white/90 p-4 shadow-[0_24px_70px_rgba(15,23,42,0.14)]">
+                  <QrCodePreview value={signatureUrl} title={`QR Code do pedido ${selectedDelivery.orderNumber}`} />
+                </div>
+
+                <div className="flex flex-col justify-between gap-5">
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                        <QrCode className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">Canhoto por QR Code</p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          Mostre este código para o recebedor. A assinatura só será liberada se nome e CPF baterem com
+                          o cadastro do pedido.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                      <div className="flex items-start gap-3">
+                        <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">Link único da entrega</p>
+                          <p className="mt-1 break-all text-xs leading-5 text-muted-foreground">{signatureUrl}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button asChild className="h-12 rounded-2xl">
+                    <Link to={`/delivery-signature/${selectedDelivery.orderNumber}?token=${selectedDelivery.qrToken}`}>
+                      Abrir prévia do cliente
+                      <ExternalLink className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {selectedDelivery.status !== "delivered" && (
+              <div className="rounded-[24px] border border-border/70 bg-background/80 p-4">
+                <div className="flex items-start gap-3">
+                  <CalendarClock className="mt-0.5 h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-semibold text-foreground">Canhoto digital</p>
-                    <p className="text-sm text-muted-foreground">Peça para o cliente conferir os dados e assinar abaixo.</p>
+                    <p className="text-sm font-semibold text-foreground">Fluxo previsto</p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                      Depois da assinatura, o back-end atualizará o status para entregue e anexará o canhoto ao processo
+                      do pedido.
+                    </p>
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="receiver-name">Nome de quem recebeu</Label>
-                  <Input
-                    id="receiver-name"
-                    value={receiverName}
-                    onChange={(event) => setReceiverName(event.target.value)}
-                    placeholder="Nome completo"
-                    className="h-12 rounded-2xl"
-                  />
-                </div>
-
-                <SignaturePad value={signatureData} onChange={setSignatureData} />
-
-                <Button className="h-12 w-full rounded-2xl" disabled={!receiverName.trim()} onClick={handleConfirmDelivery}>
-                  <Send className="mr-2 h-4 w-4" />
-                  Confirmar entrega
-                </Button>
               </div>
             )}
 

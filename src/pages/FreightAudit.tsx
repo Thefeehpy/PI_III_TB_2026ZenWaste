@@ -3,16 +3,17 @@ import { Link } from "react-router-dom";
 import {
   ArrowRight,
   AlertTriangle,
-  BadgeCheck,
-  CalendarClock,
+  Box,
   CheckCircle2,
   CircleDollarSign,
   ClipboardCheck,
+  Copy,
   FileCheck2,
   FileText,
-  Leaf,
+  Mail,
   MessageSquarePlus,
-  Package,
+  MessageCircle,
+  PackageCheck,
   Plus,
   Route,
   Search,
@@ -76,6 +77,8 @@ type FreightDelivery = {
   receiverName: string;
   confirmedAt: string;
   signatureData: string;
+  receiptType: "complete" | "with_reservation";
+  reservationNote?: string;
 };
 
 type FreightProcess = {
@@ -90,10 +93,43 @@ type FreightProcess = {
   orderDate: string;
   forecastDate: string;
   status: FreightStatus;
+  source?: "erp" | "manual" | "marketplace";
+  freightMode?: "quote" | "contracted" | "customer_pickup";
+  noQuoteReason?: string;
+  packageQuantity?: number;
+  boxDimensionsCm?: {
+    length: number;
+    width: number;
+    height: number;
+  };
+  nfeFileName?: string;
+  pickupRecord?: {
+    photoName: string;
+    registeredAt: string;
+  };
   quotes: FreightQuote[];
   document?: FreightDocument;
   treatments: FreightTreatment[];
   delivery?: FreightDelivery;
+};
+
+type ErpOrder = {
+  id: string;
+  orderNumber: string;
+  client: string;
+  material: string;
+  products: string;
+  origin: string;
+  destination: string;
+  quantity: number;
+  unitsPerBox: number;
+  packageQuantity: number;
+  lengthCm: number;
+  widthCm: number;
+  heightCm: number;
+  weightTon: number;
+  orderDate: string;
+  forecastDate: string;
 };
 
 type NewOrderForm = {
@@ -138,9 +174,18 @@ type QuoteForm = {
 };
 
 type DocumentForm = {
+  nfeFileName: string;
   fileName: string;
   cteNumber: string;
   cteValue: string;
+};
+
+type CubageForm = {
+  packageQuantity: string;
+  lengthCm: string;
+  widthCm: string;
+  heightCm: string;
+  weightTon: string;
 };
 
 const statusMeta: Record<
@@ -233,6 +278,63 @@ const emptyPublishTransportForm: PublishTransportForm = {
   vehicleType: "",
   notes: "",
 };
+
+const initialErpOrders: ErpOrder[] = [
+  {
+    id: "erp-101",
+    orderNumber: "101",
+    client: "Hermini Embalagens",
+    material: "Papelão ondulado",
+    products: "Caixas compactadas e aparas limpas",
+    origin: "São Paulo - SP",
+    destination: "Campinas - SP",
+    quantity: 50,
+    unitsPerBox: 5,
+    packageQuantity: 10,
+    lengthCm: 40,
+    widthCm: 30,
+    heightCm: 20,
+    weightTon: 1.8,
+    orderDate: "2026-10-06",
+    forecastDate: "2026-10-08",
+  },
+  {
+    id: "erp-102",
+    orderNumber: "102",
+    client: "Circular Foods",
+    material: "Plástico industrial",
+    products: "Bombonas higienizadas",
+    origin: "Sorocaba - SP",
+    destination: "Curitiba - PR",
+    quantity: 32,
+    unitsPerBox: 4,
+    packageQuantity: 8,
+    lengthCm: 60,
+    widthCm: 40,
+    heightCm: 45,
+    weightTon: 2.4,
+    orderDate: "2026-10-06",
+    forecastDate: "2026-10-09",
+  },
+  {
+    id: "erp-103",
+    orderNumber: "103",
+    client: "EcoPack Compras",
+    material: "Vidro industrial",
+    products: "Frascos separados por lote",
+    origin: "Rio de Janeiro - RJ",
+    destination: "Niterói - RJ",
+    quantity: 120,
+    unitsPerBox: 12,
+    packageQuantity: 10,
+    lengthCm: 50,
+    widthCm: 35,
+    heightCm: 30,
+    weightTon: 3.1,
+    orderDate: "2026-10-06",
+    forecastDate: "2026-10-07",
+  },
+];
 
 const initialFreights: FreightProcess[] = [
   {
@@ -363,6 +465,7 @@ const initialFreights: FreightProcess[] = [
       receiverName: "Paulo Nogueira",
       confirmedAt: "2026-09-30T17:18:00",
       signatureData: "",
+      receiptType: "complete",
     },
   },
 ];
@@ -427,6 +530,14 @@ function formatDateTime(value: string) {
   });
 }
 
+function calculateCubageM3(packageQuantity: number, lengthCm: number, widthCm: number, heightCm: number) {
+  return Number(((packageQuantity * lengthCm * widthCm * heightCm) / 1_000_000).toFixed(3));
+}
+
+function getErpOrderCubage(order: ErpOrder) {
+  return calculateCubageM3(order.packageQuantity, order.lengthCm, order.widthCm, order.heightCm);
+}
+
 function getApprovedQuote(process: FreightProcess) {
   return process.quotes.find((quote) => quote.approved);
 }
@@ -453,25 +564,39 @@ function getStatusAfterDocument(process: FreightProcess) {
 
 export default function FreightAudit() {
   const [processes, setProcesses] = useState<FreightProcess[]>(initialFreights);
+  const [pendingErpOrders, setPendingErpOrders] = useState<ErpOrder[]>(initialErpOrders);
   const [activeFilter, setActiveFilter] = useState<"all" | FreightStatus>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(initialFreights[0]?.id ?? null);
+  const [selectedErpOrderId, setSelectedErpOrderId] = useState<string | null>(initialErpOrders[0]?.id ?? null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
+  const [cubageOpen, setCubageOpen] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [publishTransportOpen, setPublishTransportOpen] = useState(false);
   const [treatmentOpen, setTreatmentOpen] = useState(false);
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [publishedTransports, setPublishedTransports] = useState<PublishedTransport[]>(initialPublishedTransports);
   const [newOrderForm, setNewOrderForm] = useState<NewOrderForm>(emptyOrderForm);
+  const [cubageForm, setCubageForm] = useState<CubageForm>({
+    packageQuantity: "",
+    lengthCm: "",
+    widthCm: "",
+    heightCm: "",
+    weightTon: "",
+  });
   const [quoteForm, setQuoteForm] = useState<QuoteForm>(emptyQuoteForm);
   const [publishTransportForm, setPublishTransportForm] = useState<PublishTransportForm>(emptyPublishTransportForm);
-  const [documentForm, setDocumentForm] = useState<DocumentForm>({ fileName: "", cteNumber: "", cteValue: "" });
+  const [documentForm, setDocumentForm] = useState<DocumentForm>({ nfeFileName: "", fileName: "", cteNumber: "", cteValue: "" });
   const [treatmentNote, setTreatmentNote] = useState("");
+  const [pickupPhotoName, setPickupPhotoName] = useState("");
   const [receiverName, setReceiverName] = useState("");
   const [signatureData, setSignatureData] = useState("");
+  const [receiptType, setReceiptType] = useState<"complete" | "with_reservation">("complete");
+  const [reservationNote, setReservationNote] = useState("");
 
   const selectedProcess = processes.find((process) => process.id === selectedProcessId) ?? processes[0];
+  const selectedErpOrder = pendingErpOrders.find((order) => order.id === selectedErpOrderId) ?? pendingErpOrders[0];
 
   const counters = useMemo(
     () =>
@@ -528,6 +653,160 @@ export default function FreightAudit() {
 
   const updateProcess = (processId: string, updater: (process: FreightProcess) => FreightProcess) => {
     setProcesses((current) => current.map((process) => (process.id === processId ? updater(process) : process)));
+  };
+
+  const createProcessFromErpOrder = (
+    order: ErpOrder,
+    freightMode: FreightProcess["freightMode"],
+    status: FreightStatus,
+    noQuoteReason?: string,
+  ): FreightProcess => {
+    const cubicMeters = getErpOrderCubage(order);
+    const contractedQuote =
+      freightMode === "contracted"
+        ? [
+            {
+              id: `q-${order.orderNumber}-contratado`,
+              carrier: "Transportadora já contratada",
+              value: 0,
+              deliveryDays: 2,
+              note: "Frete informado como já contratado no pedido recebido do ERP.",
+              approved: true,
+            },
+          ]
+        : [];
+
+    return {
+      id: `fp-erp-${order.orderNumber}`,
+      orderNumber: order.orderNumber,
+      client: order.client,
+      material: order.material,
+      origin: order.origin,
+      destination: order.destination,
+      cubicMeters,
+      weightTon: order.weightTon,
+      orderDate: order.orderDate,
+      forecastDate: order.forecastDate,
+      status,
+      source: "erp",
+      freightMode,
+      noQuoteReason,
+      packageQuantity: order.packageQuantity,
+      boxDimensionsCm: {
+        length: order.lengthCm,
+        width: order.widthCm,
+        height: order.heightCm,
+      },
+      quotes: contractedQuote,
+      treatments: [
+        {
+          id: `tr-erp-${Date.now()}`,
+          at: new Date().toISOString(),
+          author: "Integração ERP",
+          note:
+            freightMode === "quote"
+              ? "Pedido recebido via API e marcado para cotação de frete."
+              : `Pedido recebido via API e marcado como ${noQuoteReason}.`,
+        },
+      ],
+    };
+  };
+
+  const handleImportErpOrder = (orderId: string, freightMode: NonNullable<FreightProcess["freightMode"]>) => {
+    const order = pendingErpOrders.find((item) => item.id === orderId);
+
+    if (!order) {
+      return;
+    }
+
+    const statusByMode: Record<NonNullable<FreightProcess["freightMode"]>, FreightStatus> = {
+      quote: "awaiting_quote",
+      contracted: "awaiting_document",
+      customer_pickup: "transport",
+    };
+    const reasonByMode: Record<NonNullable<FreightProcess["freightMode"]>, string | undefined> = {
+      quote: undefined,
+      contracted: "frete já contratado",
+      customer_pickup: "retirada pelo cliente",
+    };
+    const newProcess = createProcessFromErpOrder(order, freightMode, statusByMode[freightMode], reasonByMode[freightMode]);
+
+    setProcesses((current) => [newProcess, ...current]);
+    setPendingErpOrders((current) => current.filter((item) => item.id !== order.id));
+    setSelectedProcessId(newProcess.id);
+    setDetailsOpen(true);
+  };
+
+  const openCubageEditor = (order: ErpOrder) => {
+    setSelectedErpOrderId(order.id);
+    setCubageForm({
+      packageQuantity: String(order.packageQuantity),
+      lengthCm: String(order.lengthCm),
+      widthCm: String(order.widthCm),
+      heightCm: String(order.heightCm),
+      weightTon: String(order.weightTon),
+    });
+    setCubageOpen(true);
+  };
+
+  const handleSaveCubage = () => {
+    if (!selectedErpOrder) {
+      return;
+    }
+
+    setPendingErpOrders((current) =>
+      current.map((order) =>
+        order.id === selectedErpOrder.id
+          ? {
+              ...order,
+              packageQuantity: Number(cubageForm.packageQuantity) || order.packageQuantity,
+              lengthCm: Number(cubageForm.lengthCm) || order.lengthCm,
+              widthCm: Number(cubageForm.widthCm) || order.widthCm,
+              heightCm: Number(cubageForm.heightCm) || order.heightCm,
+              weightTon: Number(cubageForm.weightTon) || order.weightTon,
+            }
+          : order,
+      ),
+    );
+    setCubageOpen(false);
+  };
+
+  const getQuoteRequestText = (process: FreightProcess) => {
+    const dimensions = process.boxDimensionsCm
+      ? `${process.packageQuantity ?? "-"} volume(s) de ${process.boxDimensionsCm.length} x ${process.boxDimensionsCm.width} x ${process.boxDimensionsCm.height} cm`
+      : "Volumes a confirmar";
+
+    return [
+      `Solicitação de cotação de frete - Pedido #${process.orderNumber}`,
+      `Cliente: ${process.client}`,
+      `Origem: ${process.origin}`,
+      `Destino: ${process.destination}`,
+      `Carga: ${process.material}`,
+      `Volumes: ${dimensions}`,
+      `Cubagem total: ${process.cubicMeters} m³`,
+      `Peso total: ${process.weightTon} ton`,
+      `Prazo desejado: ${formatDate(process.forecastDate)}`,
+      "Cuidados: validar veículo, janela de coleta, documentação necessária e restrições do material.",
+    ].join("\n");
+  };
+
+  const handleCopyQuoteRequest = (process: FreightProcess) => {
+    void navigator.clipboard?.writeText(getQuoteRequestText(process));
+  };
+
+  const handleShareQuoteRequest = (process: FreightProcess, channel: "whatsapp" | "email") => {
+    const text = getQuoteRequestText(process);
+
+    if (channel === "whatsapp") {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    window.open(
+      `mailto:?subject=${encodeURIComponent(`Cotação de frete - Pedido #${process.orderNumber}`)}&body=${encodeURIComponent(text)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
   };
 
   const handleCreateOrder = () => {
@@ -657,19 +936,23 @@ export default function FreightAudit() {
   };
 
   const handleDocumentSimulation = () => {
-    if (!selectedProcess || Number(documentForm.cteValue) <= 0) {
+    if (!selectedProcess || (!documentForm.nfeFileName.trim() && Number(documentForm.cteValue) <= 0)) {
       return;
     }
 
     updateProcess(selectedProcess.id, (process) => {
       const nextProcess: FreightProcess = {
         ...process,
-        document: {
-          fileName: documentForm.fileName.trim() || `cte-pedido-${process.orderNumber}.pdf`,
-          cteNumber: documentForm.cteNumber.trim() || `CTE-${Math.floor(90000 + Math.random() * 900)}`,
-          cteValue: Number(documentForm.cteValue),
-          receivedAt: new Date().toISOString(),
-        },
+        nfeFileName: documentForm.nfeFileName.trim() || process.nfeFileName,
+        document:
+          Number(documentForm.cteValue) > 0
+            ? {
+                fileName: documentForm.fileName.trim() || `cte-pedido-${process.orderNumber}.pdf`,
+                cteNumber: documentForm.cteNumber.trim() || `CTE-${Math.floor(90000 + Math.random() * 900)}`,
+                cteValue: Number(documentForm.cteValue),
+                receivedAt: new Date().toISOString(),
+              }
+            : process.document,
       };
 
       const nextStatus = getStatusAfterDocument(nextProcess);
@@ -714,6 +997,31 @@ export default function FreightAudit() {
     setTreatmentOpen(false);
   };
 
+  const handleRegisterPickup = () => {
+    if (!selectedProcess || !pickupPhotoName.trim()) {
+      return;
+    }
+
+    updateProcess(selectedProcess.id, (process) => ({
+      ...process,
+      pickupRecord: {
+        photoName: pickupPhotoName.trim(),
+        registeredAt: new Date().toISOString(),
+      },
+      status: process.status === "awaiting_document" ? "transport" : process.status,
+      treatments: [
+        ...process.treatments,
+        {
+          id: `tr-${Date.now()}`,
+          at: new Date().toISOString(),
+          author: "Expedição",
+          note: `Retirada registrada com foto da carga: ${pickupPhotoName.trim()}.`,
+        },
+      ],
+    }));
+    setPickupPhotoName("");
+  };
+
   const handleConfirmDelivery = () => {
     if (!selectedProcess || !receiverName.trim()) {
       return;
@@ -726,6 +1034,8 @@ export default function FreightAudit() {
         receiverName: receiverName.trim(),
         confirmedAt: new Date().toISOString(),
         signatureData,
+        receiptType,
+        reservationNote: receiptType === "with_reservation" ? reservationNote.trim() : undefined,
       },
       treatments: [
         ...process.treatments,
@@ -733,12 +1043,17 @@ export default function FreightAudit() {
           id: `tr-${Date.now()}`,
           at: new Date().toISOString(),
           author: "Entregador",
-          note: `Entrega confirmada por ${receiverName.trim()} com canhoto digital.`,
+          note:
+            receiptType === "with_reservation"
+              ? `Entrega confirmada por ${receiverName.trim()} com ressalva: ${reservationNote.trim() || "sem observação detalhada"}.`
+              : `Entrega confirmada por ${receiverName.trim()} com canhoto digital.`,
         },
       ],
     }));
     setReceiverName("");
     setSignatureData("");
+    setReceiptType("complete");
+    setReservationNote("");
     setDeliveryOpen(false);
   };
 
@@ -776,6 +1091,70 @@ export default function FreightAudit() {
               Lançar transporte
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-[34px] border-border/70 bg-card/95 shadow-[0_18px_52px_rgba(15,23,42,0.06)]">
+        <CardHeader className="gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <CardTitle className="text-2xl">Pedidos recebidos do ERP</CardTitle>
+            <CardDescription>
+              Prévia da integração por API: escolha quais pedidos precisam de cotação e quais seguem outro fluxo.
+            </CardDescription>
+          </div>
+          <Badge variant="outline" className="w-fit rounded-full border-primary/25 bg-primary/10 px-4 py-1.5 text-primary">
+            {pendingErpOrders.length} pendente(s)
+          </Badge>
+        </CardHeader>
+        <CardContent className="grid gap-4 xl:grid-cols-3">
+          {pendingErpOrders.length === 0 ? (
+            <div className="rounded-[26px] border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground xl:col-span-3">
+              Todos os pedidos recebidos da API já foram classificados.
+            </div>
+          ) : (
+            pendingErpOrders.map((order) => {
+              const cubage = getErpOrderCubage(order);
+
+              return (
+                <article key={order.id} className="rounded-[28px] border border-border/70 bg-background/80 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-semibold text-foreground">Pedido #{order.orderNumber}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{order.client}</p>
+                    </div>
+                    <Badge variant="outline" className="rounded-full border-info/25 bg-info/10 text-info">
+                      ERP/API
+                    </Badge>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    <Info label="Material" value={order.material} />
+                    <Info label="Entrega" value={order.destination} />
+                    <Info label="Volumes e cubagem" value={`${order.packageQuantity} vol. • ${cubage} m³ • ${order.weightTon} ton`} />
+                  </div>
+
+                  <div className="mt-5 grid gap-2">
+                    <Button className="rounded-2xl" onClick={() => handleImportErpOrder(order.id, "quote")}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Precisa cotação
+                    </Button>
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                      <Button variant="outline" className="rounded-2xl" onClick={() => handleImportErpOrder(order.id, "contracted")}>
+                        Frete contratado
+                      </Button>
+                      <Button variant="outline" className="rounded-2xl" onClick={() => handleImportErpOrder(order.id, "customer_pickup")}>
+                        Retirada cliente
+                      </Button>
+                    </div>
+                    <Button variant="ghost" className="rounded-2xl" onClick={() => openCubageEditor(order)}>
+                      <Box className="mr-2 h-4 w-4" />
+                      Ajustar cubagem
+                    </Button>
+                  </div>
+                </article>
+              );
+            })
+          )}
         </CardContent>
       </Card>
 
@@ -1064,6 +1443,34 @@ export default function FreightAudit() {
                     </Button>
                   </div>
 
+                  <div className="rounded-[26px] border border-primary/20 bg-[linear-gradient(135deg,hsl(var(--primary)/0.10),hsl(var(--background)))] p-5">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                          <FileText className="h-4 w-4 text-primary" />
+                          Solicitação pronta para transportadoras
+                        </div>
+                        <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap rounded-2xl border border-border/70 bg-background/80 p-4 text-xs leading-5 text-muted-foreground">
+                          {getQuoteRequestText(selectedProcess)}
+                        </pre>
+                      </div>
+                      <div className="grid shrink-0 gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                        <Button variant="outline" className="rounded-2xl" onClick={() => handleCopyQuoteRequest(selectedProcess)}>
+                          <Copy className="mr-2 h-4 w-4" />
+                          Copiar
+                        </Button>
+                        <Button variant="outline" className="rounded-2xl" onClick={() => handleShareQuoteRequest(selectedProcess, "whatsapp")}>
+                          <MessageCircle className="mr-2 h-4 w-4" />
+                          WhatsApp
+                        </Button>
+                        <Button variant="outline" className="rounded-2xl" onClick={() => handleShareQuoteRequest(selectedProcess, "email")}>
+                          <Mail className="mr-2 h-4 w-4" />
+                          Email
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid gap-3">
                     {selectedProcess.quotes.length === 0 ? (
                       <div className="rounded-[24px] border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
@@ -1133,13 +1540,73 @@ export default function FreightAudit() {
                 </TabsContent>
 
                 <TabsContent value="delivery" className="space-y-5">
-                  <DeliveryTab process={selectedProcess} onOpenDelivery={() => setDeliveryOpen(true)} />
+                  <DeliveryTab
+                    process={selectedProcess}
+                    pickupPhotoName={pickupPhotoName}
+                    setPickupPhotoName={setPickupPhotoName}
+                    onRegisterPickup={handleRegisterPickup}
+                    onOpenDelivery={() => setDeliveryOpen(true)}
+                  />
                 </TabsContent>
               </Tabs>
             </div>
           </DialogContent>
         </Dialog>
       )}
+
+      <Dialog open={cubageOpen} onOpenChange={setCubageOpen}>
+        <DialogContent className="max-w-3xl rounded-[28px]">
+          <DialogHeader>
+            <DialogTitle>Cubagem do pedido #{selectedErpOrder?.orderNumber}</DialogTitle>
+            <DialogDescription>
+              Ajuste volumes, medidas e peso antes de transformar o pedido recebido da API em processo de frete.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedErpOrder && (
+            <div className="space-y-5">
+              <div className="rounded-[24px] border border-primary/20 bg-primary/5 p-4">
+                <div className="flex items-start gap-3">
+                  <PackageCheck className="mt-0.5 h-5 w-5 text-primary" />
+                  <div>
+                    <p className="font-semibold text-foreground">{selectedErpOrder.products}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {selectedErpOrder.quantity} unidade(s), com {selectedErpOrder.unitsPerBox} unidade(s) por caixa.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <Field label="Volumes" value={cubageForm.packageQuantity} onChange={(value) => setCubageForm((current) => ({ ...current, packageQuantity: value }))} type="number" />
+                <Field label="Comprimento (cm)" value={cubageForm.lengthCm} onChange={(value) => setCubageForm((current) => ({ ...current, lengthCm: value }))} type="number" />
+                <Field label="Largura (cm)" value={cubageForm.widthCm} onChange={(value) => setCubageForm((current) => ({ ...current, widthCm: value }))} type="number" />
+                <Field label="Altura (cm)" value={cubageForm.heightCm} onChange={(value) => setCubageForm((current) => ({ ...current, heightCm: value }))} type="number" />
+                <Field label="Peso (ton)" value={cubageForm.weightTon} onChange={(value) => setCubageForm((current) => ({ ...current, weightTon: value }))} type="number" />
+              </div>
+
+              <div className="rounded-[24px] border border-border/70 bg-muted/20 p-5">
+                <p className="text-sm font-semibold text-foreground">Cubagem calculada</p>
+                <p className="mt-2 text-3xl font-semibold text-primary">
+                  {calculateCubageM3(
+                    Number(cubageForm.packageQuantity) || 0,
+                    Number(cubageForm.lengthCm) || 0,
+                    Number(cubageForm.widthCm) || 0,
+                    Number(cubageForm.heightCm) || 0,
+                  )}{" "}
+                  m³
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Fórmula: volumes x comprimento x largura x altura, convertendo centímetros para metros cúbicos.
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" className="rounded-2xl" onClick={() => setCubageOpen(false)}>Cancelar</Button>
+            <Button className="rounded-2xl" onClick={handleSaveCubage}>Salvar cubagem</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={newOrderOpen} onOpenChange={setNewOrderOpen}>
         <DialogContent className="max-h-[calc(100svh-2rem)] w-[calc(100vw-1rem)] max-w-3xl overflow-y-auto rounded-[28px] sm:w-[calc(100vw-2rem)]">
@@ -1296,6 +1763,34 @@ export default function FreightAudit() {
                 <Info label="Mercadoria" value={selectedProcess.material} />
               </div>
               <Field label="Nome de quem recebeu" value={receiverName} onChange={setReceiverName} />
+              <div className="space-y-3">
+                <Label>Tipo de recebimento</Label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button
+                    type="button"
+                    variant={receiptType === "complete" ? "default" : "outline"}
+                    className="rounded-2xl"
+                    onClick={() => setReceiptType("complete")}
+                  >
+                    Recebimento completo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={receiptType === "with_reservation" ? "default" : "outline"}
+                    className="rounded-2xl"
+                    onClick={() => setReceiptType("with_reservation")}
+                  >
+                    Com ressalva
+                  </Button>
+                </div>
+                {receiptType === "with_reservation" && (
+                  <Textarea
+                    value={reservationNote}
+                    onChange={(event) => setReservationNote(event.target.value)}
+                    placeholder="Descreva avaria, falta, divergência de volume ou outra observação."
+                  />
+                )}
+              </div>
               <div className="space-y-2">
                 <Label>Assinatura do recebedor</Label>
                 <SignaturePad value={signatureData} onChange={setSignatureData} />
@@ -1348,6 +1843,32 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
+function getSeparatedStatus(process: FreightProcess) {
+  const difference = getDifference(process);
+
+  return [
+    {
+      label: "Transporte",
+      value: process.delivery
+        ? "Entregue"
+        : process.pickupRecord
+          ? "Carga retirada / em transporte"
+          : process.freightMode === "customer_pickup"
+            ? "Aguardando retirada do cliente"
+            : getApprovedQuote(process)
+              ? "Aguardando retirada"
+              : "Frete em definição",
+    },
+    { label: "NF-e", value: process.nfeFileName ? "Anexada" : "Pendente" },
+    { label: "CT-e", value: process.document ? "Recebido" : "Pendente" },
+    { label: "Comprovante", value: process.delivery ? "Recebido" : "Pendente" },
+    {
+      label: "Financeiro",
+      value: !process.document ? "Aguardando CT-e" : difference !== null && Math.abs(difference) > 5 ? "Divergência" : "Conferido",
+    },
+  ];
+}
+
 function SummaryTab({ process }: { process: FreightProcess }) {
   const approvedQuote = getApprovedQuote(process);
   const difference = getDifference(process);
@@ -1370,6 +1891,14 @@ function SummaryTab({ process }: { process: FreightProcess }) {
           <ClipboardCheck className="mt-0.5 h-5 w-5 text-primary" />
           <div>
             <p className="font-semibold text-foreground">Resumo da jornada</p>
+            <div className="mt-4 grid gap-3 md:grid-cols-5">
+              {getSeparatedStatus(process).map((item) => (
+                <div key={item.label} className="rounded-2xl border border-border/70 bg-background/80 p-3">
+                  <p className="text-xs text-muted-foreground">{item.label}</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">{item.value}</p>
+                </div>
+              ))}
+            </div>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               O pedido #{process.orderNumber} está em {status.label.toLowerCase()}.
               {difference !== null
@@ -1415,20 +1944,22 @@ function DocumentTab({
           <p className="mt-4 font-semibold text-foreground">Arraste o documento aqui ou selecione um arquivo</p>
           <p className="mt-2 text-sm text-muted-foreground">Upload visual simulado, sem envio para backend.</p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Field label="Arquivo NF-e" value={documentForm.nfeFileName} onChange={(value) => setDocumentForm({ ...documentForm, nfeFileName: value })} />
           <Field label="Arquivo" value={documentForm.fileName} onChange={(value) => setDocumentForm({ ...documentForm, fileName: value })} />
           <Field label="Número CT-e" value={documentForm.cteNumber} onChange={(value) => setDocumentForm({ ...documentForm, cteNumber: value })} />
           <Field label="Valor CT-e" type="number" value={documentForm.cteValue} onChange={(value) => setDocumentForm({ ...documentForm, cteValue: value })} />
         </div>
         <Button className="rounded-2xl" onClick={onSimulateDocument}>
           <FileCheck2 className="mr-2 h-4 w-4" />
-          Simular documento recebido
+          Salvar documentos
         </Button>
       </div>
 
       <div className="rounded-[24px] border border-border/70 bg-background/80 p-5">
-        <h3 className="font-semibold text-foreground">CT-e / NF-e da transportadora</h3>
+        <h3 className="font-semibold text-foreground">Documentos e conferência</h3>
         <div className="mt-4 space-y-3 text-sm">
+          <Info label="NF-e" value={process.nfeFileName ?? "Pendente"} />
           <Info label="Valor da cotação aprovada" value={approvedQuote ? formatCurrency(approvedQuote.value) : "Sem cotação aprovada"} />
           <Info label="Valor do CT-e" value={process.document ? formatCurrency(process.document.cteValue) : "Documento não recebido"} />
           {process.document && <Info label="Documento" value={`${process.document.cteNumber} • ${process.document.fileName}`} />}
@@ -1446,7 +1977,19 @@ function DocumentTab({
   );
 }
 
-function DeliveryTab({ process, onOpenDelivery }: { process: FreightProcess; onOpenDelivery: () => void }) {
+function DeliveryTab({
+  process,
+  pickupPhotoName,
+  setPickupPhotoName,
+  onRegisterPickup,
+  onOpenDelivery,
+}: {
+  process: FreightProcess;
+  pickupPhotoName: string;
+  setPickupPhotoName: (value: string) => void;
+  onRegisterPickup: () => void;
+  onOpenDelivery: () => void;
+}) {
   if (process.delivery) {
     return (
       <div className="rounded-[24px] border border-primary/20 bg-primary/5 p-5">
@@ -1457,6 +2000,9 @@ function DeliveryTab({ process, onOpenDelivery }: { process: FreightProcess; onO
             <p className="mt-2 text-sm text-muted-foreground">
               Recebido por {process.delivery.receiverName} em {formatDateTime(process.delivery.confirmedAt)}.
             </p>
+            {process.delivery.receiptType === "with_reservation" && (
+              <p className="mt-2 text-sm text-warning">Ressalva: {process.delivery.reservationNote || "sem observação detalhada"}</p>
+            )}
             <Badge className="mt-4 rounded-full">Canhoto digital armazenado</Badge>
           </div>
         </div>
@@ -1465,14 +2011,48 @@ function DeliveryTab({ process, onOpenDelivery }: { process: FreightProcess; onO
   }
 
   return (
-    <div className="rounded-[24px] border border-border/70 bg-background/80 p-5">
+    <div className="space-y-5">
+      <div className="rounded-[24px] border border-border/70 bg-background/80 p-5">
       <div className="grid gap-3 sm:grid-cols-4">
-        <Info label="Status" value="Entrega em andamento" />
+        <Info label="Status" value={process.pickupRecord ? "Carga retirada / em transporte" : "Aguardando retirada"} />
         <Info label="Previsão" value={formatDate(process.forecastDate)} />
         <Info label="Destino" value={process.destination} />
         <Info label="Transportadora" value={getApprovedQuote(process)?.carrier ?? "Não definida"} />
       </div>
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
+      </div>
+
+      <div className="rounded-[24px] border border-border/70 bg-muted/20 p-5">
+        <div className="flex items-start gap-3">
+          <UploadCloud className="mt-0.5 h-5 w-5 text-primary" />
+          <div className="flex-1">
+            <p className="font-semibold text-foreground">Retirada da carga</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Anexe visualmente a foto da carga carregada no caminhão para registrar a saída.
+            </p>
+            {process.pickupRecord ? (
+              <div className="mt-4 rounded-2xl border border-primary/25 bg-primary/10 p-4">
+                <p className="text-sm font-semibold text-foreground">{process.pickupRecord.photoName}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Registrado em {formatDateTime(process.pickupRecord.registeredAt)}</p>
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <Input
+                  value={pickupPhotoName}
+                  onChange={(event) => setPickupPhotoName(event.target.value)}
+                  placeholder="Ex.: carga-pedido-5842.jpg"
+                  className="h-11 rounded-2xl"
+                />
+                <Button className="rounded-2xl" onClick={onRegisterPickup}>
+                  <UploadCloud className="mr-2 h-4 w-4" />
+                  Registrar retirada
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
         <Button className="rounded-2xl" onClick={onOpenDelivery}>
           <Send className="mr-2 h-4 w-4" />
           Registrar aqui

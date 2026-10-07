@@ -1,4 +1,5 @@
 import { useRef, type PointerEvent } from "react";
+import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +11,8 @@ interface SignaturePadProps {
 export function SignaturePad({ value, onChange }: SignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = useRef(false);
+  const { resolvedTheme } = useTheme();
+  const signatureColor = resolvedTheme === "dark" ? "#ffffff" : "#0f172a";
 
   const getPoint = (event: PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -34,7 +37,7 @@ export function SignaturePad({ value, onChange }: SignaturePadProps) {
     const point = getPoint(event);
     isDrawingRef.current = true;
     canvas.setPointerCapture(event.pointerId);
-    context.strokeStyle = "#ffffff";
+    context.strokeStyle = signatureColor;
     context.lineWidth = 3;
     context.lineCap = "round";
     context.beginPath();
