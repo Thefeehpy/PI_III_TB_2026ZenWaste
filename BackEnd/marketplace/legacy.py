@@ -14,6 +14,11 @@ class AnuncioSerializer(serializers.ModelSerializer):
         model = Anuncio
         fields = "__all__"
 
+    def create(self, validated_data):
+        anuncio = Anuncio(**validated_data)
+        anuncio.publicar()
+        return anuncio
+
 
 class AnuncioCreateListView(generics.ListCreateAPIView):
     queryset = Anuncio.objects.all()

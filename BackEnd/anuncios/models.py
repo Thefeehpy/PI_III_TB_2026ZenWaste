@@ -3,7 +3,7 @@ from django.utils import timezone
 from produtos.models import Produto
 
 class Anuncio(models.Model):
-    """Entidade de domínio que representa a publicação de um produto no marketplace."""
+    """Entidade de domínio que representa a publicação de um produto."""
 
     id_anuncio = models.AutoField(primary_key=True)
     preco_final = models.DecimalField(max_digits=10, decimal_places=2)

@@ -18,6 +18,7 @@ interface CreateMarketplaceItemInput {
 interface MarketplaceActionResult {
   success: boolean;
   message?: string;
+  item?: WasteItem;
 }
 
 interface MarketplaceContextValue {
@@ -111,7 +112,7 @@ export function MarketplaceProvider({ children }: { children: ReactNode }) {
           if (canApplySellerResponse(requestUserId)) {
             await refreshSellerItems();
           }
-          return { success: true };
+          return { success: true, item: response.item };
         } catch (error) {
           return {
             success: false,

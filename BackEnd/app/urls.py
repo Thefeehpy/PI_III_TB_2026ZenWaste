@@ -21,9 +21,13 @@ urlpatterns = [
     path("authentication/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("authentication/token/verify/", TokenVerifyView.as_view(), name="token-verify"),
     path("anuncio", AnuncioCreateListView.as_view(), name="Criar-anuncio"),
+    
     # API consumida pelo front-end React.
     path("api/auth/", include("authentication.urls")),
     path("api/inventory/", include("produtos.urls")),
     path("api/marketplace/", include("marketplace.urls")),
     path("api/market/", include("market.urls")),
+    path("api/assistente-ia/", include("assistente_ia.urls")),
+
+    path("api/transportes/", include("transportes.urls")),
 ]

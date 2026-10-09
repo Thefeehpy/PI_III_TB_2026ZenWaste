@@ -1,40 +1,36 @@
 # ZenWaste
 
-Plataforma B2B para gestão de resíduos industriais, controle de estoque, reservas, anúncios e inteligência de mercado.
+Plataforma B2B para gestão de resíduos industriais, estoque, reservas, anúncios, transportes e inteligência de mercado.
 
-O projeto utiliza React e TypeScript no frontend e Django REST Framework no backend. A aplicação permite que empresas cadastrem materiais, registrem movimentações de estoque, publiquem anúncios, acompanhem reservas e consultem sugestões de preço e descrição.
+O projeto usa React e TypeScript no front-end e Django REST Framework no back-end. Empresas podem cadastrar materiais, registrar movimentações, publicar anúncios, acompanhar reservas e consultar sugestões de preço e descrição.
 
 ## Funcionalidades
 
 - Cadastro, autenticação e atualização do perfil da empresa.
+- Cadastro de funcionários e papéis operacionais.
 - Controle de itens e movimentações de estoque.
-- Reservas com acompanhamento de quantidade, prazo e status.
+- Reservas com quantidade, prazo e status.
 - Publicação, edição, cancelamento e finalização de anúncios.
-- Marketplace público com contato pelo WhatsApp.
-- Histórico e inteligência de preços.
-- Sugestões de preço e descrição com Gemini ou fallback local.
-- Dashboard com telas de anúncios, reservas e auditoria de frete.
+- Marketplace público com contato por WhatsApp.
+- Sugestões de preço, descrição e frete por Gemini ou fallback local.
+- Cadastro e homologação de transportadoras, caminhões e motoristas.
+- Cotações, propostas, CT-e, rastreio de entregas, QR Code e canhoto digital.
+- Telas de auditoria de frete, entregas, assinatura, reservas e gestão de anúncios.
 
 ## Tecnologias
 
-### Frontend
+### Front-end
 
-- React 18
-- TypeScript
-- Vite
-- React Router
-- TanStack Query
-- Tailwind CSS
-- Radix UI
+- React 18, TypeScript e Vite
+- React Router e TanStack Query
+- Tailwind CSS e Radix UI
 - Vitest e Testing Library
 
-### Backend
+### Back-end
 
-- Python
-- Django 6
+- Python e Django 6
 - Django REST Framework
-- SQLite por padrão
-- PostgreSQL opcional
+- SQLite por padrão e PostgreSQL opcional
 - Google Gen AI
 
 ## Estrutura do projeto
@@ -42,36 +38,41 @@ O projeto utiliza React e TypeScript no frontend e Django REST Framework no back
 ```text
 ZenWaste/
 ├── BackEnd/
-│   ├── anuncios/          # Entidades Anuncio e Reserva
+│   ├── anuncios/          # Entidades de domínio Anuncio e Reserva
 │   ├── app/               # Configuração e rotas principais do Django
-│   ├── authentication/    # Endpoints, validações, tokens e serviços de autenticação
-│   ├── empresas/          # Cadastro e domínio de empresas
-│   ├── gemini_api/        # Cliente da integração Gemini
-│   ├── market/            # Inteligência e sugestões de mercado
-│   ├── marketplace/       # API de anúncios
-│   ├── produtos/          # Estoque, movimentações e reservas
-│   ├── db.sqlite3
+│   ├── assistente_ia/     # Assistente, recomendações e provedor Gemini
+│   ├── authentication/    # Login, tokens, endpoints e serviços de autenticação
+│   ├── empresas/          # Empresa, Funcionário e papéis
+│   ├── market/            # Histórico e indicadores de mercado
+│   ├── marketplace/       # Casos de uso e API de anúncios
+│   ├── produtos/          # Estoque, movimentações e serviços de reservas
+│   ├── transportes/       # Cadastros, fretes, propostas, documentos e entregas
 │   ├── manage.py
 │   └── requirements.txt
 ├── FrontEnd/
 │   ├── public/
 │   ├── src/
-│   │   ├── assets/
-│   │   ├── components/
-│   │   ├── contexts/
-│   │   ├── layouts/
-│   │   ├── lib/
-│   │   ├── pages/
-│   │   └── test/
 │   ├── package.json
 │   └── vite.config.ts
 ├── docs/
 │   ├── diagramas/
+│   ├── documentos/
 │   └── planejamento/
 ├── .env.example
-├── .gitignore
 └── README.md
 ```
+
+## Responsabilidades dos módulos de anúncio
+
+- `anuncios`: modelos, regras de domínio, administração e migrations de `Anuncio` e `Reserva`.
+- `marketplace`: endpoints, serializers e coordenação dos casos de uso de publicação, edição, cancelamento e venda.
+- `market`: histórico de preços e indicadores de mercado.
+- `assistente_ia`: sugestões, recomendações de frete, auditoria das execuções e integração Gemini.
+- `transportes`: transportadora, frota, motoristas, processos de frete, propostas, CT-e e canhoto digital.
+
+Os módulos são organizados por contexto de negócio. Uma pasta para cada classe isolada fragmentaria o Django sem ganho; classes fortemente relacionadas ficam no mesmo aplicativo e são separadas internamente em `models/`, `services/`, serializers e endpoints.
+
+As mudanças de estado ficam nas entidades. Os serviços do marketplace apenas validam e coordenam essas operações. O fluxo de venda utiliza Builder e as movimentações de estoque utilizam Factory.
 
 ## Pré-requisitos
 
@@ -81,9 +82,9 @@ ZenWaste/
 
 ## Configuração
 
-### 1. Backend
+### Back-end
 
-No PowerShell, a partir da raiz do projeto:
+No PowerShell, a partir da raiz:
 
 ```powershell
 cd BackEnd
@@ -94,17 +95,9 @@ python manage.py migrate
 python manage.py runserver 127.0.0.1:8000
 ```
 
-A API ficará disponível em:
+### Front-end
 
-```text
-http://127.0.0.1:8000/
-```
-
-O SQLite é usado por padrão e seu arquivo permanece em `BackEnd/db.sqlite3`.
-
-### 2. Frontend
-
-Em outro terminal, a partir da raiz do projeto:
+Em outro terminal:
 
 ```powershell
 cd FrontEnd
@@ -112,31 +105,25 @@ npm ci
 npm run dev
 ```
 
-O frontend ficará disponível em:
-
-```text
-http://localhost:8080/
-```
+O front-end fica em `http://localhost:8080/` e a API em `http://127.0.0.1:8000/`.
 
 ## Variáveis de ambiente
 
-O arquivo `.env.example` na raiz contém os nomes básicos utilizados pelo projeto.
-
-Para configurar o frontend, crie `FrontEnd/.env`:
+Crie `FrontEnd/.env` quando quiser alterar a URL da API:
 
 ```dotenv
 VITE_API_URL=http://127.0.0.1:8000/api
 ```
 
-Para habilitar as sugestões por IA, crie `BackEnd/.env`:
+Para habilitar a IA, crie `BackEnd/.env`:
 
 ```dotenv
 GEMINI_API_KEY=sua_chave
 ```
 
-Sem uma chave válida, preço e descrição continuam funcionando por meio do fallback local.
+Sem uma chave válida ou sem o SDK disponível, as sugestões continuam funcionando pelo fallback local.
 
-O backend também aceita estas variáveis diretamente no ambiente do processo:
+O back-end também aceita:
 
 | Variável | Finalidade | Padrão |
 | --- | --- | --- |
@@ -149,54 +136,21 @@ O backend também aceita estas variáveis diretamente no ambiente do processo:
 | `ZENWASTE_DB_HOST` | Host PostgreSQL | `localhost` |
 | `ZENWASTE_DB_PORT` | Porta PostgreSQL | `5432` |
 
-## Autenticação da API
-
-O login principal retorna um token assinado com validade de sete dias. Envie-o nas rotas protegidas:
-
-```http
-Authorization: Bearer TOKEN
-```
-
-Exemplo de cadastro:
-
-```json
-{
-  "razaoSocial": "Empresa Exemplo",
-  "cnpj": "11222333000181",
-  "segmento": "Metalúrgica",
-  "email": "contato@empresa.com",
-  "telefone": "11999999999",
-  "password": "senha-segura"
-}
-```
-
-Exemplo de login:
-
-```json
-{
-  "email": "contato@empresa.com",
-  "password": "senha-segura"
-}
-```
-
 ## API principal
 
-Base local:
-
-```text
-http://127.0.0.1:8000/api
-```
+Base local: `http://127.0.0.1:8000/api`
 
 ### Autenticação e empresa
 
 | Método | Endpoint | Descrição |
 | --- | --- | --- |
 | `POST` | `/auth/register/` | Cadastra uma empresa |
-| `POST` | `/auth/login/` | Autentica e devolve token e usuário |
-| `GET` | `/auth/me/` | Consulta o perfil autenticado |
-| `PATCH` | `/auth/me/` | Atualiza o perfil autenticado |
+| `POST` | `/auth/login/` | Autentica e retorna token e empresa |
+| `GET`, `PATCH` | `/auth/me/` | Consulta ou atualiza o perfil |
 | `POST` | `/auth/recover-password/` | Solicita recuperação de senha |
 | `POST` | `/auth/logout/` | Finaliza a sessão no cliente |
+
+Nas rotas protegidas da aplicação, envie `Authorization: Bearer TOKEN`.
 
 ### Estoque e reservas
 
@@ -210,82 +164,72 @@ http://127.0.0.1:8000/api
 | `GET` | `/inventory/reservations/` | Lista reservas |
 | `PATCH` | `/inventory/reservations/{id}/` | Atualiza o status da reserva |
 
-### Marketplace
+### Marketplace e inteligência de mercado
 
 | Método | Endpoint | Descrição |
 | --- | --- | --- |
 | `GET`, `POST` | `/marketplace/ads/` | Lista ou publica anúncios |
-| `GET` | `/marketplace/ads/mine/` | Lista anúncios da empresa autenticada |
+| `GET` | `/marketplace/ads/mine/` | Lista anúncios da empresa |
 | `PATCH`, `DELETE` | `/marketplace/ads/{id}/` | Edita ou cancela um anúncio |
 | `POST` | `/marketplace/ads/{id}/finalize/` | Finaliza a venda e movimenta o estoque |
+| `GET` | `/market/prices/` | Retorna histórico e indicadores |
+| `GET`, `POST` | `/market/suggest-price/` | Sugere preço |
+| `GET`, `POST` | `/market/suggest-description/` | Sugere descrição |
 
-### Inteligência de mercado
+### Assistente de IA
 
 | Método | Endpoint | Descrição |
 | --- | --- | --- |
-| `GET` | `/market/prices/` | Retorna histórico e indicadores |
-| `GET`, `POST` | `/market/suggest-price/` | Sugere preço para um material |
-| `GET`, `POST` | `/market/suggest-description/` | Sugere descrição de anúncio |
+| `POST` | `/assistente-ia/analyze-market/` | Analisa indicadores de mercado |
+| `POST` | `/assistente-ia/suggest-price/` | Sugere preço e registra a execução autenticada |
+| `POST` | `/assistente-ia/suggest-description/` | Sugere descrição e registra a execução autenticada |
+| `POST` | `/assistente-ia/recommend-freight/` | Recomenda valor, veículo e cuidados do frete |
+| `GET` | `/assistente-ia/history/` | Lista o histórico auditável da empresa |
+
+### Transportes
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `GET`, `POST` | `/transportes/transportadoras/` | Lista ou cadastra transportadoras |
+| `GET`, `PUT`, `PATCH`, `DELETE` | `/transportes/transportadoras/{id}/` | Gerencia a transportadora da empresa autenticada |
+| `POST` | `/transportes/transportadoras/{id}/validar-sigor/` | Valida as credenciais SIGOR |
+| `GET`, `POST` | `/transportes/caminhoes/` | Lista ou cadastra caminhões |
+| `GET`, `PUT`, `PATCH`, `DELETE` | `/transportes/caminhoes/{id}/` | Gerencia um caminhão |
+| `GET`, `POST` | `/transportes/motoristas/` | Lista ou cadastra motoristas |
+| `GET`, `PUT`, `PATCH`, `DELETE` | `/transportes/motoristas/{id}/` | Gerencia um motorista |
+| `GET`, `POST` | `/transportes/fretes/` | Lista ou cria processos de frete |
+| `POST` | `/transportes/fretes/{id}/publicar/` | Publica uma oportunidade de transporte |
+| `GET` | `/transportes/oportunidades/` | Lista oportunidades abertas |
+| `GET`, `POST` | `/transportes/oportunidades/{id}/propostas/` | Lista ou envia propostas |
+| `POST` | `/transportes/propostas/{id}/aprovar/` | Aprova uma proposta |
+| `POST` | `/transportes/fretes/{id}/documento/` | Registra e confere o CT-e |
+| `GET`, `POST` | `/transportes/entregas/` | Lista ou cria entregas e QR Codes |
+| `GET` | `/transportes/entregas/pedido/{numero}/?token=...` | Consulta segura do canhoto digital |
+| `POST` | `/transportes/entregas/pedido/{numero}/confirmar/` | Confirma a entrega com identidade e assinatura |
 
 ## Rotas legadas
 
-As rotas abaixo continuam disponíveis para compatibilidade com entregas anteriores:
+Para manter compatibilidade com entregas anteriores, continuam disponíveis `/empresa/`, `/produto`, `/anuncio`, `/login`, `/auth/login/` e `/authentication/token/`. Novas integrações devem preferir os endpoints sob `/api/`.
 
-- `/empresa/` e `/empresa/{id}`
-- `/produto` e `/produto/{id}`
-- `/anuncio`
-- `/login` e `/auth/login/`
-- `/authentication/token/`
-- `/authentication/token/refresh/`
-- `/authentication/token/verify/`
-
-Para novas integrações, utilize preferencialmente os endpoints sob `/api/`.
-
-## Scripts e testes
-
-### Frontend
-
-```powershell
-cd FrontEnd
-npm run lint
-npm test
-npm run build
-```
-
-Scripts adicionais:
-
-```powershell
-npm run test:watch
-npm run build:dev
-npm run preview
-```
-
-### Backend
+## Validação
 
 ```powershell
 cd BackEnd
 python manage.py check
 python manage.py makemigrations --check --dry-run
 python manage.py test
+
+cd ..\FrontEnd
+npm run lint
+npm test
+npm run build
 ```
-
-Na última validação estrutural:
-
-- 19 testes Django foram aprovados.
-- O teste Vitest foi aprovado.
-- O ESLint terminou sem erros.
-- O build de produção foi concluído com sucesso.
 
 ## Documentação acadêmica
 
-Diagramas e documentos de planejamento estão organizados em:
+- `docs/diagramas/`: EAP visual e diagrama de rede.
+- `docs/planejamento/`: EAP e TAP.
+- `docs/documentos/`: plano de integração e relatório de refatoração.
+- `docs/documentos/CONTEXTO_CONTINUIDADE_CODEX.md`: contexto completo para continuar a refatoração em novas conversas.
 
-- `docs/diagramas/`
-- `docs/planejamento/`
-
-## Observações
-
-- Não envie arquivos `.env` ou chaves de API ao repositório.
-- O arquivo SQLite é adequado para desenvolvimento local.
-- Para produção, configure uma chave secreta segura, desative o modo de depuração e use variáveis de ambiente apropriadas.
-- O projeto mantém endpoints legados apenas para compatibilidade; a aplicação React utiliza a API sob `/api/`.
+Não versione `.env`, ambientes virtuais, `node_modules` nem artefatos de build. O SQLite local também está ignorado para evitar conflitos entre ambientes.

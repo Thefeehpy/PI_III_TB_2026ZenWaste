@@ -21,6 +21,9 @@ import CreateAd from "./pages/CreateAd";
 import MyAds from "./pages/MyAds";
 import Reservations from "./pages/Reservations";
 import FreightAudit from "./pages/FreightAudit";
+import DriverDeliveries from "./pages/DriverDeliveries";
+import CarrierDashboard from "./pages/CarrierDashboard";
+import ClientDeliverySignature from "./pages/ClientDeliverySignature";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +42,9 @@ const App = () => (
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
+                  <Route path="/carrier/dashboard" element={<CarrierDashboard />} />
+                  <Route path="/driver/deliveries" element={<DriverDeliveries />} />
+                  <Route path="/delivery-signature/:orderNumber" element={<ClientDeliverySignature />} />
 
                   {/* Marketplace (Navbar layout) */}
                   <Route element={<MarketplaceLayout />}>

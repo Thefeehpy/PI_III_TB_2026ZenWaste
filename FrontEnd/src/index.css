@@ -347,6 +347,177 @@
   .dark .landing-card:hover {
     box-shadow: 0 28px 74px rgba(2, 12, 27, 0.38);
   }
+
+  .auth-page {
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 50% 18%, rgba(52, 211, 153, 0.2), transparent 34%),
+      radial-gradient(circle at 18% 74%, rgba(16, 185, 129, 0.16), transparent 34%),
+      radial-gradient(circle at 84% 68%, rgba(34, 197, 94, 0.14), transparent 30%),
+      linear-gradient(135deg, hsl(216 31% 8%) 0%, hsl(206 42% 11%) 48%, hsl(153 48% 19%) 100%),
+      hsl(var(--background));
+  }
+
+  .auth-grid {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.075) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.075) 1px, transparent 1px);
+    background-size: 76px 76px;
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.88), transparent 84%);
+  }
+
+  .auth-aurora {
+    position: absolute;
+    pointer-events: none;
+    background:
+      linear-gradient(110deg, transparent 8%, rgba(52, 211, 153, 0.22) 30%, rgba(125, 211, 252, 0.12) 52%, transparent 76%);
+    filter: blur(34px);
+    opacity: 0.82;
+    transform: rotate(-8deg);
+    animation: auth-aurora-slide 12s ease-in-out infinite;
+  }
+
+  .auth-aurora-one {
+    inset: 6% -18% auto -10%;
+    height: 26rem;
+  }
+
+  .auth-aurora-two {
+    inset: auto -14% 2% 8%;
+    height: 18rem;
+    opacity: 0.52;
+    transform: rotate(9deg);
+    animation-delay: 1.4s;
+  }
+
+  .auth-green-glow {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(52, 211, 153, 0.36), rgba(16, 185, 129, 0.12) 42%, transparent 70%);
+    filter: blur(42px);
+    opacity: 0.76;
+    animation: auth-glow-pulse 8s ease-in-out infinite;
+  }
+
+  .auth-green-glow-one {
+    left: 8%;
+    top: 18%;
+    width: 20rem;
+    height: 20rem;
+  }
+
+  .auth-green-glow-two {
+    right: 7%;
+    bottom: 12%;
+    width: 24rem;
+    height: 24rem;
+    animation-delay: 1.6s;
+  }
+
+  .auth-green-glow-three {
+    left: 50%;
+    top: 50%;
+    width: 18rem;
+    height: 18rem;
+    animation-delay: 3s;
+  }
+
+  .auth-watermark {
+    filter: drop-shadow(0 0 46px rgba(52, 211, 153, 0.3));
+    animation: auth-watermark-breathe 10s ease-in-out infinite;
+  }
+
+  .auth-glass {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.72)),
+      rgba(255, 255, 255, 0.7);
+    box-shadow: 0 30px 90px rgba(2, 12, 27, 0.28);
+    backdrop-filter: blur(28px);
+  }
+
+  .auth-glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(120deg, rgba(255, 255, 255, 0.26), transparent 34%),
+      linear-gradient(140deg, transparent 42%, rgba(52, 211, 153, 0.12), transparent 72%);
+    pointer-events: none;
+  }
+
+  .auth-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .auth-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 18%, rgba(255, 255, 255, 0.18) 44%, transparent 68%);
+    transform: translateX(-120%);
+    animation: auth-shimmer 6.8s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  .auth-float {
+    animation: auth-float 7.5s ease-in-out infinite;
+  }
+
+  .auth-rise {
+    animation: auth-rise 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .auth-profile-option {
+    border: 1px solid hsl(var(--border) / 0.72);
+    background:
+      linear-gradient(180deg, hsl(var(--background) / 0.82), hsl(var(--background) / 0.58)),
+      hsl(var(--card) / 0.58);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(14px);
+    transition:
+      transform 0.24s ease,
+      border-color 0.24s ease,
+      box-shadow 0.24s ease,
+      background 0.24s ease;
+  }
+
+  .auth-profile-option:hover {
+    transform: translateY(-2px);
+    border-color: hsl(var(--primary) / 0.55);
+    box-shadow: 0 14px 34px rgba(16, 185, 129, 0.14);
+  }
+
+  .auth-profile-option[data-selected="true"] {
+    border-color: hsl(var(--primary) / 0.78);
+    background:
+      linear-gradient(135deg, hsl(var(--primary) / 0.18), rgba(125, 211, 252, 0.08)),
+      hsl(var(--card) / 0.78);
+    box-shadow:
+      0 18px 44px rgba(16, 185, 129, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  }
+
+  .auth-field-icon {
+    color: rgba(15, 23, 42, 0.76);
+    filter: drop-shadow(0 0 10px rgba(15, 23, 42, 0.12));
+  }
+
+  .dark .auth-glass {
+    background:
+      linear-gradient(180deg, rgba(16, 26, 42, 0.76), rgba(5, 13, 24, 0.62)),
+      rgba(8, 15, 28, 0.66);
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.34);
+  }
+
+  .dark .auth-field-icon {
+    color: rgba(255, 255, 255, 0.88);
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.18));
+  }
 }
 
 @keyframes float-soft {
@@ -406,13 +577,91 @@
   }
 }
 
+@keyframes auth-aurora-slide {
+  0%,
+  100% {
+    transform: translate3d(-2%, 0, 0) rotate(-8deg);
+  }
+
+  50% {
+    transform: translate3d(4%, -3%, 0) rotate(-5deg);
+  }
+}
+
+@keyframes auth-shimmer {
+  0%,
+  74%,
+  100% {
+    transform: translateX(-120%);
+  }
+
+  86% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes auth-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes auth-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.48;
+    transform: translate3d(0, 0, 0) scale(0.96);
+  }
+
+  50% {
+    opacity: 0.86;
+    transform: translate3d(0, -12px, 0) scale(1.08);
+  }
+}
+
+@keyframes auth-watermark-breathe {
+  0%,
+  100% {
+    opacity: 0.08;
+    transform: translate3d(-50%, -50%, 0) scale(0.96);
+  }
+
+  50% {
+    opacity: 0.14;
+    transform: translate3d(-50%, -50%, 0) scale(1.04);
+  }
+}
+
+@keyframes auth-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-glow-orb,
   .float-soft,
   .float-gentle,
   .float-delayed,
   .landing-bar,
-  .landing-shimmer::after {
+  .landing-shimmer::after,
+  .auth-aurora,
+  .auth-green-glow,
+  .auth-watermark,
+  .auth-shimmer::after,
+  .auth-float,
+  .auth-rise {
     animation: none !important;
   }
 
@@ -421,7 +670,8 @@
   .reveal-on-scroll,
   .reveal-on-scroll.is-visible,
   .landing-card,
-  .landing-card-dark {
+    .landing-card-dark,
+    .auth-profile-option {
     transform: none !important;
     transition: none !important;
   }

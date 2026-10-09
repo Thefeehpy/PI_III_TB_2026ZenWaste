@@ -31,6 +31,7 @@ class AnuncioReservaDomainTests(TestCase):
             preco_final=Decimal("2.80"),
             nr_qtd=Decimal("5.00"),
             localizacao="Sao Paulo - SP",
+            descricao_especifica="Material disponivel.",
         )
         self.assertTrue(anuncio.publicar())
         self.assertTrue(anuncio.editar_anuncio(descricao_especifica="Material limpo."))
@@ -57,3 +58,14 @@ class AnuncioReservaDomainTests(TestCase):
         self.assertEqual(reserva.status, "finalizada")
         self.assertIsNotNone(reserva.data_finalizacao)
 
+    def test_cancelamento_de_reserva_terminal_nao_e_repetido(self):
+        reserva = Reserva(
+            produto=self.produto,
+            quantidade_reservada=Decimal("3.000"),
+            preco_unitario=Decimal("2.50"),
+            nome_comprador="Cooperativa Azul",
+            numero_comprador="11911112222",
+        )
+        reserva.criar_reserva()
+        self.assertTrue(reserva.cancelar_reserva())
+        self.assertFalse(reserva.cancelar_reserva())

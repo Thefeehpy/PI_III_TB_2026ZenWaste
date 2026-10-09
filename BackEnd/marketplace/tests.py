@@ -56,11 +56,11 @@ class MarketplaceEndpointContractTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.empresa = Empresa.objects.create(
-            cnpj="22333444000181",
-            razao_social="Reserva Circular LTDA",
-            telefone_whatsapp="11999998888",
+            cnpj="44555666000181",
+            razao_social="Marketplace Circular LTDA",
+            telefone_whatsapp="11999997777",
             descricao_segmento="Reciclagem",
-            email="reservas@zenwaste.com",
+            email="marketplace@zenwaste.com",
             senha="senha123",
         )
         self.produto = Produto.objects.create(
@@ -72,16 +72,20 @@ class MarketplaceEndpointContractTests(TestCase):
         )
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {make_token(self.empresa)}")
 
-    def test_anuncio_e_reserva_mantem_contrato(self):
+    def test_cancelamento_de_anuncio_e_criacao_de_reserva_mantem_contrato(self):
         anuncio = Anuncio(
             produto=self.produto,
             preco_final=Decimal("2.80"),
             nr_qtd=Decimal("5.00"),
+            descricao_especifica="Lote disponivel.",
         )
         anuncio.publicar()
 
         cancel_response = self.client.delete(f"/api/marketplace/ads/{anuncio.id_anuncio}/")
         self.assertEqual(cancel_response.status_code, 204)
+        anuncio.refresh_from_db()
+        self.assertEqual(anuncio.status_anuncio, "inativo")
+        self.assertIsNotNone(anuncio.data_final)
 
         create_response = self.client.post(
             f"/api/inventory/items/{self.produto.id_produto}/reservations/",
@@ -94,5 +98,4 @@ class MarketplaceEndpointContractTests(TestCase):
             format="json",
         )
         self.assertEqual(create_response.status_code, 201)
-        reserva = create_response.json()["reservation"]
-        self.assertEqual(reserva["status"], "pronta")
+        self.assertEqual(create_response.json()["reservation"]["status"], "pronta")

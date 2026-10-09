@@ -11,10 +11,10 @@ from produtos.models import Produto
 
 class MarketAiSuggestionTests(SimpleTestCase):
     def test_description_falls_back_when_ai_is_unavailable(self):
-        with (
-            patch("market.ai.get_anounce_ai_description", return_value=None),
-            patch("market.ai.get_ai_status", return_value={"available": False, "message": "IA indisponivel."}),
-        ):
+        with patch("market.ai.IAServiceManager") as manager_class:
+            manager = manager_class.return_value
+            manager.get_anounce_ai_description.return_value = None
+            manager.get_ai_status.return_value = {"available": False, "message": "IA indisponivel."}
             result = suggest_ad_description({
                 "name": "Aparas de PEAD",
                 "type": "Plastico Industrial",
@@ -29,10 +29,12 @@ class MarketAiSuggestionTests(SimpleTestCase):
 
     def test_price_uses_ai_number_when_available(self):
         with (
-            patch("market.ai.get_anounce_price_ai_description", return_value="R$ 3,75 por kg"),
+            patch("market.ai.IAServiceManager") as manager_class,
             patch("market.ai.suggested_price_for_type", return_value=Decimal("2.80")),
-            patch("market.ai.get_ai_status", return_value={"available": True, "message": ""}),
         ):
+            manager = manager_class.return_value
+            manager.get_anounce_price_ai_description.return_value = "R$ 3,75 por kg"
+            manager.get_ai_status.return_value = {"available": True, "message": ""}
             result = suggest_ad_price({"type": "Plastico Industrial"})
 
         self.assertEqual(result["source"], "ai")
@@ -40,10 +42,12 @@ class MarketAiSuggestionTests(SimpleTestCase):
 
     def test_price_falls_back_when_ai_does_not_return_number(self):
         with (
-            patch("market.ai.get_anounce_price_ai_description", return_value="Nao tenho dados suficientes."),
+            patch("market.ai.IAServiceManager") as manager_class,
             patch("market.ai.suggested_price_for_type", return_value=Decimal("2.80")),
-            patch("market.ai.get_ai_status", return_value={"available": False, "message": "Gemini sem resposta."}),
         ):
+            manager = manager_class.return_value
+            manager.get_anounce_price_ai_description.return_value = "Nao tenho dados suficientes."
+            manager.get_ai_status.return_value = {"available": False, "message": "Gemini sem resposta."}
             result = suggest_ad_price({"type": "Plastico Industrial"})
 
         self.assertEqual(result["source"], "fallback")
@@ -69,10 +73,10 @@ class MarketAdSignalTests(TestCase):
             unidade="kg",
         )
 
-        with (
-            patch("market.signals.is_ai_available", return_value=True),
-            patch("market.signals.get_anounce_ai_description", return_value="Descricao gerada pela IA."),
-        ):
+        with patch("assistente_ia.signals.IAServiceManager") as manager_class:
+            manager = manager_class.return_value
+            manager.is_ai_available.return_value = True
+            manager.get_anounce_ai_description.return_value = "Descricao gerada pela IA."
             anuncio = Anuncio(
                 produto=produto,
                 preco_final=Decimal("2.80"),

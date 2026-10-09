@@ -1,245 +1,507 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  AlertTriangle,
   ArrowRight,
-  BadgeCheck,
+  AlertTriangle,
+  Box,
   CheckCircle2,
   CircleDollarSign,
-  FileSearch,
-  Leaf,
-  Package,
-  PlusCircle,
+  ClipboardCheck,
+  Copy,
+  FileCheck2,
+  FileText,
+  Mail,
+  MessageSquarePlus,
+  MessageCircle,
+  PackageCheck,
+  Plus,
   Route,
+  Search,
+  Send,
+  Signature,
   Sparkles,
   Truck,
+  UploadCloud,
 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SignaturePad } from "@/components/SignaturePad";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useChartTheme } from "@/hooks/use-chart-theme";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
+type FreightStatus =
+  | "awaiting_quote"
+  | "quoting"
+  | "awaiting_document"
+  | "transport"
+  | "divergent"
+  | "delivered";
+
 type FreightQuote = {
+  id: string;
   carrier: string;
   value: number;
   deliveryDays: number;
-  service: string;
+  note: string;
+  approved?: boolean;
 };
 
-type FreightAuditStatus = "approved" | "divergent" | "pending";
+type FreightDocument = {
+  fileName: string;
+  cteNumber: string;
+  cteValue: number;
+  receivedAt: string;
+};
 
-type FreightAuditItem = {
+type FreightTreatment = {
   id: string;
-  orderId: string;
-  buyer: string;
+  at: string;
+  author: string;
+  note: string;
+};
+
+type FreightDelivery = {
+  receiverName: string;
+  confirmedAt: string;
+  signatureData: string;
+  receiptType: "complete" | "with_reservation";
+  reservationNote?: string;
+};
+
+type FreightProcess = {
+  id: string;
+  orderNumber: string;
+  client: string;
   material: string;
   origin: string;
   destination: string;
-  distanceKm: number;
+  cubicMeters: number;
   weightTon: number;
-  requestedAt: string;
-  approvedQuote: FreightQuote;
-  quotes: FreightQuote[];
-  cte?: {
-    number: string;
-    chargedValue: number;
-    receivedAt: string;
+  orderDate: string;
+  forecastDate: string;
+  status: FreightStatus;
+  source?: "erp" | "manual" | "marketplace";
+  freightMode?: "quote" | "contracted" | "customer_pickup";
+  noQuoteReason?: string;
+  packageQuantity?: number;
+  boxDimensionsCm?: {
+    length: number;
+    width: number;
+    height: number;
   };
+  nfeFileName?: string;
+  pickupRecord?: {
+    photoName: string;
+    registeredAt: string;
+  };
+  quotes: FreightQuote[];
+  document?: FreightDocument;
+  treatments: FreightTreatment[];
+  delivery?: FreightDelivery;
 };
 
-type NewFreightForm = {
-  orderId: string;
-  buyer: string;
+type ErpOrder = {
+  id: string;
+  orderNumber: string;
+  client: string;
+  material: string;
+  products: string;
+  origin: string;
+  destination: string;
+  quantity: number;
+  unitsPerBox: number;
+  packageQuantity: number;
+  lengthCm: number;
+  widthCm: number;
+  heightCm: number;
+  weightTon: number;
+  orderDate: string;
+  forecastDate: string;
+};
+
+type NewOrderForm = {
+  orderNumber: string;
+  client: string;
   material: string;
   origin: string;
   destination: string;
-  distanceKm: string;
+  cubicMeters: string;
   weightTon: string;
-  carrier: string;
-  quotedValue: string;
-  deliveryDays: string;
-  service: string;
-  chargedValue: string;
+  forecastDate: string;
 };
 
-const divergenceTolerance = 5;
+type PublishedTransport = {
+  id: string;
+  orderNumber: string;
+  material: string;
+  origin: string;
+  destination: string;
+  weightTon: number;
+  cubicMeters: number;
+  suggestedValue: number;
+  pickupWindow: string;
+  vehicleType: string;
+  notes: string;
+  proposals: number;
+  publishedAt: string;
+};
 
-const emptyFreightForm: NewFreightForm = {
-  orderId: "",
-  buyer: "",
+type PublishTransportForm = {
+  suggestedValue: string;
+  pickupWindow: string;
+  vehicleType: string;
+  notes: string;
+};
+
+type QuoteForm = {
+  carrier: string;
+  value: string;
+  deliveryDays: string;
+  note: string;
+};
+
+type DocumentForm = {
+  nfeFileName: string;
+  fileName: string;
+  cteNumber: string;
+  cteValue: string;
+};
+
+type CubageForm = {
+  packageQuantity: string;
+  lengthCm: string;
+  widthCm: string;
+  heightCm: string;
+  weightTon: string;
+};
+
+const statusMeta: Record<
+  FreightStatus,
+  {
+    label: string;
+    shortLabel: string;
+    badgeClassName: string;
+    dotClassName: string;
+  }
+> = {
+  awaiting_quote: {
+    label: "Aguardando cotação",
+    shortLabel: "Cotação",
+    badgeClassName: "border-warning/30 bg-warning/10 text-warning",
+    dotClassName: "bg-warning",
+  },
+  quoting: {
+    label: "Em cotação",
+    shortLabel: "Cotando",
+    badgeClassName: "border-info/25 bg-info/10 text-info",
+    dotClassName: "bg-info",
+  },
+  awaiting_document: {
+    label: "Aguardando documento",
+    shortLabel: "Documento",
+    badgeClassName: "border-violet-500/25 bg-violet-500/10 text-violet-500",
+    dotClassName: "bg-violet-500",
+  },
+  transport: {
+    label: "Em transporte",
+    shortLabel: "Transporte",
+    badgeClassName: "border-primary/25 bg-primary/10 text-primary",
+    dotClassName: "bg-primary",
+  },
+  divergent: {
+    label: "Divergência",
+    shortLabel: "Divergência",
+    badgeClassName: "border-destructive/25 bg-destructive/10 text-destructive",
+    dotClassName: "bg-destructive",
+  },
+  delivered: {
+    label: "Entregue",
+    shortLabel: "Entregue",
+    badgeClassName: "border-emerald-500/25 bg-emerald-500/10 text-emerald-600",
+    dotClassName: "bg-emerald-500",
+  },
+};
+
+const flowSteps = ["Pedido", "Cotação", "Aprovação", "Conferência", "Transporte", "Entrega"];
+
+const statusStepIndex: Record<FreightStatus, number> = {
+  awaiting_quote: 1,
+  quoting: 1,
+  awaiting_document: 3,
+  divergent: 3,
+  transport: 4,
+  delivered: 5,
+};
+
+const filterOptions: Array<{ value: "all" | FreightStatus; label: string }> = [
+  { value: "all", label: "Todos" },
+  { value: "awaiting_quote", label: "Aguardando Cotação" },
+  { value: "transport", label: "Em Andamento" },
+  { value: "divergent", label: "Divergências" },
+  { value: "delivered", label: "Entregues" },
+];
+
+const emptyOrderForm: NewOrderForm = {
+  orderNumber: "",
+  client: "",
   material: "",
   origin: "",
   destination: "",
-  distanceKm: "",
+  cubicMeters: "",
   weightTon: "",
-  carrier: "",
-  quotedValue: "",
-  deliveryDays: "2",
-  service: "Carga dedicada",
-  chargedValue: "",
+  forecastDate: "",
 };
 
-const initialFreights: FreightAuditItem[] = [
+const emptyQuoteForm: QuoteForm = {
+  carrier: "",
+  value: "",
+  deliveryDays: "2",
+  note: "",
+};
+
+const emptyPublishTransportForm: PublishTransportForm = {
+  suggestedValue: "",
+  pickupWindow: "",
+  vehicleType: "",
+  notes: "",
+};
+
+const initialErpOrders: ErpOrder[] = [
   {
-    id: "fr-001",
-    orderId: "PED-1048",
-    buyer: "EcoPack Compras",
+    id: "erp-101",
+    orderNumber: "101",
+    client: "Hermini Embalagens",
+    material: "Papelão ondulado",
+    products: "Caixas compactadas e aparas limpas",
+    origin: "São Paulo - SP",
+    destination: "Campinas - SP",
+    quantity: 50,
+    unitsPerBox: 5,
+    packageQuantity: 10,
+    lengthCm: 40,
+    widthCm: 30,
+    heightCm: 20,
+    weightTon: 1.8,
+    orderDate: "2026-10-06",
+    forecastDate: "2026-10-08",
+  },
+  {
+    id: "erp-102",
+    orderNumber: "102",
+    client: "Circular Foods",
+    material: "Plástico industrial",
+    products: "Bombonas higienizadas",
+    origin: "Sorocaba - SP",
+    destination: "Curitiba - PR",
+    quantity: 32,
+    unitsPerBox: 4,
+    packageQuantity: 8,
+    lengthCm: 60,
+    widthCm: 40,
+    heightCm: 45,
+    weightTon: 2.4,
+    orderDate: "2026-10-06",
+    forecastDate: "2026-10-09",
+  },
+  {
+    id: "erp-103",
+    orderNumber: "103",
+    client: "EcoPack Compras",
+    material: "Vidro industrial",
+    products: "Frascos separados por lote",
+    origin: "Rio de Janeiro - RJ",
+    destination: "Niterói - RJ",
+    quantity: 120,
+    unitsPerBox: 12,
+    packageQuantity: 10,
+    lengthCm: 50,
+    widthCm: 35,
+    heightCm: 30,
+    weightTon: 3.1,
+    orderDate: "2026-10-06",
+    forecastDate: "2026-10-07",
+  },
+];
+
+const initialFreights: FreightProcess[] = [
+  {
+    id: "fp-5841",
+    orderNumber: "5841",
+    client: "EcoPack Compras",
     material: "Papel e Papelão",
     origin: "São Paulo - SP",
     destination: "Campinas - SP",
-    distanceKm: 96,
+    cubicMeters: 18,
     weightTon: 4.2,
-    requestedAt: "2026-09-22",
-    approvedQuote: {
-      carrier: "Rota Verde Transportes",
-      value: 212,
-      deliveryDays: 1,
-      service: "Carga dedicada",
-    },
-    quotes: [
-      { carrier: "Rota Verde Transportes", value: 212, deliveryDays: 1, service: "Carga dedicada" },
-      { carrier: "TransLog Sul", value: 248, deliveryDays: 2, service: "Fracionado" },
-      { carrier: "FreteMais Express", value: 265, deliveryDays: 1, service: "Expresso" },
+    orderDate: "2026-09-26",
+    forecastDate: "2026-10-03",
+    status: "awaiting_quote",
+    quotes: [],
+    treatments: [
+      {
+        id: "tr-5841-1",
+        at: "2026-09-26T09:12:00",
+        author: "Maria",
+        note: "Pedido recebido. Aguardando retorno das transportadoras para cotação.",
+      },
     ],
-    cte: {
-      number: "CTE-89312",
-      chargedValue: 498,
-      receivedAt: "2026-09-24",
-    },
   },
   {
-    id: "fr-002",
-    orderId: "PED-1051",
-    buyer: "Circular Foods",
+    id: "fp-5842",
+    orderNumber: "5842",
+    client: "Empresa ABC",
     material: "Plástico Industrial",
     origin: "Sorocaba - SP",
     destination: "Curitiba - PR",
-    distanceKm: 395,
+    cubicMeters: 24,
     weightTon: 6.5,
-    requestedAt: "2026-09-23",
-    approvedQuote: {
-      carrier: "TransLog Sul",
-      value: 860,
-      deliveryDays: 2,
-      service: "Lotação",
-    },
+    orderDate: "2026-09-27",
+    forecastDate: "2026-10-04",
+    status: "transport",
     quotes: [
-      { carrier: "TransLog Sul", value: 860, deliveryDays: 2, service: "Lotação" },
-      { carrier: "Rota Verde Transportes", value: 930, deliveryDays: 3, service: "Lotação" },
-      { carrier: "FreteMais Express", value: 1050, deliveryDays: 2, service: "Expresso" },
+      { id: "q-5842-1", carrier: "Transportadora A", value: 480, deliveryDays: 3, note: "Frete fracionado" },
+      { id: "q-5842-2", carrier: "Rodonaves", value: 420, deliveryDays: 2, note: "Melhor custo-benefício", approved: true },
+      { id: "q-5842-3", carrier: "Transportadora X", value: 510, deliveryDays: 2, note: "Entrega expressa" },
     ],
-    cte: {
-      number: "CTE-89345",
-      chargedValue: 860,
-      receivedAt: "2026-09-25",
+    document: {
+      fileName: "cte-5842-rodonaves.pdf",
+      cteNumber: "CTE-90318",
+      cteValue: 420,
+      receivedAt: "2026-09-28T16:20:00",
     },
+    treatments: [
+      { id: "tr-5842-1", at: "2026-09-27T11:04:00", author: "Maria", note: "Rodonaves aprovada pelo menor valor." },
+      { id: "tr-5842-2", at: "2026-09-28T16:26:00", author: "Financeiro", note: "CT-e conferido sem divergência." },
+    ],
   },
   {
-    id: "fr-003",
-    orderId: "PED-1057",
-    buyer: "Nova Matéria",
+    id: "fp-5843",
+    orderNumber: "5843",
+    client: "Empresa XYZ",
     material: "Sucata Metálica",
     origin: "Campinas - SP",
     destination: "Belo Horizonte - MG",
-    distanceKm: 585,
+    cubicMeters: 32,
     weightTon: 8.8,
-    requestedAt: "2026-09-26",
-    approvedQuote: {
-      carrier: "Minas Cargo",
-      value: 1420,
-      deliveryDays: 3,
-      service: "Carga fechada",
-    },
+    orderDate: "2026-09-28",
+    forecastDate: "2026-10-05",
+    status: "divergent",
     quotes: [
-      { carrier: "Minas Cargo", value: 1420, deliveryDays: 3, service: "Carga fechada" },
-      { carrier: "TransLog Sul", value: 1510, deliveryDays: 4, service: "Lotação" },
-      { carrier: "Rota Verde Transportes", value: 1640, deliveryDays: 3, service: "Carga dedicada" },
+      { id: "q-5843-1", carrier: "Minas Cargo", value: 410, deliveryDays: 3, note: "Carga fechada" },
+      { id: "q-5843-2", carrier: "TransLog", value: 380, deliveryDays: 3, note: "Condição negociada", approved: true },
+      { id: "q-5843-3", carrier: "Rota Verde", value: 465, deliveryDays: 4, note: "Frete comum" },
+    ],
+    document: {
+      fileName: "cte-5843-translog.pdf",
+      cteNumber: "CTE-90344",
+      cteValue: 520,
+      receivedAt: "2026-10-02T09:42:00",
+    },
+    treatments: [
+      { id: "tr-5843-1", at: "2026-10-02T09:42:00", author: "Maria", note: "Maria registrou uma divergência de R$ 140,00 no CT-e." },
+      { id: "tr-5843-2", at: "2026-10-02T10:15:00", author: "Renan", note: "Contato realizado com a transportadora para conferência do valor." },
     ],
   },
   {
-    id: "fr-004",
-    orderId: "PED-1062",
-    buyer: "Revalora Industrial",
+    id: "fp-5844",
+    orderNumber: "5844",
+    client: "Circular Foods",
     material: "Vidro Industrial",
     origin: "Rio de Janeiro - RJ",
     destination: "São Paulo - SP",
-    distanceKm: 430,
+    cubicMeters: 15,
     weightTon: 5.1,
-    requestedAt: "2026-09-28",
-    approvedQuote: {
-      carrier: "FreteMais Express",
-      value: 780,
-      deliveryDays: 2,
-      service: "Fracionado",
-    },
+    orderDate: "2026-09-29",
+    forecastDate: "2026-10-06",
+    status: "awaiting_document",
     quotes: [
-      { carrier: "FreteMais Express", value: 780, deliveryDays: 2, service: "Fracionado" },
-      { carrier: "Rota Verde Transportes", value: 805, deliveryDays: 2, service: "Fracionado" },
-      { carrier: "Minas Cargo", value: 910, deliveryDays: 3, service: "Carga fechada" },
+      { id: "q-5844-1", carrier: "FreteMais Express", value: 780, deliveryDays: 2, note: "Fracionado", approved: true },
+      { id: "q-5844-2", carrier: "Rota Verde", value: 805, deliveryDays: 2, note: "Fracionado" },
     ],
-    cte: {
-      number: "CTE-89402",
-      chargedValue: 815,
-      receivedAt: "2026-09-30",
+    treatments: [
+      { id: "tr-5844-1", at: "2026-09-29T14:10:00", author: "Maria", note: "FreteMais aprovada. Aguardando CT-e da transportadora." },
+    ],
+  },
+  {
+    id: "fp-5845",
+    orderNumber: "5845",
+    client: "Nova Matéria",
+    material: "Borracha",
+    origin: "Joinville - SC",
+    destination: "Porto Alegre - RS",
+    cubicMeters: 12,
+    weightTon: 3.4,
+    orderDate: "2026-09-22",
+    forecastDate: "2026-09-30",
+    status: "delivered",
+    quotes: [
+      { id: "q-5845-1", carrier: "Sul Cargo", value: 560, deliveryDays: 2, note: "Carga dedicada", approved: true },
+      { id: "q-5845-2", carrier: "TransLog Sul", value: 610, deliveryDays: 2, note: "Coleta no dia seguinte" },
+    ],
+    document: {
+      fileName: "cte-5845-sul-cargo.pdf",
+      cteNumber: "CTE-90210",
+      cteValue: 560,
+      receivedAt: "2026-09-23T08:50:00",
+    },
+    treatments: [
+      { id: "tr-5845-1", at: "2026-09-23T08:55:00", author: "Financeiro", note: "Valores conferidos e liberados para pagamento." },
+      { id: "tr-5845-2", at: "2026-09-30T17:18:00", author: "Motorista", note: "Entrega confirmada com canhoto digital." },
+    ],
+    delivery: {
+      receiverName: "Paulo Nogueira",
+      confirmedAt: "2026-09-30T17:18:00",
+      signatureData: "",
+      receiptType: "complete",
     },
   },
 ];
 
-const statusMeta: Record<
-  FreightAuditStatus,
+const initialPublishedTransports: PublishedTransport[] = [
   {
-    label: string;
-    description: string;
-    badgeClassName: string;
-    dotClassName: string;
-    chartColor: string;
-  }
-> = {
-  approved: {
-    label: "Conferido",
-    description: "valor dentro da tolerância",
-    badgeClassName: "border-primary/25 bg-primary/10 text-primary",
-    dotClassName: "bg-primary",
-    chartColor: "hsl(var(--primary))",
+    id: "pub-5841",
+    orderNumber: "5841",
+    material: "Papel e Papelão",
+    origin: "São Paulo - SP",
+    destination: "Campinas - SP",
+    weightTon: 4.2,
+    cubicMeters: 18,
+    suggestedValue: 680,
+    pickupWindow: "Amanhã, 08:00 - 11:00",
+    vehicleType: "Baú médio",
+    notes: "Coleta em doca, carga prensada e paletizada.",
+    proposals: 4,
+    publishedAt: "2026-10-04T09:30:00",
   },
-  divergent: {
-    label: "Divergente",
-    description: "bloquear pagamento",
-    badgeClassName: "border-warning/30 bg-warning/10 text-warning",
-    dotClassName: "bg-warning",
-    chartColor: "hsl(var(--warning))",
+  {
+    id: "pub-5843",
+    orderNumber: "5843",
+    material: "Sucata Metálica",
+    origin: "Belo Horizonte - MG",
+    destination: "Contagem - MG",
+    weightTon: 8.1,
+    cubicMeters: 10,
+    suggestedValue: 520,
+    pickupWindow: "Hoje, 15:00 - 17:00",
+    vehicleType: "Truck reforçado",
+    notes: "Necessário lona e amarração.",
+    proposals: 2,
+    publishedAt: "2026-10-04T11:10:00",
   },
-  pending: {
-    label: "Aguardando CT-e",
-    description: "cobrança não recebida",
-    badgeClassName: "border-info/25 bg-info/10 text-info",
-    dotClassName: "bg-info",
-    chartColor: "hsl(var(--info))",
-  },
-};
+];
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -251,209 +513,548 @@ function formatCurrency(value: number) {
 }
 
 function formatDate(value: string) {
-  return new Date(`${value}T00:00:00`).toLocaleDateString("pt-BR", {
+  return new Date(value).toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
 }
 
-function getChargedValue(item: FreightAuditItem) {
-  return item.cte?.chargedValue ?? null;
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-function getDifference(item: FreightAuditItem) {
-  const chargedValue = getChargedValue(item);
-  return chargedValue === null ? 0 : chargedValue - item.approvedQuote.value;
+function calculateCubageM3(packageQuantity: number, lengthCm: number, widthCm: number, heightCm: number) {
+  return Number(((packageQuantity * lengthCm * widthCm * heightCm) / 1_000_000).toFixed(3));
 }
 
-function getFreightStatus(item: FreightAuditItem): FreightAuditStatus {
-  const chargedValue = getChargedValue(item);
+function getErpOrderCubage(order: ErpOrder) {
+  return calculateCubageM3(order.packageQuantity, order.lengthCm, order.widthCm, order.heightCm);
+}
 
-  if (chargedValue === null) {
-    return "pending";
+function getApprovedQuote(process: FreightProcess) {
+  return process.quotes.find((quote) => quote.approved);
+}
+
+function getDifference(process: FreightProcess) {
+  const approvedQuote = getApprovedQuote(process);
+
+  if (!approvedQuote || !process.document) {
+    return null;
   }
 
-  return Math.abs(chargedValue - item.approvedQuote.value) > divergenceTolerance ? "divergent" : "approved";
+  return process.document.cteValue - approvedQuote.value;
 }
 
-function estimateCo2Kg(item: FreightAuditItem) {
-  return Math.round(item.distanceKm * item.weightTon * 0.085);
-}
+function getStatusAfterDocument(process: FreightProcess) {
+  const difference = getDifference(process);
 
-function buildQuoteOptions(carrier: string, quotedValue: number, deliveryDays: number, service: string): FreightQuote[] {
-  return [
-    { carrier, value: quotedValue, deliveryDays, service },
-    {
-      carrier: "Rota Verde Transportes",
-      value: Math.round(quotedValue * 1.08),
-      deliveryDays: deliveryDays + 1,
-      service: "Fracionado",
-    },
-    {
-      carrier: "FreteMais Express",
-      value: Math.round(quotedValue * 1.18),
-      deliveryDays: Math.max(1, deliveryDays - 1),
-      service: "Expresso",
-    },
-  ];
+  if (difference === null) {
+    return process.status;
+  }
+
+  return Math.abs(difference) > 5 ? "divergent" : "transport";
 }
 
 export default function FreightAudit() {
-  const [freights, setFreights] = useState<FreightAuditItem[]>(initialFreights);
-  const [selectedFreightId, setSelectedFreightId] = useState(initialFreights[0]?.id ?? "");
-  const selectedFreight = freights.find((item) => item.id === selectedFreightId) ?? freights[0];
-  const [cteDraft, setCteDraft] = useState(String(selectedFreight?.cte?.chargedValue ?? selectedFreight?.approvedQuote.value ?? 0));
-  const [newFreightForm, setNewFreightForm] = useState<NewFreightForm>(emptyFreightForm);
-  const chartTheme = useChartTheme();
-  const isMobile = useIsMobile();
+  const [processes, setProcesses] = useState<FreightProcess[]>(initialFreights);
+  const [pendingErpOrders, setPendingErpOrders] = useState<ErpOrder[]>(initialErpOrders);
+  const [activeFilter, setActiveFilter] = useState<"all" | FreightStatus>("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProcessId, setSelectedProcessId] = useState<string | null>(initialFreights[0]?.id ?? null);
+  const [selectedErpOrderId, setSelectedErpOrderId] = useState<string | null>(initialErpOrders[0]?.id ?? null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [newOrderOpen, setNewOrderOpen] = useState(false);
+  const [cubageOpen, setCubageOpen] = useState(false);
+  const [quoteOpen, setQuoteOpen] = useState(false);
+  const [publishTransportOpen, setPublishTransportOpen] = useState(false);
+  const [treatmentOpen, setTreatmentOpen] = useState(false);
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
+  const [publishedTransports, setPublishedTransports] = useState<PublishedTransport[]>(initialPublishedTransports);
+  const [newOrderForm, setNewOrderForm] = useState<NewOrderForm>(emptyOrderForm);
+  const [cubageForm, setCubageForm] = useState<CubageForm>({
+    packageQuantity: "",
+    lengthCm: "",
+    widthCm: "",
+    heightCm: "",
+    weightTon: "",
+  });
+  const [quoteForm, setQuoteForm] = useState<QuoteForm>(emptyQuoteForm);
+  const [publishTransportForm, setPublishTransportForm] = useState<PublishTransportForm>(emptyPublishTransportForm);
+  const [documentForm, setDocumentForm] = useState<DocumentForm>({ nfeFileName: "", fileName: "", cteNumber: "", cteValue: "" });
+  const [treatmentNote, setTreatmentNote] = useState("");
+  const [pickupPhotoName, setPickupPhotoName] = useState("");
+  const [receiverName, setReceiverName] = useState("");
+  const [signatureData, setSignatureData] = useState("");
+  const [receiptType, setReceiptType] = useState<"complete" | "with_reservation">("complete");
+  const [reservationNote, setReservationNote] = useState("");
 
-  const auditedFreights = useMemo(
+  const selectedProcess = processes.find((process) => process.id === selectedProcessId) ?? processes[0];
+  const selectedErpOrder = pendingErpOrders.find((order) => order.id === selectedErpOrderId) ?? pendingErpOrders[0];
+
+  const counters = useMemo(
     () =>
-      freights.map((item) => ({
-        ...item,
-        status: getFreightStatus(item),
-        difference: getDifference(item),
-        chargedValue: getChargedValue(item),
-        co2Kg: estimateCo2Kg(item),
-      })),
-    [freights],
-  );
-
-  const totals = useMemo(
-    () =>
-      auditedFreights.reduce(
-        (acc, freight) => {
-          acc.quoted += freight.approvedQuote.value;
-          acc.distance += freight.distanceKm;
-          acc.co2 += freight.co2Kg;
-          acc[freight.status] += 1;
-
-          if (freight.chargedValue !== null) {
-            acc.charged += freight.chargedValue;
+      processes.reduce(
+        (acc, process) => {
+          if (process.status === "awaiting_quote") {
+            acc.awaitingQuote += 1;
           }
 
-          if (freight.difference > divergenceTolerance) {
-            acc.risk += freight.difference;
+          if (process.status === "quoting" || process.status === "awaiting_document" || process.status === "transport") {
+            acc.inProgress += 1;
+          }
+
+          if (process.status === "divergent") {
+            acc.divergent += 1;
+          }
+
+          if (process.status === "delivered") {
+            acc.delivered += 1;
           }
 
           return acc;
         },
-        { quoted: 0, charged: 0, risk: 0, distance: 0, co2: 0, approved: 0, divergent: 0, pending: 0 },
+        { awaitingQuote: 0, inProgress: 0, divergent: 0, delivered: 0 },
       ),
-    [auditedFreights],
+    [processes],
   );
 
-  const statusChartData = useMemo(
-    () =>
-      (Object.keys(statusMeta) as FreightAuditStatus[])
-        .map((status) => ({
-          name: statusMeta[status].label,
-          value: totals[status],
-          fill: statusMeta[status].chartColor,
-        }))
-        .filter((entry) => entry.value > 0),
-    [totals],
-  );
+  const filteredProcesses = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
 
-  const comparisonChartData = useMemo(
-    () =>
-      auditedFreights.map((freight) => ({
-        name: freight.orderId,
-        cotado: freight.approvedQuote.value,
-        cobrado: freight.chargedValue ?? 0,
-        diferenca: Math.max(freight.difference, 0),
-      })),
-    [auditedFreights],
-  );
+    return processes.filter((process) => {
+      const matchesFilter =
+        activeFilter === "all" ||
+        process.status === activeFilter ||
+        (activeFilter === "transport" &&
+          (process.status === "quoting" || process.status === "awaiting_document" || process.status === "transport"));
 
-  const selectedAudit = auditedFreights.find((item) => item.id === selectedFreight?.id);
-  const selectedStatus = selectedAudit ? statusMeta[selectedAudit.status] : statusMeta.pending;
-  const canAddFreight = Boolean(
-    newFreightForm.orderId.trim() &&
-      newFreightForm.buyer.trim() &&
-      newFreightForm.material.trim() &&
-      newFreightForm.carrier.trim() &&
-      Number(newFreightForm.quotedValue) > 0,
-  );
+      const approvedQuote = getApprovedQuote(process);
+      const matchesSearch =
+        !normalizedSearch ||
+        process.orderNumber.toLowerCase().includes(normalizedSearch) ||
+        process.client.toLowerCase().includes(normalizedSearch) ||
+        approvedQuote?.carrier.toLowerCase().includes(normalizedSearch);
 
-  const handleSelectFreight = (id: string) => {
-    const nextFreight = freights.find((item) => item.id === id);
-    setSelectedFreightId(id);
-    setCteDraft(String(nextFreight?.cte?.chargedValue ?? nextFreight?.approvedQuote.value ?? 0));
+      return matchesFilter && matchesSearch;
+    });
+  }, [activeFilter, processes, searchTerm]);
+
+  const openDetails = (processId: string) => {
+    setSelectedProcessId(processId);
+    setDetailsOpen(true);
   };
 
-  const handleAuditCte = () => {
-    const numericValue = Number(cteDraft);
+  const updateProcess = (processId: string, updater: (process: FreightProcess) => FreightProcess) => {
+    setProcesses((current) => current.map((process) => (process.id === processId ? updater(process) : process)));
+  };
 
-    if (!selectedFreight || !Number.isFinite(numericValue) || numericValue < 0) {
+  const createProcessFromErpOrder = (
+    order: ErpOrder,
+    freightMode: FreightProcess["freightMode"],
+    status: FreightStatus,
+    noQuoteReason?: string,
+  ): FreightProcess => {
+    const cubicMeters = getErpOrderCubage(order);
+    const contractedQuote =
+      freightMode === "contracted"
+        ? [
+            {
+              id: `q-${order.orderNumber}-contratado`,
+              carrier: "Transportadora já contratada",
+              value: 0,
+              deliveryDays: 2,
+              note: "Frete informado como já contratado no pedido recebido do ERP.",
+              approved: true,
+            },
+          ]
+        : [];
+
+    return {
+      id: `fp-erp-${order.orderNumber}`,
+      orderNumber: order.orderNumber,
+      client: order.client,
+      material: order.material,
+      origin: order.origin,
+      destination: order.destination,
+      cubicMeters,
+      weightTon: order.weightTon,
+      orderDate: order.orderDate,
+      forecastDate: order.forecastDate,
+      status,
+      source: "erp",
+      freightMode,
+      noQuoteReason,
+      packageQuantity: order.packageQuantity,
+      boxDimensionsCm: {
+        length: order.lengthCm,
+        width: order.widthCm,
+        height: order.heightCm,
+      },
+      quotes: contractedQuote,
+      treatments: [
+        {
+          id: `tr-erp-${Date.now()}`,
+          at: new Date().toISOString(),
+          author: "Integração ERP",
+          note:
+            freightMode === "quote"
+              ? "Pedido recebido via API e marcado para cotação de frete."
+              : `Pedido recebido via API e marcado como ${noQuoteReason}.`,
+        },
+      ],
+    };
+  };
+
+  const handleImportErpOrder = (orderId: string, freightMode: NonNullable<FreightProcess["freightMode"]>) => {
+    const order = pendingErpOrders.find((item) => item.id === orderId);
+
+    if (!order) {
       return;
     }
 
-    setFreights((current) =>
-      current.map((item) =>
-        item.id === selectedFreight.id
+    const statusByMode: Record<NonNullable<FreightProcess["freightMode"]>, FreightStatus> = {
+      quote: "awaiting_quote",
+      contracted: "awaiting_document",
+      customer_pickup: "transport",
+    };
+    const reasonByMode: Record<NonNullable<FreightProcess["freightMode"]>, string | undefined> = {
+      quote: undefined,
+      contracted: "frete já contratado",
+      customer_pickup: "retirada pelo cliente",
+    };
+    const newProcess = createProcessFromErpOrder(order, freightMode, statusByMode[freightMode], reasonByMode[freightMode]);
+
+    setProcesses((current) => [newProcess, ...current]);
+    setPendingErpOrders((current) => current.filter((item) => item.id !== order.id));
+    setSelectedProcessId(newProcess.id);
+    setDetailsOpen(true);
+  };
+
+  const openCubageEditor = (order: ErpOrder) => {
+    setSelectedErpOrderId(order.id);
+    setCubageForm({
+      packageQuantity: String(order.packageQuantity),
+      lengthCm: String(order.lengthCm),
+      widthCm: String(order.widthCm),
+      heightCm: String(order.heightCm),
+      weightTon: String(order.weightTon),
+    });
+    setCubageOpen(true);
+  };
+
+  const handleSaveCubage = () => {
+    if (!selectedErpOrder) {
+      return;
+    }
+
+    setPendingErpOrders((current) =>
+      current.map((order) =>
+        order.id === selectedErpOrder.id
           ? {
-              ...item,
-              cte: {
-                number: item.cte?.number ?? `CTE-${Math.floor(89000 + Math.random() * 900)}`,
-                chargedValue: numericValue,
-                receivedAt: new Date().toISOString().slice(0, 10),
-              },
+              ...order,
+              packageQuantity: Number(cubageForm.packageQuantity) || order.packageQuantity,
+              lengthCm: Number(cubageForm.lengthCm) || order.lengthCm,
+              widthCm: Number(cubageForm.widthCm) || order.widthCm,
+              heightCm: Number(cubageForm.heightCm) || order.heightCm,
+              weightTon: Number(cubageForm.weightTon) || order.weightTon,
             }
-          : item,
+          : order,
       ),
+    );
+    setCubageOpen(false);
+  };
+
+  const getQuoteRequestText = (process: FreightProcess) => {
+    const dimensions = process.boxDimensionsCm
+      ? `${process.packageQuantity ?? "-"} volume(s) de ${process.boxDimensionsCm.length} x ${process.boxDimensionsCm.width} x ${process.boxDimensionsCm.height} cm`
+      : "Volumes a confirmar";
+
+    return [
+      `Solicitação de cotação de frete - Pedido #${process.orderNumber}`,
+      `Cliente: ${process.client}`,
+      `Origem: ${process.origin}`,
+      `Destino: ${process.destination}`,
+      `Carga: ${process.material}`,
+      `Volumes: ${dimensions}`,
+      `Cubagem total: ${process.cubicMeters} m³`,
+      `Peso total: ${process.weightTon} ton`,
+      `Prazo desejado: ${formatDate(process.forecastDate)}`,
+      "Cuidados: validar veículo, janela de coleta, documentação necessária e restrições do material.",
+    ].join("\n");
+  };
+
+  const handleCopyQuoteRequest = (process: FreightProcess) => {
+    void navigator.clipboard?.writeText(getQuoteRequestText(process));
+  };
+
+  const handleShareQuoteRequest = (process: FreightProcess, channel: "whatsapp" | "email") => {
+    const text = getQuoteRequestText(process);
+
+    if (channel === "whatsapp") {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    window.open(
+      `mailto:?subject=${encodeURIComponent(`Cotação de frete - Pedido #${process.orderNumber}`)}&body=${encodeURIComponent(text)}`,
+      "_blank",
+      "noopener,noreferrer",
     );
   };
 
-  const handleFreightFormChange = (field: keyof NewFreightForm, value: string) => {
-    setNewFreightForm((current) => ({ ...current, [field]: value }));
-  };
-
-  const handleAddFreight = () => {
-    const quotedValue = Number(newFreightForm.quotedValue);
-    const chargedValue = Number(newFreightForm.chargedValue);
-    const distanceKm = Math.max(0, Number(newFreightForm.distanceKm) || 0);
-    const weightTon = Math.max(0, Number(newFreightForm.weightTon) || 0);
-    const deliveryDays = Math.max(1, Number(newFreightForm.deliveryDays) || 1);
-
-    if (!canAddFreight || !Number.isFinite(quotedValue)) {
+  const handleCreateOrder = () => {
+    if (!newOrderForm.orderNumber.trim() || !newOrderForm.client.trim()) {
       return;
     }
 
-    const today = new Date().toISOString().slice(0, 10);
-    const approvedQuote: FreightQuote = {
-      carrier: newFreightForm.carrier.trim(),
-      value: quotedValue,
-      deliveryDays,
-      service: newFreightForm.service.trim() || "Carga dedicada",
-    };
-    const newFreight: FreightAuditItem = {
-      id: `fr-${Date.now()}`,
-      orderId: newFreightForm.orderId.trim(),
-      buyer: newFreightForm.buyer.trim(),
-      material: newFreightForm.material.trim(),
-      origin: newFreightForm.origin.trim() || "Origem não informada",
-      destination: newFreightForm.destination.trim() || "Destino não informado",
-      distanceKm,
-      weightTon,
-      requestedAt: today,
-      approvedQuote,
-      quotes: buildQuoteOptions(approvedQuote.carrier, approvedQuote.value, approvedQuote.deliveryDays, approvedQuote.service),
-      cte:
-        newFreightForm.chargedValue.trim() && Number.isFinite(chargedValue)
-          ? {
-              number: `CTE-${Math.floor(90000 + Math.random() * 900)}`,
-              chargedValue,
-              receivedAt: today,
-            }
-          : undefined,
+    const newProcess: FreightProcess = {
+      id: `fp-${Date.now()}`,
+      orderNumber: newOrderForm.orderNumber.trim(),
+      client: newOrderForm.client.trim(),
+      material: newOrderForm.material.trim() || "Material não informado",
+      origin: newOrderForm.origin.trim() || "Origem não informada",
+      destination: newOrderForm.destination.trim() || "Destino não informado",
+      cubicMeters: Number(newOrderForm.cubicMeters) || 0,
+      weightTon: Number(newOrderForm.weightTon) || 0,
+      orderDate: new Date().toISOString().slice(0, 10),
+      forecastDate: newOrderForm.forecastDate || new Date().toISOString().slice(0, 10),
+      status: "awaiting_quote",
+      quotes: [],
+      treatments: [
+        {
+          id: `tr-${Date.now()}`,
+          at: new Date().toISOString(),
+          author: "Sistema",
+          note: "Pedido de frete criado e aguardando cotações.",
+        },
+      ],
     };
 
-    setFreights((current) => [newFreight, ...current]);
-    setSelectedFreightId(newFreight.id);
-    setCteDraft(String(newFreight.cte?.chargedValue ?? newFreight.approvedQuote.value));
-    setNewFreightForm(emptyFreightForm);
+    setProcesses((current) => [newProcess, ...current]);
+    setSelectedProcessId(newProcess.id);
+    setNewOrderForm(emptyOrderForm);
+    setNewOrderOpen(false);
+    setDetailsOpen(true);
+  };
+
+  const openPublishTransport = (processId?: string) => {
+    if (processId) {
+      setSelectedProcessId(processId);
+    }
+
+    setPublishTransportOpen(true);
+  };
+
+  const handlePublishTransport = () => {
+    if (!selectedProcess || Number(publishTransportForm.suggestedValue) <= 0) {
+      return;
+    }
+
+    const publishedTransport: PublishedTransport = {
+      id: `pub-${Date.now()}`,
+      orderNumber: selectedProcess.orderNumber,
+      material: selectedProcess.material,
+      origin: selectedProcess.origin,
+      destination: selectedProcess.destination,
+      weightTon: selectedProcess.weightTon,
+      cubicMeters: selectedProcess.cubicMeters,
+      suggestedValue: Number(publishTransportForm.suggestedValue),
+      pickupWindow: publishTransportForm.pickupWindow.trim() || "Janela a combinar",
+      vehicleType: publishTransportForm.vehicleType.trim() || "Veículo compatível com a carga",
+      notes: publishTransportForm.notes.trim() || "Oportunidade publicada para transportadoras parceiras.",
+      proposals: 0,
+      publishedAt: new Date().toISOString(),
+    };
+
+    setPublishedTransports((current) => [publishedTransport, ...current]);
+    updateProcess(selectedProcess.id, (process) => ({
+      ...process,
+      status: process.status === "awaiting_quote" ? "quoting" : process.status,
+      treatments: [
+        ...process.treatments,
+        {
+          id: `tr-${Date.now()}`,
+          at: new Date().toISOString(),
+          author: "Faturamento",
+          note: "Transporte publicado para transportadoras enviarem propostas.",
+        },
+      ],
+    }));
+    setPublishTransportForm(emptyPublishTransportForm);
+    setPublishTransportOpen(false);
+  };
+
+  const handleAddQuote = () => {
+    if (!selectedProcess || !quoteForm.carrier.trim() || Number(quoteForm.value) <= 0) {
+      return;
+    }
+
+    updateProcess(selectedProcess.id, (process) => ({
+      ...process,
+      status: process.status === "awaiting_quote" ? "quoting" : process.status,
+      quotes: [
+        ...process.quotes,
+        {
+          id: `q-${Date.now()}`,
+          carrier: quoteForm.carrier.trim(),
+          value: Number(quoteForm.value),
+          deliveryDays: Number(quoteForm.deliveryDays) || 1,
+          note: quoteForm.note.trim() || "Cotação registrada manualmente.",
+        },
+      ],
+    }));
+    setQuoteForm(emptyQuoteForm);
+    setQuoteOpen(false);
+  };
+
+  const approveQuote = (quoteId: string) => {
+    if (!selectedProcess) {
+      return;
+    }
+
+    updateProcess(selectedProcess.id, (process) => ({
+      ...process,
+      status: "awaiting_document",
+      quotes: process.quotes.map((quote) => ({ ...quote, approved: quote.id === quoteId })),
+      treatments: [
+        ...process.treatments,
+        {
+          id: `tr-${Date.now()}`,
+          at: new Date().toISOString(),
+          author: "Faturamento",
+          note: "Cotação aprovada e enviada para acompanhamento documental.",
+        },
+      ],
+    }));
+  };
+
+  const handleDocumentSimulation = () => {
+    if (!selectedProcess || (!documentForm.nfeFileName.trim() && Number(documentForm.cteValue) <= 0)) {
+      return;
+    }
+
+    updateProcess(selectedProcess.id, (process) => {
+      const nextProcess: FreightProcess = {
+        ...process,
+        nfeFileName: documentForm.nfeFileName.trim() || process.nfeFileName,
+        document:
+          Number(documentForm.cteValue) > 0
+            ? {
+                fileName: documentForm.fileName.trim() || `cte-pedido-${process.orderNumber}.pdf`,
+                cteNumber: documentForm.cteNumber.trim() || `CTE-${Math.floor(90000 + Math.random() * 900)}`,
+                cteValue: Number(documentForm.cteValue),
+                receivedAt: new Date().toISOString(),
+              }
+            : process.document,
+      };
+
+      const nextStatus = getStatusAfterDocument(nextProcess);
+
+      return {
+        ...nextProcess,
+        status: nextStatus,
+        treatments: [
+          ...process.treatments,
+          {
+            id: `tr-${Date.now()}`,
+            at: new Date().toISOString(),
+            author: "Financeiro",
+            note:
+              nextStatus === "divergent"
+                ? "Divergência identificada entre cotação aprovada e CT-e recebido."
+                : "Documento recebido e valores conferidos.",
+          },
+        ],
+      };
+    });
+  };
+
+  const handleAddTreatment = () => {
+    if (!selectedProcess || !treatmentNote.trim()) {
+      return;
+    }
+
+    updateProcess(selectedProcess.id, (process) => ({
+      ...process,
+      treatments: [
+        ...process.treatments,
+        {
+          id: `tr-${Date.now()}`,
+          at: new Date().toISOString(),
+          author: "Usuário",
+          note: treatmentNote.trim(),
+        },
+      ],
+    }));
+    setTreatmentNote("");
+    setTreatmentOpen(false);
+  };
+
+  const handleRegisterPickup = () => {
+    if (!selectedProcess || !pickupPhotoName.trim()) {
+      return;
+    }
+
+    updateProcess(selectedProcess.id, (process) => ({
+      ...process,
+      pickupRecord: {
+        photoName: pickupPhotoName.trim(),
+        registeredAt: new Date().toISOString(),
+      },
+      status: process.status === "awaiting_document" ? "transport" : process.status,
+      treatments: [
+        ...process.treatments,
+        {
+          id: `tr-${Date.now()}`,
+          at: new Date().toISOString(),
+          author: "Expedição",
+          note: `Retirada registrada com foto da carga: ${pickupPhotoName.trim()}.`,
+        },
+      ],
+    }));
+    setPickupPhotoName("");
+  };
+
+  const handleConfirmDelivery = () => {
+    if (!selectedProcess || !receiverName.trim()) {
+      return;
+    }
+
+    updateProcess(selectedProcess.id, (process) => ({
+      ...process,
+      status: "delivered",
+      delivery: {
+        receiverName: receiverName.trim(),
+        confirmedAt: new Date().toISOString(),
+        signatureData,
+        receiptType,
+        reservationNote: receiptType === "with_reservation" ? reservationNote.trim() : undefined,
+      },
+      treatments: [
+        ...process.treatments,
+        {
+          id: `tr-${Date.now()}`,
+          at: new Date().toISOString(),
+          author: "Entregador",
+          note:
+            receiptType === "with_reservation"
+              ? `Entrega confirmada por ${receiverName.trim()} com ressalva: ${reservationNote.trim() || "sem observação detalhada"}.`
+              : `Entrega confirmada por ${receiverName.trim()} com canhoto digital.`,
+        },
+      ],
+    }));
+    setReceiverName("");
+    setSignatureData("");
+    setReceiptType("complete");
+    setReservationNote("");
+    setDeliveryOpen(false);
   };
 
   return (
@@ -461,604 +1062,1007 @@ export default function FreightAudit() {
       <Card className="relative overflow-hidden rounded-[34px] border-primary/20 bg-[radial-gradient(circle_at_12%_18%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(135deg,#071b18_0%,#0f766e_54%,#35d399_100%)] text-white shadow-[0_26px_76px_rgba(6,95,70,0.24)]">
         <div className="absolute -left-10 top-10 h-44 w-44 rounded-full bg-white/15 blur-3xl" />
         <div className="absolute -right-12 -top-10 h-52 w-52 rounded-full bg-emerald-200/20 blur-3xl" />
-        <div className="absolute bottom-0 right-1/3 h-36 w-36 rounded-full bg-cyan-100/14 blur-3xl" />
 
-        <CardContent className="relative grid gap-7 p-6 md:p-8 xl:grid-cols-[1fr_24rem] xl:items-end">
+        <CardContent className="relative grid gap-7 p-6 md:p-8 xl:grid-cols-[1fr_auto] xl:items-end">
           <div className="max-w-3xl space-y-5">
             <Badge className="w-fit rounded-full border border-white/16 bg-white/12 px-4 py-1.5 text-white hover:bg-white/12">
               <Sparkles className="mr-2 h-4 w-4" />
-              Auditoria logística e financeira
+              Processo logístico centralizado
             </Badge>
-
             <div>
               <h2 className="text-3xl font-semibold sm:text-4xl">Gestão de Fretes</h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-white/78 sm:text-base">
-                Compare o valor cotado e aprovado pelo faturamento com o valor cobrado no CT-e antes do financeiro
-                liberar o pagamento da transportadora.
+                Acompanhe todo o processo logístico dos pedidos, da cotação à confirmação da entrega.
               </p>
             </div>
-
-            <div className="flex flex-wrap gap-3 text-sm text-white/82">
-              <span className="rounded-full border border-white/16 bg-white/12 px-3 py-1.5 backdrop-blur">Cotação</span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/16 bg-white/12 px-3 py-1.5 backdrop-blur">
-                <ArrowRight className="h-4 w-4" />
-                Transportadora
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/16 bg-white/12 px-3 py-1.5 backdrop-blur">
-                <ArrowRight className="h-4 w-4" />
-                CT-e
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/16 bg-white/12 px-3 py-1.5 backdrop-blur">
-                <ArrowRight className="h-4 w-4" />
-                Conferência
-              </span>
-            </div>
           </div>
 
-          <div className="rounded-[28px] border border-white/70 bg-white/12 p-5 backdrop-blur-xl">
-            <p className="text-sm text-white/70">Risco financeiro bloqueado</p>
-            <p className="mt-3 text-4xl font-semibold">{formatCurrency(totals.risk)}</p>
-            <div className="mt-5 grid grid-cols-3 gap-2 text-center text-sm">
-              <div className="rounded-2xl border border-white/70 bg-white/10 p-3">
-                <p className="text-2xl font-semibold">{totals.divergent}</p>
-                <p className="mt-1 text-xs text-white/62">divergências</p>
-              </div>
-              <div className="rounded-2xl border border-white/70 bg-white/10 p-3">
-                <p className="text-2xl font-semibold">{totals.approved}</p>
-                <p className="mt-1 text-xs text-white/62">conferidos</p>
-              </div>
-              <div className="rounded-2xl border border-white/70 bg-white/10 p-3">
-                <p className="text-2xl font-semibold">{totals.pending}</p>
-                <p className="mt-1 text-xs text-white/62">pendentes</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="rounded-[28px] border-border/70 bg-card/95 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Fretes auditados</p>
-                <p className="mt-2 text-3xl font-semibold text-foreground">{auditedFreights.length}</p>
-                <p className="mt-2 text-xs text-muted-foreground">pedidos com cotação registrada</p>
-              </div>
-              <div className="rounded-2xl bg-primary/10 p-3 text-primary">
-                <FileSearch className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[28px] border-border/70 bg-card/95 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Valor cotado</p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">{formatCurrency(totals.quoted)}</p>
-                <p className="mt-2 text-xs text-muted-foreground">base aprovada pelo faturamento</p>
-              </div>
-              <div className="rounded-2xl bg-info/10 p-3 text-info">
-                <CircleDollarSign className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[28px] border-border/70 bg-card/95 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Valor cobrado</p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">{formatCurrency(totals.charged)}</p>
-                <p className="mt-2 text-xs text-muted-foreground">CT-es recebidos até agora</p>
-              </div>
-              <div className="rounded-2xl bg-accent p-3 text-accent-foreground">
-                <BadgeCheck className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[28px] border-border/70 bg-card/95 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">CO2 estimado</p>
-                <p className="mt-2 text-3xl font-semibold text-foreground">{totals.co2.toLocaleString("pt-BR")} kg</p>
-                <p className="mt-2 text-xs text-muted-foreground">indicador logístico ambiental</p>
-              </div>
-              <div className="rounded-2xl bg-emerald-500/10 p-3 text-emerald-600">
-                <Leaf className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="rounded-[34px] border-border/70 bg-card/95 shadow-[0_18px_52px_rgba(15,23,42,0.06)]">
-        <CardHeader className="gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <CardTitle className="text-2xl">Adicionar pedido de frete</CardTitle>
-            <CardDescription>
-              Registre a cotação aprovada pelo faturamento e, se já existir, o valor cobrado no CT-e.
-            </CardDescription>
-          </div>
-          <Badge variant="outline" className="w-fit rounded-full px-3 py-1">
-            Novo pedido
-          </Badge>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-2">
-              <Label htmlFor="new-order-id">Pedido</Label>
-              <Input
-                id="new-order-id"
-                value={newFreightForm.orderId}
-                onChange={(event) => handleFreightFormChange("orderId", event.target.value)}
-                placeholder="PED-1068"
-                className="h-12 rounded-2xl"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="new-buyer">Empresa compradora</Label>
-              <Input
-                id="new-buyer"
-                value={newFreightForm.buyer}
-                onChange={(event) => handleFreightFormChange("buyer", event.target.value)}
-                placeholder="Nome da empresa"
-                className="h-12 rounded-2xl"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="new-material">Produto/material</Label>
-              <Input
-                id="new-material"
-                value={newFreightForm.material}
-                onChange={(event) => handleFreightFormChange("material", event.target.value)}
-                placeholder="Papel e Papelão"
-                className="h-12 rounded-2xl"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="new-carrier">Transportadora escolhida</Label>
-              <Input
-                id="new-carrier"
-                value={newFreightForm.carrier}
-                onChange={(event) => handleFreightFormChange("carrier", event.target.value)}
-                placeholder="Rota Verde Transportes"
-                className="h-12 rounded-2xl"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-2">
-              <Label htmlFor="new-origin">Origem</Label>
-              <Input
-                id="new-origin"
-                value={newFreightForm.origin}
-                onChange={(event) => handleFreightFormChange("origin", event.target.value)}
-                placeholder="São Paulo - SP"
-                className="h-12 rounded-2xl"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="new-destination">Destino</Label>
-              <Input
-                id="new-destination"
-                value={newFreightForm.destination}
-                onChange={(event) => handleFreightFormChange("destination", event.target.value)}
-                placeholder="Campinas - SP"
-                className="h-12 rounded-2xl"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="new-distance">Distância estimada (km)</Label>
-              <Input
-                id="new-distance"
-                type="number"
-                min="0"
-                value={newFreightForm.distanceKm}
-                onChange={(event) => handleFreightFormChange("distanceKm", event.target.value)}
-                placeholder="96"
-                className="h-12 rounded-2xl"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="new-weight">Peso estimado (ton)</Label>
-              <Input
-                id="new-weight"
-                type="number"
-                min="0"
-                step="0.1"
-                value={newFreightForm.weightTon}
-                onChange={(event) => handleFreightFormChange("weightTon", event.target.value)}
-                placeholder="4.2"
-                className="h-12 rounded-2xl"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto] xl:items-end">
-            <div className="space-y-2">
-              <Label htmlFor="new-quoted-value">Valor cotado aprovado</Label>
-              <Input
-                id="new-quoted-value"
-                type="number"
-                min="0"
-                step="0.01"
-                value={newFreightForm.quotedValue}
-                onChange={(event) => handleFreightFormChange("quotedValue", event.target.value)}
-                placeholder="212.00"
-                className="h-12 rounded-2xl"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="new-charged-value">Valor cobrado no CT-e</Label>
-              <Input
-                id="new-charged-value"
-                type="number"
-                min="0"
-                step="0.01"
-                value={newFreightForm.chargedValue}
-                onChange={(event) => handleFreightFormChange("chargedValue", event.target.value)}
-                placeholder="Opcional"
-                className="h-12 rounded-2xl"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="new-delivery-days">Prazo (dias)</Label>
-              <Input
-                id="new-delivery-days"
-                type="number"
-                min="1"
-                value={newFreightForm.deliveryDays}
-                onChange={(event) => handleFreightFormChange("deliveryDays", event.target.value)}
-                className="h-12 rounded-2xl"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="new-service">Serviço</Label>
-              <Input
-                id="new-service"
-                value={newFreightForm.service}
-                onChange={(event) => handleFreightFormChange("service", event.target.value)}
-                placeholder="Carga dedicada"
-                className="h-12 rounded-2xl"
-              />
-            </div>
-
-            <Button type="button" onClick={handleAddFreight} disabled={!canAddFreight} className="h-12 rounded-2xl px-5">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Adicionar
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button className="h-12 rounded-2xl bg-white px-5 text-emerald-800 hover:bg-white/90" onClick={() => setNewOrderOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar pedido
+            </Button>
+            <Button
+              variant="outline"
+              className="h-12 rounded-2xl border-white/40 bg-white/10 px-5 text-white hover:bg-white/20 hover:text-white"
+              onClick={() => openPublishTransport()}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              Lançar transporte
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <Card className="rounded-[34px] border-border/70 bg-card/95 shadow-[0_18px_52px_rgba(15,23,42,0.06)]">
-          <CardHeader>
-            <CardTitle className="text-2xl">Conferir cobrança CT-e</CardTitle>
+      <Card className="rounded-[34px] border-border/70 bg-card/95 shadow-[0_18px_52px_rgba(15,23,42,0.06)]">
+        <CardHeader className="gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <CardTitle className="text-2xl">Pedidos recebidos do ERP</CardTitle>
             <CardDescription>
-              Selecione o pedido, informe o valor cobrado e veja a divergência antes do pagamento.
+              Prévia da integração por API: escolha quais pedidos precisam de cotação e quais seguem outro fluxo.
             </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {selectedFreight && selectedAudit ? (
-              <>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Pedido</Label>
-                    <Select value={selectedFreight.id} onValueChange={handleSelectFreight}>
-                      <SelectTrigger className="h-12 rounded-2xl">
-                        <SelectValue placeholder="Selecione o pedido" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {freights.map((freight) => (
-                          <SelectItem key={freight.id} value={freight.id}>
-                            {freight.orderId} - {freight.buyer}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+          </div>
+          <Badge variant="outline" className="w-fit rounded-full border-primary/25 bg-primary/10 px-4 py-1.5 text-primary">
+            {pendingErpOrders.length} pendente(s)
+          </Badge>
+        </CardHeader>
+        <CardContent className="grid gap-4 xl:grid-cols-3">
+          {pendingErpOrders.length === 0 ? (
+            <div className="rounded-[26px] border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground xl:col-span-3">
+              Todos os pedidos recebidos da API já foram classificados.
+            </div>
+          ) : (
+            pendingErpOrders.map((order) => {
+              const cubage = getErpOrderCubage(order);
 
-                  <div className="space-y-2">
-                    <Label htmlFor="cte-value">Valor cobrado no CT-e</Label>
-                    <Input
-                      id="cte-value"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={cteDraft}
-                      onChange={(event) => setCteDraft(event.target.value)}
-                      className="h-12 rounded-2xl"
-                    />
-                  </div>
-                </div>
-
-                <div className="rounded-[28px] border border-border/70 bg-muted/20 p-4">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              return (
+                <article key={order.id} className="rounded-[28px] border border-border/70 bg-background/80 p-5">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className={cn("rounded-full px-3 py-1", selectedStatus.badgeClassName)}>
-                          <span className={cn("mr-2 h-2 w-2 rounded-full", selectedStatus.dotClassName)} />
-                          {selectedStatus.label}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">{selectedStatus.description}</span>
-                      </div>
-                      <h3 className="mt-3 text-xl font-semibold text-foreground">{selectedFreight.orderId}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {selectedFreight.buyer} • {selectedFreight.material}
-                      </p>
+                      <p className="text-lg font-semibold text-foreground">Pedido #{order.orderNumber}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{order.client}</p>
                     </div>
-
-                    <Button onClick={handleAuditCte} className="h-11 rounded-2xl">
-                      Conferir CT-e
-                    </Button>
-                  </div>
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-2xl border border-border/70 bg-card p-3">
-                      <p className="text-xs text-muted-foreground">Valor aprovado</p>
-                      <p className="mt-2 font-semibold text-foreground">{formatCurrency(selectedFreight.approvedQuote.value)}</p>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-card p-3">
-                      <p className="text-xs text-muted-foreground">Valor cobrado</p>
-                      <p className="mt-2 font-semibold text-foreground">
-                        {selectedAudit.chargedValue === null ? "Aguardando" : formatCurrency(selectedAudit.chargedValue)}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-card p-3">
-                      <p className="text-xs text-muted-foreground">Diferença</p>
-                      <p className={cn("mt-2 font-semibold", selectedAudit.difference > divergenceTolerance ? "text-warning" : "text-foreground")}>
-                        {formatCurrency(selectedAudit.difference)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="font-semibold text-foreground">Cotações recebidas</h3>
-                    <Badge variant="outline" className="rounded-full">
-                      Transportadora escolhida
+                    <Badge variant="outline" className="rounded-full border-info/25 bg-info/10 text-info">
+                      ERP/API
                     </Badge>
                   </div>
 
-                  <div className="grid gap-3">
-                    {selectedFreight.quotes.map((quote) => {
-                      const isSelected = quote.carrier === selectedFreight.approvedQuote.carrier;
+                  <div className="mt-4 space-y-3">
+                    <Info label="Material" value={order.material} />
+                    <Info label="Entrega" value={order.destination} />
+                    <Info label="Volumes e cubagem" value={`${order.packageQuantity} vol. • ${cubage} m³ • ${order.weightTon} ton`} />
+                  </div>
 
-                      return (
+                  <div className="mt-5 grid gap-2">
+                    <Button className="rounded-2xl" onClick={() => handleImportErpOrder(order.id, "quote")}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Precisa cotação
+                    </Button>
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                      <Button variant="outline" className="rounded-2xl" onClick={() => handleImportErpOrder(order.id, "contracted")}>
+                        Frete contratado
+                      </Button>
+                      <Button variant="outline" className="rounded-2xl" onClick={() => handleImportErpOrder(order.id, "customer_pickup")}>
+                        Retirada cliente
+                      </Button>
+                    </div>
+                    <Button variant="ghost" className="rounded-2xl" onClick={() => openCubageEditor(order)}>
+                      <Box className="mr-2 h-4 w-4" />
+                      Ajustar cubagem
+                    </Button>
+                  </div>
+                </article>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: "Aguardando cotação", value: counters.awaitingQuote, icon: FileText, color: "bg-warning/10 text-warning" },
+          { label: "Em andamento", value: counters.inProgress, icon: Truck, color: "bg-primary/10 text-primary" },
+          { label: "Com divergência", value: counters.divergent, icon: AlertTriangle, color: "bg-destructive/10 text-destructive" },
+          { label: "Entregues no mês", value: counters.delivered, icon: CheckCircle2, color: "bg-emerald-500/10 text-emerald-600" },
+        ].map((metric) => (
+          <Card key={metric.label} className="rounded-[28px] border-border/70 bg-card/95 shadow-sm">
+            <CardContent className="flex items-start justify-between gap-4 p-6">
+              <div>
+                <p className="text-sm text-muted-foreground">{metric.label}</p>
+                <p className="mt-2 text-3xl font-semibold text-foreground">{metric.value}</p>
+              </div>
+              <div className={cn("rounded-2xl p-3", metric.color)}>
+                <metric.icon className="h-5 w-5" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="rounded-[34px] border-primary/20 bg-[linear-gradient(135deg,hsl(var(--primary)/0.12),hsl(var(--card)))] shadow-[0_18px_52px_rgba(15,23,42,0.06)]">
+        <CardHeader className="gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <CardTitle className="text-2xl">Transportes publicados para transportadoras</CardTitle>
+            <CardDescription>
+              Demandas lançadas pela empresa vendedora para receber propostas de frete.
+            </CardDescription>
+          </div>
+          <Button className="rounded-2xl" onClick={() => openPublishTransport()}>
+            <Send className="mr-2 h-4 w-4" />
+            Publicar transporte
+          </Button>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-2">
+          {publishedTransports.map((transport) => (
+            <article key={transport.id} className="rounded-[26px] border border-border/70 bg-background/80 p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-lg font-semibold text-foreground">Pedido #{transport.orderNumber}</p>
+                    <Badge variant="outline" className="rounded-full border-primary/25 bg-primary/10 text-primary">
+                      {transport.proposals} proposta(s)
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">{transport.material}</p>
+                </div>
+                <div className="text-left sm:text-right">
+                  <p className="text-xs text-muted-foreground">Valor sugerido</p>
+                  <p className="mt-1 text-xl font-semibold text-foreground">{formatCurrency(transport.suggestedValue)}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <Info label="Origem" value={transport.origin} />
+                <Info label="Destino" value={transport.destination} />
+                <Info label="Carga" value={`${transport.weightTon} ton / ${transport.cubicMeters} m³`} />
+                <Info label="Coleta" value={transport.pickupWindow} />
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
+                <p className="text-sm font-semibold text-foreground">{transport.vehicleType}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{transport.notes}</p>
+              </div>
+            </article>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-[34px] border-border/70 bg-card/95 shadow-[0_18px_52px_rgba(15,23,42,0.06)]">
+        <CardHeader className="gap-4">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <CardTitle className="text-2xl">Processos de frete por pedido</CardTitle>
+              <CardDescription>
+                Todas as informações de cotação, documento, transporte e canhoto ficam vinculadas ao mesmo pedido.
+              </CardDescription>
+            </div>
+            <div className="relative w-full xl:max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Buscar pedido, cliente ou transportadora"
+                className="h-11 rounded-2xl pl-9"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {filterOptions.map((option) => (
+              <Button
+                key={option.value}
+                type="button"
+                variant={activeFilter === option.value ? "default" : "outline"}
+                className="shrink-0 rounded-2xl"
+                onClick={() => setActiveFilter(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="hidden">
+            <span>Pedido</span>
+            <span>Cliente</span>
+            <span>Transportadora</span>
+            <span>Valor aprovado</span>
+            <span>CT-e</span>
+            <span>Etapa</span>
+            <span>Status</span>
+            <span>Ação</span>
+          </div>
+
+          <div className="space-y-3">
+            {filteredProcesses.map((process) => {
+              const approvedQuote = getApprovedQuote(process);
+              const difference = getDifference(process);
+              const status = statusMeta[process.status];
+              const hasDivergence = difference !== null && Math.abs(difference) > 5;
+
+              return (
+                <article
+                  key={process.id}
+                  className="rounded-[26px] border border-border/70 bg-background/80 p-4 transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[0_18px_42px_rgba(15,23,42,0.08)] md:p-5"
+                >
+                  <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,1fr)_auto] xl:items-center">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-lg font-semibold text-foreground">Pedido #{process.orderNumber}</p>
+                        <Badge variant="outline" className={cn("rounded-full px-3 py-1", status.badgeClassName)}>
+                          <span className={cn("mr-2 h-2 w-2 rounded-full", status.dotClassName)} />
+                          {status.label}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 text-sm font-medium text-foreground">{process.client}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{process.material}</p>
+                    </div>
+
+                    <div className="rounded-[22px] bg-muted/20 px-4 py-3">
+                      <div className="grid gap-4 sm:grid-cols-3 sm:divide-x sm:divide-border/60">
+                        <div className="min-w-0 sm:pr-4">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Truck className="h-3.5 w-3.5 text-primary" />
+                            <span>Transportadora</span>
+                          </div>
+                          <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                            {approvedQuote?.carrier ?? "Não definida"}
+                          </p>
+                        </div>
+
+                        <div className="min-w-0 sm:px-4">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <CircleDollarSign className="h-3.5 w-3.5 text-primary" />
+                            <span>Financeiro</span>
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                            <p className="text-sm font-semibold text-foreground">
+                              {approvedQuote ? formatCurrency(approvedQuote.value) : "Aguardando"}
+                            </p>
+                            <p className={cn("text-xs", hasDivergence ? "text-destructive" : "text-muted-foreground")}>
+                              CT-e: {process.document ? formatCurrency(process.document.cteValue) : "não recebido"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="min-w-0 sm:pl-4">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Route className="h-3.5 w-3.5 text-primary" />
+                            <span>Etapa atual</span>
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                            <p className="text-sm font-semibold text-foreground">{flowSteps[statusStepIndex[process.status]]}</p>
+                            {hasDivergence && <p className="text-xs text-destructive">Dif.: {formatCurrency(difference)}</p>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-stretch justify-end gap-2 sm:flex-row xl:flex-col">
+                      <Button type="button" className="w-full rounded-2xl xl:w-auto" onClick={() => openPublishTransport(process.id)}>
+                        <Send className="mr-2 h-4 w-4" />
+                        Lançar
+                      </Button>
+                      <Button type="button" variant="outline" className="w-full rounded-2xl xl:w-auto" onClick={() => openDetails(process.id)}>
+                        Ver detalhes
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="hidden">
+                  <div>
+                    <p className="font-semibold text-foreground">Pedido #{process.orderNumber}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{process.material}</p>
+                  </div>
+                  <p className="text-sm text-foreground">{process.client}</p>
+                  <p className="text-sm text-muted-foreground">{approvedQuote?.carrier ?? "Não definida"}</p>
+                  <p className="text-sm font-medium text-foreground">{approvedQuote ? formatCurrency(approvedQuote.value) : "Aguardando"}</p>
+                  <p className="text-sm font-medium text-foreground">{process.document ? formatCurrency(process.document.cteValue) : "Não recebido"}</p>
+                  <p className="text-sm text-muted-foreground">{flowSteps[statusStepIndex[process.status]]}</p>
+                  <div>
+                    <Badge variant="outline" className={cn("rounded-full px-3 py-1", status.badgeClassName)}>
+                      <span className={cn("mr-2 h-2 w-2 rounded-full", status.dotClassName)} />
+                      {status.label}
+                    </Badge>
+                    {difference !== null && Math.abs(difference) > 5 && (
+                      <p className="mt-1 text-xs text-destructive">Diferença: {formatCurrency(difference)}</p>
+                    )}
+                  </div>
+                  <Button type="button" variant="outline" className="rounded-2xl" onClick={() => openDetails(process.id)}>
+                    Ver detalhes
+                  </Button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {selectedProcess && (
+        <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <DialogContent className="max-h-[92vh] w-[calc(100vw-2rem)] max-w-6xl overflow-y-auto rounded-[32px] p-0">
+            <div className="border-b border-border/70 p-6">
+              <DialogHeader>
+                <DialogTitle className="text-2xl">Pedido #{selectedProcess.orderNumber}</DialogTitle>
+                <DialogDescription>
+                  {selectedProcess.client} • {selectedProcess.destination} • {selectedProcess.cubicMeters} m³ • {formatDate(selectedProcess.orderDate)}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="mt-6 grid gap-3 md:grid-cols-6">
+                {flowSteps.map((step, index) => {
+                  const currentStep = statusStepIndex[selectedProcess.status];
+                  const isDone = index < currentStep || selectedProcess.status === "delivered";
+                  const isCurrent = index === currentStep && selectedProcess.status !== "delivered";
+
+                  return (
+                    <div key={step} className="flex items-center gap-3 md:block">
+                      <div
+                        className={cn(
+                          "flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold",
+                          isDone && "border-primary bg-primary text-primary-foreground",
+                          isCurrent && "border-primary bg-primary/10 text-primary",
+                          !isDone && !isCurrent && "border-border bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {isDone ? <CheckCircle2 className="h-4 w-4" /> : index + 1}
+                      </div>
+                      <p className={cn("mt-0 text-sm md:mt-2", isCurrent ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                        {step}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="p-6">
+              <Tabs defaultValue="summary" className="space-y-6">
+                <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-2xl p-1">
+                  <TabsTrigger value="summary" className="rounded-xl">Resumo</TabsTrigger>
+                  <TabsTrigger value="quotes" className="rounded-xl">Cotações</TabsTrigger>
+                  <TabsTrigger value="documents" className="rounded-xl">Documentos</TabsTrigger>
+                  <TabsTrigger value="treatments" className="rounded-xl">Tratativas</TabsTrigger>
+                  <TabsTrigger value="delivery" className="rounded-xl">Entrega</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="summary" className="space-y-5">
+                  <SummaryTab process={selectedProcess} />
+                </TabsContent>
+
+                <TabsContent value="quotes" className="space-y-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">Cotações realizadas</h3>
+                      <p className="text-sm text-muted-foreground">Selecione uma cotação para aprovar dentro deste pedido.</p>
+                    </div>
+                    <Button className="rounded-2xl" onClick={() => setQuoteOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Adicionar cotação
+                    </Button>
+                  </div>
+
+                  <div className="rounded-[26px] border border-primary/20 bg-[linear-gradient(135deg,hsl(var(--primary)/0.10),hsl(var(--background)))] p-5">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                          <FileText className="h-4 w-4 text-primary" />
+                          Solicitação pronta para transportadoras
+                        </div>
+                        <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap rounded-2xl border border-border/70 bg-background/80 p-4 text-xs leading-5 text-muted-foreground">
+                          {getQuoteRequestText(selectedProcess)}
+                        </pre>
+                      </div>
+                      <div className="grid shrink-0 gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                        <Button variant="outline" className="rounded-2xl" onClick={() => handleCopyQuoteRequest(selectedProcess)}>
+                          <Copy className="mr-2 h-4 w-4" />
+                          Copiar
+                        </Button>
+                        <Button variant="outline" className="rounded-2xl" onClick={() => handleShareQuoteRequest(selectedProcess, "whatsapp")}>
+                          <MessageCircle className="mr-2 h-4 w-4" />
+                          WhatsApp
+                        </Button>
+                        <Button variant="outline" className="rounded-2xl" onClick={() => handleShareQuoteRequest(selectedProcess, "email")}>
+                          <Mail className="mr-2 h-4 w-4" />
+                          Email
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3">
+                    {selectedProcess.quotes.length === 0 ? (
+                      <div className="rounded-[24px] border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+                        Nenhuma cotação registrada ainda.
+                      </div>
+                    ) : (
+                      selectedProcess.quotes.map((quote) => (
                         <div
-                          key={quote.carrier}
+                          key={quote.id}
                           className={cn(
-                            "rounded-2xl border p-4",
-                            isSelected ? "border-primary/35 bg-primary/10" : "border-border/70 bg-background/70",
+                            "rounded-[24px] border p-4",
+                            quote.approved ? "border-primary/35 bg-primary/10" : "border-border/70 bg-background/80",
                           )}
                         >
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                               <p className="font-semibold text-foreground">{quote.carrier}</p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                {quote.service} • {quote.deliveryDays} dia(s)
-                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">{quote.note}</p>
+                              <p className="mt-2 text-xs text-muted-foreground">Prazo estimado: {quote.deliveryDays} dia(s)</p>
                             </div>
                             <div className="text-left sm:text-right">
-                              <p className="text-lg font-semibold text-foreground">{formatCurrency(quote.value)}</p>
-                              {isSelected && <p className="text-xs font-medium text-primary">cotação aprovada</p>}
+                              <p className="text-xl font-semibold text-foreground">{formatCurrency(quote.value)}</p>
+                              {quote.approved ? (
+                                <Badge className="mt-2 rounded-full">Aprovada</Badge>
+                              ) : (
+                                <Button variant="outline" className="mt-2 rounded-2xl" onClick={() => approveQuote(quote.id)}>
+                                  Aprovar cotação
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </div>
-                      );
-                    })}
+                      ))
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="documents" className="space-y-5">
+                  <DocumentTab
+                    process={selectedProcess}
+                    documentForm={documentForm}
+                    setDocumentForm={setDocumentForm}
+                    onSimulateDocument={handleDocumentSimulation}
+                  />
+                </TabsContent>
+
+                <TabsContent value="treatments" className="space-y-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">Tratativas</h3>
+                      <p className="text-sm text-muted-foreground">Histórico de ocorrências e comunicações sobre o pedido.</p>
+                    </div>
+                    <Button className="rounded-2xl" onClick={() => setTreatmentOpen(true)}>
+                      <MessageSquarePlus className="mr-2 h-4 w-4" />
+                      Nova tratativa
+                    </Button>
+                  </div>
+                  <div className="space-y-3">
+                    {selectedProcess.treatments.map((treatment) => (
+                      <div key={treatment.id} className="rounded-[24px] border border-border/70 bg-background/80 p-4">
+                        <p className="text-sm font-semibold text-foreground">{formatDateTime(treatment.at)}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{treatment.author}</p>
+                        <p className="mt-3 text-sm leading-6 text-muted-foreground">{treatment.note}</p>
+                      </div>
+                    ))}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="delivery" className="space-y-5">
+                  <DeliveryTab
+                    process={selectedProcess}
+                    pickupPhotoName={pickupPhotoName}
+                    setPickupPhotoName={setPickupPhotoName}
+                    onRegisterPickup={handleRegisterPickup}
+                    onOpenDelivery={() => setDeliveryOpen(true)}
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      <Dialog open={cubageOpen} onOpenChange={setCubageOpen}>
+        <DialogContent className="max-w-3xl rounded-[28px]">
+          <DialogHeader>
+            <DialogTitle>Cubagem do pedido #{selectedErpOrder?.orderNumber}</DialogTitle>
+            <DialogDescription>
+              Ajuste volumes, medidas e peso antes de transformar o pedido recebido da API em processo de frete.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedErpOrder && (
+            <div className="space-y-5">
+              <div className="rounded-[24px] border border-primary/20 bg-primary/5 p-4">
+                <div className="flex items-start gap-3">
+                  <PackageCheck className="mt-0.5 h-5 w-5 text-primary" />
+                  <div>
+                    <p className="font-semibold text-foreground">{selectedErpOrder.products}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {selectedErpOrder.quantity} unidade(s), com {selectedErpOrder.unitsPerBox} unidade(s) por caixa.
+                    </p>
                   </div>
                 </div>
-              </>
-            ) : (
-              <div className="rounded-[28px] border border-dashed border-border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
-                Nenhum frete disponível para auditoria.
               </div>
-            )}
-          </CardContent>
-        </Card>
 
-        <Card className="rounded-[34px] border-border/70 bg-card/95 shadow-[0_18px_52px_rgba(15,23,42,0.06)]">
-          <CardHeader>
-            <CardTitle className="text-2xl">Cotado x Cobrado</CardTitle>
-            <CardDescription>Comparação visual entre o valor aprovado e o valor recebido no CT-e.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[380px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={comparisonChartData} margin={{ top: 8, right: 10, left: isMobile ? 0 : 10, bottom: 0 }}>
-                  <CartesianGrid stroke={chartTheme.grid} strokeDasharray="4 4" vertical={false} />
-                  <XAxis dataKey="name" stroke={chartTheme.axis} fontSize={12} />
-                  <YAxis stroke={chartTheme.axis} fontSize={12} tickFormatter={(value: number) => `R$ ${value}`} />
-                  <Tooltip
-                    cursor={{ fill: "rgba(148, 163, 184, 0.08)" }}
-                    contentStyle={{
-                      backgroundColor: chartTheme.tooltipBackground,
-                      border: `1px solid ${chartTheme.tooltipBorder}`,
-                      borderRadius: "16px",
-                      color: chartTheme.tooltipText,
-                    }}
-                    formatter={(value: number, name: string) => [formatCurrency(value), name]}
-                    labelStyle={{ color: chartTheme.tooltipText, fontWeight: 600 }}
-                  />
-                  <Bar dataKey="cotado" fill={chartTheme.primary} radius={[10, 10, 0, 0]} barSize={isMobile ? 16 : 24} />
-                  <Bar dataKey="cobrado" fill="hsl(var(--warning))" radius={[10, 10, 0, 0]} barSize={isMobile ? 16 : 24} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <Field label="Volumes" value={cubageForm.packageQuantity} onChange={(value) => setCubageForm((current) => ({ ...current, packageQuantity: value }))} type="number" />
+                <Field label="Comprimento (cm)" value={cubageForm.lengthCm} onChange={(value) => setCubageForm((current) => ({ ...current, lengthCm: value }))} type="number" />
+                <Field label="Largura (cm)" value={cubageForm.widthCm} onChange={(value) => setCubageForm((current) => ({ ...current, widthCm: value }))} type="number" />
+                <Field label="Altura (cm)" value={cubageForm.heightCm} onChange={(value) => setCubageForm((current) => ({ ...current, heightCm: value }))} type="number" />
+                <Field label="Peso (ton)" value={cubageForm.weightTon} onChange={(value) => setCubageForm((current) => ({ ...current, weightTon: value }))} type="number" />
+              </div>
+
+              <div className="rounded-[24px] border border-border/70 bg-muted/20 p-5">
+                <p className="text-sm font-semibold text-foreground">Cubagem calculada</p>
+                <p className="mt-2 text-3xl font-semibold text-primary">
+                  {calculateCubageM3(
+                    Number(cubageForm.packageQuantity) || 0,
+                    Number(cubageForm.lengthCm) || 0,
+                    Number(cubageForm.widthCm) || 0,
+                    Number(cubageForm.heightCm) || 0,
+                  )}{" "}
+                  m³
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Fórmula: volumes x comprimento x largura x altura, convertendo centímetros para metros cúbicos.
+                </p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          )}
+          <DialogFooter>
+            <Button variant="outline" className="rounded-2xl" onClick={() => setCubageOpen(false)}>Cancelar</Button>
+            <Button className="rounded-2xl" onClick={handleSaveCubage}>Salvar cubagem</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={newOrderOpen} onOpenChange={setNewOrderOpen}>
+        <DialogContent className="max-h-[calc(100svh-2rem)] w-[calc(100vw-1rem)] max-w-3xl overflow-y-auto rounded-[28px] sm:w-[calc(100vw-2rem)]">
+          <DialogHeader>
+            <DialogTitle>Adicionar pedido</DialogTitle>
+            <DialogDescription>Crie um processo de frete mockado para demonstrar o fluxo completo.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Número do pedido" value={newOrderForm.orderNumber} onChange={(value) => setNewOrderForm((current) => ({ ...current, orderNumber: value }))} />
+            <Field label="Cliente" value={newOrderForm.client} onChange={(value) => setNewOrderForm((current) => ({ ...current, client: value }))} />
+            <Field label="Mercadoria" value={newOrderForm.material} onChange={(value) => setNewOrderForm((current) => ({ ...current, material: value }))} />
+            <Field label="Origem" value={newOrderForm.origin} onChange={(value) => setNewOrderForm((current) => ({ ...current, origin: value }))} />
+            <Field label="Destino" value={newOrderForm.destination} onChange={(value) => setNewOrderForm((current) => ({ ...current, destination: value }))} />
+            <Field label="Cubagem (m³)" value={newOrderForm.cubicMeters} onChange={(value) => setNewOrderForm((current) => ({ ...current, cubicMeters: value }))} type="number" />
+            <Field label="Peso (ton)" value={newOrderForm.weightTon} onChange={(value) => setNewOrderForm((current) => ({ ...current, weightTon: value }))} type="number" />
+            <Field label="Previsão" value={newOrderForm.forecastDate} onChange={(value) => setNewOrderForm((current) => ({ ...current, forecastDate: value }))} type="date" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-2xl" onClick={() => setNewOrderOpen(false)}>Cancelar</Button>
+            <Button className="rounded-2xl" onClick={handleCreateOrder}>Adicionar pedido</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={publishTransportOpen} onOpenChange={setPublishTransportOpen}>
+        <DialogContent className="max-w-3xl rounded-[28px]">
+          <DialogHeader>
+            <DialogTitle>Lançar transporte para transportadoras</DialogTitle>
+            <DialogDescription>
+              Publique uma demanda de frete para que transportadoras parceiras possam enviar propostas.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedProcess && (
+            <div className="space-y-5">
+              <div className="space-y-3 rounded-[24px] border border-border/70 bg-muted/20 p-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <Info label="Pedido" value={`#${selectedProcess.orderNumber}`} />
+                <Info label="Material" value={selectedProcess.material} />
+                <Info label="Peso" value={`${selectedProcess.weightTon} ton`} />
+                <Info label="Cubagem" value={`${selectedProcess.cubicMeters} m³`} />
+                <Info label="Cliente" value={selectedProcess.client} />
+                </div>
+
+                <div className="rounded-[22px] border border-primary/20 bg-[linear-gradient(135deg,hsl(var(--primary)/0.12),hsl(var(--background)/0.86))] p-3 sm:p-4">
+                  <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-primary">
+                    <Route className="h-4 w-4" />
+                    Rota do transporte
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center">
+                    <div className="min-w-0 rounded-2xl border border-border/70 bg-background/80 p-3 sm:p-4">
+                      <p className="text-xs text-muted-foreground">Origem</p>
+                      <p className="mt-1 break-words text-sm font-semibold leading-6 text-foreground">
+                        {selectedProcess.origin}
+                      </p>
+                    </div>
+                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-primary shadow-[0_12px_28px_rgba(16,185,129,0.18)] md:h-11 md:w-11">
+                      <ArrowRight className="h-5 w-5 rotate-90 md:rotate-0" />
+                    </div>
+                    <div className="min-w-0 rounded-2xl border border-border/70 bg-background/80 p-3 sm:p-4">
+                      <p className="text-xs text-muted-foreground">Destino</p>
+                      <p className="mt-1 break-words text-sm font-semibold leading-6 text-foreground">
+                        {selectedProcess.destination}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                  label="Valor sugerido para o frete"
+                  value={publishTransportForm.suggestedValue}
+                  onChange={(value) => setPublishTransportForm((current) => ({ ...current, suggestedValue: value }))}
+                  type="number"
+                />
+                <Field
+                  label="Janela de coleta"
+                  value={publishTransportForm.pickupWindow}
+                  onChange={(value) => setPublishTransportForm((current) => ({ ...current, pickupWindow: value }))}
+                  placeholder="Ex.: Amanhã, 08:00 - 11:00"
+                />
+                <Field
+                  label="Tipo de veículo necessário"
+                  value={publishTransportForm.vehicleType}
+                  onChange={(value) => setPublishTransportForm((current) => ({ ...current, vehicleType: value }))}
+                  placeholder="Ex.: Baú médio, truck, roll-on"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Observações para a transportadora</Label>
+                <Textarea
+                  value={publishTransportForm.notes}
+                  onChange={(event) => setPublishTransportForm((current) => ({ ...current, notes: event.target.value }))}
+                  placeholder="Informe restrições de coleta, necessidade de lona, doca, empilhadeira, documentação e cuidados com o resíduo."
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" className="rounded-2xl" onClick={() => setPublishTransportOpen(false)}>Cancelar</Button>
+            <Button className="rounded-2xl" onClick={handlePublishTransport}>Publicar transporte</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={quoteOpen} onOpenChange={setQuoteOpen}>
+        <DialogContent className="rounded-[28px]">
+          <DialogHeader>
+            <DialogTitle>Adicionar cotação</DialogTitle>
+            <DialogDescription>Simule uma cotação recebida para o pedido selecionado.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Field label="Transportadora" value={quoteForm.carrier} onChange={(value) => setQuoteForm((current) => ({ ...current, carrier: value }))} />
+            <Field label="Valor" value={quoteForm.value} onChange={(value) => setQuoteForm((current) => ({ ...current, value }))} type="number" />
+            <Field label="Prazo estimado (dias)" value={quoteForm.deliveryDays} onChange={(value) => setQuoteForm((current) => ({ ...current, deliveryDays: value }))} type="number" />
+            <div className="space-y-2">
+              <Label>Observação</Label>
+              <Textarea value={quoteForm.note} onChange={(event) => setQuoteForm((current) => ({ ...current, note: event.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-2xl" onClick={() => setQuoteOpen(false)}>Cancelar</Button>
+            <Button className="rounded-2xl" onClick={handleAddQuote}>Salvar cotação</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={treatmentOpen} onOpenChange={setTreatmentOpen}>
+        <DialogContent className="rounded-[28px]">
+          <DialogHeader>
+            <DialogTitle>Nova tratativa</DialogTitle>
+            <DialogDescription>Registre uma observação temporária no histórico do pedido.</DialogDescription>
+          </DialogHeader>
+          <Textarea value={treatmentNote} onChange={(event) => setTreatmentNote(event.target.value)} placeholder="Descreva a tratativa..." />
+          <DialogFooter>
+            <Button variant="outline" className="rounded-2xl" onClick={() => setTreatmentOpen(false)}>Cancelar</Button>
+            <Button className="rounded-2xl" onClick={handleAddTreatment}>Registrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deliveryOpen} onOpenChange={setDeliveryOpen}>
+        <DialogContent className="max-w-3xl rounded-[28px]">
+          <DialogHeader>
+            <DialogTitle>Registrar entrega</DialogTitle>
+            <DialogDescription>Simule o canhoto digital assinado pelo recebedor.</DialogDescription>
+          </DialogHeader>
+          {selectedProcess && (
+            <div className="space-y-5">
+              <div className="grid gap-3 rounded-[24px] border border-border/70 bg-muted/20 p-4 sm:grid-cols-3">
+                <Info label="Pedido" value={`#${selectedProcess.orderNumber}`} />
+                <Info label="Cliente" value={selectedProcess.client} />
+                <Info label="Mercadoria" value={selectedProcess.material} />
+              </div>
+              <Field label="Nome de quem recebeu" value={receiverName} onChange={setReceiverName} />
+              <div className="space-y-3">
+                <Label>Tipo de recebimento</Label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button
+                    type="button"
+                    variant={receiptType === "complete" ? "default" : "outline"}
+                    className="rounded-2xl"
+                    onClick={() => setReceiptType("complete")}
+                  >
+                    Recebimento completo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={receiptType === "with_reservation" ? "default" : "outline"}
+                    className="rounded-2xl"
+                    onClick={() => setReceiptType("with_reservation")}
+                  >
+                    Com ressalva
+                  </Button>
+                </div>
+                {receiptType === "with_reservation" && (
+                  <Textarea
+                    value={reservationNote}
+                    onChange={(event) => setReservationNote(event.target.value)}
+                    placeholder="Descreva avaria, falta, divergência de volume ou outra observação."
+                  />
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Assinatura do recebedor</Label>
+                <SignaturePad value={signatureData} onChange={setSignatureData} />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" className="rounded-2xl" onClick={() => setDeliveryOpen(false)}>Cancelar</Button>
+            <Button className="rounded-2xl" onClick={handleConfirmDelivery}>Confirmar entrega</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 rounded-2xl"
+      />
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 font-semibold text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function getSeparatedStatus(process: FreightProcess) {
+  const difference = getDifference(process);
+
+  return [
+    {
+      label: "Transporte",
+      value: process.delivery
+        ? "Entregue"
+        : process.pickupRecord
+          ? "Carga retirada / em transporte"
+          : process.freightMode === "customer_pickup"
+            ? "Aguardando retirada do cliente"
+            : getApprovedQuote(process)
+              ? "Aguardando retirada"
+              : "Frete em definição",
+    },
+    { label: "NF-e", value: process.nfeFileName ? "Anexada" : "Pendente" },
+    { label: "CT-e", value: process.document ? "Recebido" : "Pendente" },
+    { label: "Comprovante", value: process.delivery ? "Recebido" : "Pendente" },
+    {
+      label: "Financeiro",
+      value: !process.document ? "Aguardando CT-e" : difference !== null && Math.abs(difference) > 5 ? "Divergência" : "Conferido",
+    },
+  ];
+}
+
+function SummaryTab({ process }: { process: FreightProcess }) {
+  const approvedQuote = getApprovedQuote(process);
+  const difference = getDifference(process);
+  const status = statusMeta[process.status];
+
+  return (
+    <>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <InfoCard label="Cliente" value={process.client} />
+        <InfoCard label="Origem" value={process.origin} />
+        <InfoCard label="Destino" value={process.destination} />
+        <InfoCard label="Cubagem" value={`${process.cubicMeters} m³`} />
+        <InfoCard label="Transportadora" value={approvedQuote?.carrier ?? "Não definida"} />
+        <InfoCard label="Valor aprovado" value={approvedQuote ? formatCurrency(approvedQuote.value) : "Aguardando"} />
+        <InfoCard label="Valor cobrado" value={process.document ? formatCurrency(process.document.cteValue) : "Não recebido"} />
+        <InfoCard label="Situação atual" value={status.label} />
+      </div>
+      <div className="rounded-[24px] border border-border/70 bg-muted/20 p-5">
+        <div className="flex items-start gap-3">
+          <ClipboardCheck className="mt-0.5 h-5 w-5 text-primary" />
+          <div>
+            <p className="font-semibold text-foreground">Resumo da jornada</p>
+            <div className="mt-4 grid gap-3 md:grid-cols-5">
+              {getSeparatedStatus(process).map((item) => (
+                <div key={item.label} className="rounded-2xl border border-border/70 bg-background/80 p-3">
+                  <p className="text-xs text-muted-foreground">{item.label}</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">{item.value}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              O pedido #{process.orderNumber} está em {status.label.toLowerCase()}.
+              {difference !== null
+                ? ` A diferença atual entre cotação aprovada e CT-e é de ${formatCurrency(difference)}.`
+                : " O CT-e ainda não foi conferido para este pedido."}
+            </p>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function InfoCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-2 font-semibold text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function DocumentTab({
+  process,
+  documentForm,
+  setDocumentForm,
+  onSimulateDocument,
+}: {
+  process: FreightProcess;
+  documentForm: DocumentForm;
+  setDocumentForm: (value: DocumentForm) => void;
+  onSimulateDocument: () => void;
+}) {
+  const approvedQuote = getApprovedQuote(process);
+  const difference = getDifference(process);
+  const hasDivergence = difference !== null && Math.abs(difference) > 5;
+
+  return (
+    <div className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
+      <div className="space-y-4">
+        <div className="rounded-[24px] border border-dashed border-border bg-muted/20 p-8 text-center">
+          <UploadCloud className="mx-auto h-8 w-8 text-primary" />
+          <p className="mt-4 font-semibold text-foreground">Arraste o documento aqui ou selecione um arquivo</p>
+          <p className="mt-2 text-sm text-muted-foreground">Upload visual simulado, sem envio para backend.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Field label="Arquivo NF-e" value={documentForm.nfeFileName} onChange={(value) => setDocumentForm({ ...documentForm, nfeFileName: value })} />
+          <Field label="Arquivo" value={documentForm.fileName} onChange={(value) => setDocumentForm({ ...documentForm, fileName: value })} />
+          <Field label="Número CT-e" value={documentForm.cteNumber} onChange={(value) => setDocumentForm({ ...documentForm, cteNumber: value })} />
+          <Field label="Valor CT-e" type="number" value={documentForm.cteValue} onChange={(value) => setDocumentForm({ ...documentForm, cteValue: value })} />
+        </div>
+        <Button className="rounded-2xl" onClick={onSimulateDocument}>
+          <FileCheck2 className="mr-2 h-4 w-4" />
+          Salvar documentos
+        </Button>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <Card className="rounded-[34px] border-border/70 bg-card/95 shadow-[0_18px_52px_rgba(15,23,42,0.06)]">
-          <CardHeader className="gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <CardTitle className="text-2xl">Pedidos e auditorias</CardTitle>
-              <CardDescription>Histórico dos fretes cotados, documentos recebidos e bloqueios financeiros.</CardDescription>
-            </div>
-            <Badge variant="outline" className="w-fit rounded-full px-3 py-1">
-              {auditedFreights.length} registros
-            </Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4">
-              {auditedFreights.map((freight) => {
-                const status = statusMeta[freight.status];
+      <div className="rounded-[24px] border border-border/70 bg-background/80 p-5">
+        <h3 className="font-semibold text-foreground">Documentos e conferência</h3>
+        <div className="mt-4 space-y-3 text-sm">
+          <Info label="NF-e" value={process.nfeFileName ?? "Pendente"} />
+          <Info label="Valor da cotação aprovada" value={approvedQuote ? formatCurrency(approvedQuote.value) : "Sem cotação aprovada"} />
+          <Info label="Valor do CT-e" value={process.document ? formatCurrency(process.document.cteValue) : "Documento não recebido"} />
+          {process.document && <Info label="Documento" value={`${process.document.cteNumber} • ${process.document.fileName}`} />}
+        </div>
+        {difference !== null && (
+          <div className={cn("mt-5 rounded-2xl border p-4", hasDivergence ? "border-destructive/25 bg-destructive/10" : "border-primary/25 bg-primary/10")}>
+            <p className={cn("font-semibold", hasDivergence ? "text-destructive" : "text-primary")}>
+              {hasDivergence ? "Divergência encontrada" : "Valores conferidos"}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">Diferença: {formatCurrency(difference)}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-                return (
-                  <article
-                    key={freight.id}
-                    className="rounded-[28px] border border-border/70 bg-background/80 p-5 shadow-sm transition-transform duration-300 hover:-translate-y-0.5 md:p-6"
-                  >
-                    <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="outline" className={cn("rounded-full px-3 py-1", status.badgeClassName)}>
-                            <span className={cn("mr-2 h-2 w-2 rounded-full", status.dotClassName)} />
-                            {status.label}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">{status.description}</span>
-                        </div>
-                        <h3 className="mt-3 text-xl font-semibold text-foreground">{freight.orderId}</h3>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {freight.buyer} • {freight.material}
-                        </p>
-                      </div>
+function DeliveryTab({
+  process,
+  pickupPhotoName,
+  setPickupPhotoName,
+  onRegisterPickup,
+  onOpenDelivery,
+}: {
+  process: FreightProcess;
+  pickupPhotoName: string;
+  setPickupPhotoName: (value: string) => void;
+  onRegisterPickup: () => void;
+  onOpenDelivery: () => void;
+}) {
+  if (process.delivery) {
+    return (
+      <div className="rounded-[24px] border border-primary/20 bg-primary/5 p-5">
+        <div className="flex items-start gap-3">
+          <Signature className="mt-0.5 h-5 w-5 text-primary" />
+          <div>
+            <p className="font-semibold text-foreground">Entrega confirmada</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Recebido por {process.delivery.receiverName} em {formatDateTime(process.delivery.confirmedAt)}.
+            </p>
+            {process.delivery.receiptType === "with_reservation" && (
+              <p className="mt-2 text-sm text-warning">Ressalva: {process.delivery.reservationNote || "sem observação detalhada"}</p>
+            )}
+            <Badge className="mt-4 rounded-full">Canhoto digital armazenado</Badge>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-                      <div className="rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3">
-                        <p className="text-xs text-muted-foreground">Transportadora aprovada</p>
-                        <p className="mt-1 font-semibold text-foreground">{freight.approvedQuote.carrier}</p>
-                      </div>
-                    </div>
+  return (
+    <div className="space-y-5">
+      <div className="rounded-[24px] border border-border/70 bg-background/80 p-5">
+      <div className="grid gap-3 sm:grid-cols-4">
+        <Info label="Status" value={process.pickupRecord ? "Carga retirada / em transporte" : "Aguardando retirada"} />
+        <Info label="Previsão" value={formatDate(process.forecastDate)} />
+        <Info label="Destino" value={process.destination} />
+        <Info label="Transportadora" value={getApprovedQuote(process)?.carrier ?? "Não definida"} />
+      </div>
+      </div>
 
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                      <div className="rounded-2xl border border-border/70 bg-card p-3">
-                        <p className="text-xs text-muted-foreground">Cotado</p>
-                        <p className="mt-2 font-semibold text-foreground">{formatCurrency(freight.approvedQuote.value)}</p>
-                      </div>
-                      <div className="rounded-2xl border border-border/70 bg-card p-3">
-                        <p className="text-xs text-muted-foreground">Cobrado</p>
-                        <p className="mt-2 font-semibold text-foreground">
-                          {freight.chargedValue === null ? "Aguardando" : formatCurrency(freight.chargedValue)}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-border/70 bg-card p-3">
-                        <p className="text-xs text-muted-foreground">Diferença</p>
-                        <p className={cn("mt-2 font-semibold", freight.difference > divergenceTolerance ? "text-warning" : "text-foreground")}>
-                          {formatCurrency(freight.difference)}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-border/70 bg-card p-3">
-                        <p className="text-xs text-muted-foreground">CT-e</p>
-                        <p className="mt-2 font-semibold text-foreground">{freight.cte?.number ?? "Não recebido"}</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 grid gap-3 border-t border-border/70 pt-5 md:grid-cols-3">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Route className="h-4 w-4 shrink-0 text-primary" />
-                        <span>
-                          {freight.origin} → {freight.destination}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Truck className="h-4 w-4 shrink-0 text-primary" />
-                        <span>{freight.distanceKm.toLocaleString("pt-BR")} km percorridos</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Leaf className="h-4 w-4 shrink-0 text-primary" />
-                        <span>{freight.co2Kg.toLocaleString("pt-BR")} kg CO2 estimado</span>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[34px] border-border/70 bg-card/95 shadow-[0_18px_52px_rgba(15,23,42,0.06)]">
-          <CardHeader>
-            <CardTitle className="text-2xl">Status financeiro</CardTitle>
-            <CardDescription>Distribuição dos fretes por situação de conferência.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {statusChartData.length === 0 ? (
-              <div className="flex h-[280px] items-center justify-center rounded-[28px] border border-dashed border-border bg-muted/20 text-center text-sm text-muted-foreground">
-                Nenhum status disponível.
+      <div className="rounded-[24px] border border-border/70 bg-muted/20 p-5">
+        <div className="flex items-start gap-3">
+          <UploadCloud className="mt-0.5 h-5 w-5 text-primary" />
+          <div className="flex-1">
+            <p className="font-semibold text-foreground">Retirada da carga</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Anexe visualmente a foto da carga carregada no caminhão para registrar a saída.
+            </p>
+            {process.pickupRecord ? (
+              <div className="mt-4 rounded-2xl border border-primary/25 bg-primary/10 p-4">
+                <p className="text-sm font-semibold text-foreground">{process.pickupRecord.photoName}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Registrado em {formatDateTime(process.pickupRecord.registeredAt)}</p>
               </div>
             ) : (
-              <>
-                <div className="h-[220px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={statusChartData} dataKey="value" innerRadius={58} outerRadius={86} paddingAngle={4}>
-                        {statusChartData.map((entry) => (
-                          <Cell key={entry.name} fill={entry.fill} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: chartTheme.tooltipBackground,
-                          border: `1px solid ${chartTheme.tooltipBorder}`,
-                          borderRadius: "16px",
-                          color: chartTheme.tooltipText,
-                        }}
-                        formatter={(value: number) => [`${value} frete(s)`, "Total"]}
-                        labelStyle={{ color: chartTheme.tooltipText, fontWeight: 600 }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="space-y-3">
-                  {(Object.keys(statusMeta) as FreightAuditStatus[]).map((status) => (
-                    <div key={status} className="flex items-center justify-between rounded-2xl border border-border/70 bg-muted/20 px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <span className={cn("h-3 w-3 rounded-full", statusMeta[status].dotClassName)} />
-                        <span className="text-sm font-medium text-foreground">{statusMeta[status].label}</span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">{totals[status]}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            <div className="mt-5 rounded-[24px] border border-primary/20 bg-primary/5 p-4">
-              <div className="flex items-start gap-3">
-                <Package className="mt-0.5 h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-semibold text-foreground">Fluxo recomendado</p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Fretes divergentes devem ficar bloqueados para pagamento até faturamento e financeiro validarem a
-                    cobrança com a transportadora.
-                  </p>
-                </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <Input
+                  value={pickupPhotoName}
+                  onChange={(event) => setPickupPhotoName(event.target.value)}
+                  placeholder="Ex.: carga-pedido-5842.jpg"
+                  className="h-11 rounded-2xl"
+                />
+                <Button className="rounded-2xl" onClick={onRegisterPickup}>
+                  <UploadCloud className="mr-2 h-4 w-4" />
+                  Registrar retirada
+                </Button>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <Button className="rounded-2xl" onClick={onOpenDelivery}>
+          <Send className="mr-2 h-4 w-4" />
+          Registrar aqui
+        </Button>
+        <Button asChild variant="outline" className="rounded-2xl">
+          <Link to="/driver/deliveries">Tela do entregador</Link>
+        </Button>
+        <Button asChild variant="outline" className="rounded-2xl">
+          <Link to={`/delivery-signature/${process.orderNumber}`}>Link do cliente</Link>
+        </Button>
       </div>
     </div>
   );

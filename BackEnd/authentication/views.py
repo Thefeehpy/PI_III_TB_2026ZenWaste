@@ -1,10 +1,10 @@
 from rest_framework import status
 from rest_framework.response import Response
 
+from authentication.serializers import LoginSerializer, PasswordRecoverySerializer
 from authentication.services import ZenWasteAPIView, make_token, require_empresa, user_payload
 from empresas.models import Empresa
 from empresas.serializers import EmpresaSerializer
-from authentication.serializers import LoginSerializer, PasswordRecoverySerializer
 
 
 class RegisterAPIView(ZenWasteAPIView):
@@ -19,7 +19,6 @@ class RegisterAPIView(ZenWasteAPIView):
         })
         serializer.is_valid(raise_exception=True)
         empresa = serializer.save()
-
         return Response({"user": user_payload(empresa)}, status=status.HTTP_201_CREATED)
 
 
@@ -27,7 +26,6 @@ class LoginAPIView(ZenWasteAPIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         email = serializer.validated_data["email"].strip().lower()
         password = serializer.validated_data["password"]
 
@@ -47,7 +45,6 @@ class MeAPIView(ZenWasteAPIView):
         empresa, error = require_empresa(request)
         if error:
             return error
-
         return Response({"user": user_payload(empresa)})
 
     def patch(self, request):
@@ -68,11 +65,9 @@ class MeAPIView(ZenWasteAPIView):
             for request_field, model_field in field_map.items()
             if request_field in request.data
         }
-
         serializer = EmpresaSerializer(empresa, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         empresa = serializer.save()
-
         return Response({"user": user_payload(empresa)})
 
 
@@ -80,9 +75,7 @@ class PasswordRecoveryAPIView(ZenWasteAPIView):
     def post(self, request):
         serializer = PasswordRecoverySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         Empresa.objects.filter(email__iexact=serializer.validated_data["email"]).exists()
-
         return Response({
             "message": "Se o e-mail estiver cadastrado, enviaremos as instrucoes de recuperacao.",
         })
@@ -94,10 +87,11 @@ class LogoutAPIView(ZenWasteAPIView):
 
 
 class LoginView(ZenWasteAPIView):
+    """Endpoint legado mantido para compatibilidade com clientes anteriores."""
+
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         email = serializer.validated_data["email"].strip().lower()
         password = serializer.validated_data["password"]
 
@@ -110,9 +104,6 @@ class LoginView(ZenWasteAPIView):
             return Response({"message": "E-mail ou senha inválidos."}, status=status.HTTP_401_UNAUTHORIZED)
 
         return Response(
-            {
-                "message": "Login realizado com sucesso.",
-                "empresa": user_payload(empresa),
-            },
+            {"message": "Login realizado com sucesso.", "empresa": user_payload(empresa)},
             status=status.HTTP_200_OK,
         )

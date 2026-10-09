@@ -1,5 +1,19 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronRight, ImagePlus, Loader2, Sparkles, Trash2, UploadCloud } from "lucide-react";
+import {
+  CalendarClock,
+  Check,
+  ChevronRight,
+  ImagePlus,
+  Loader2,
+  MapPin,
+  PackageCheck,
+  Route,
+  Send,
+  Sparkles,
+  Trash2,
+  Truck,
+  UploadCloud,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
@@ -43,6 +57,8 @@ async function fetchAddressByCep(cep: string) {
 
   const data = (await response.json()) as {
     erro?: boolean;
+    logradouro?: string;
+    bairro?: string;
     localidade?: string;
     uf?: string;
   };
@@ -52,6 +68,8 @@ async function fetchAddressByCep(cep: string) {
   }
 
   return {
+    street: data.logradouro || "",
+    neighborhood: data.bairro || "",
     city: data.localidade,
     state: data.uf,
   };
@@ -108,6 +126,45 @@ async function processMarketplaceImage(file: File) {
   return compressedDataUrl.length < originalDataUrl.length ? compressedDataUrl : originalDataUrl;
 }
 
+function getSuggestedVehicleType(materialType: string) {
+  const normalizedType = materialType.toLowerCase();
+
+  if (normalizedType.includes("vidro")) {
+    return "Truck reforçado com contenção";
+  }
+
+  if (normalizedType.includes("metal") || normalizedType.includes("sucata")) {
+    return "Truck ou carreta curta";
+  }
+
+  if (normalizedType.includes("plast")) {
+    return "Baú médio ou sider";
+  }
+
+  return "Baú médio";
+}
+
+function getSuggestedFreightValue(materialType: string, quantity: string, unit: string) {
+  const normalizedType = materialType.toLowerCase();
+  const numericQuantity = Number(quantity) || 0;
+  const quantityInTon = unit.toLowerCase().includes("ton") ? numericQuantity : numericQuantity / 1000;
+  const materialFactor =
+    normalizedType.includes("vidro") || normalizedType.includes("metal")
+      ? 7.2
+      : normalizedType.includes("plast")
+        ? 5.4
+        : 4.8;
+  const estimatedDistanceKm = 80;
+  const estimate = estimatedDistanceKm * materialFactor + quantityInTon * 45;
+
+  return Math.max(220, Math.round(estimate / 10) * 10).toFixed(2);
+}
+
+function quantityInTons(quantity: string, unit: string) {
+  const numericQuantity = Number(quantity) || 0;
+  return unit.toLowerCase().includes("ton") ? numericQuantity : numericQuantity / 1000;
+}
+
 export default function CreateAd() {
   const { items } = useInventory();
   const { user } = useAuth();
@@ -126,6 +183,7 @@ export default function CreateAd() {
   const [cepLookupTone, setCepLookupTone] = useState<CepLookupTone>("idle");
   const [cepLookupMessage, setCepLookupMessage] = useState("");
   const [priceInsight, setPriceInsight] = useState(getMarketInsight());
+  const [publishTransport, setPublishTransport] = useState(false);
   const [form, setForm] = useState({
     inventoryId: "",
     title: "",
@@ -134,6 +192,9 @@ export default function CreateAd() {
     quantity: "",
     unit: "kg",
     cep: "",
+    street: "",
+    neighborhood: "",
+    number: "",
     city: "",
     state: "",
     location: "",
@@ -141,9 +202,18 @@ export default function CreateAd() {
     suggestedPrice: "0.00",
     photos: [] as string[],
   });
+  const [transportForm, setTransportForm] = useState({
+    suggestedFreight: "",
+    pickupWindow: "",
+    destination: "A combinar com o comprador",
+    vehicleType: "",
+    notes: "",
+  });
 
   const normalizedCep = useMemo(() => normalizeCep(form.cep), [form.cep]);
-  const locationLabel = form.city && form.state ? `${form.city} - ${form.state}` : "";
+  const cityStateLabel = form.city && form.state ? `${form.city} - ${form.state}` : "";
+  const streetLabel = form.street ? `${form.street}${form.number ? `, ${form.number}` : ""}` : "";
+  const locationLabel = [streetLabel, form.neighborhood, cityStateLabel].filter(Boolean).join(", ");
 
   const next = () => setCurrentStep((step) => Math.min(step + 1, steps.length - 1));
   const prev = () => setCurrentStep((step) => Math.max(step - 1, 0));
@@ -186,6 +256,9 @@ export default function CreateAd() {
       setCepLookupMessage("");
       setForm((current) => ({
         ...current,
+        street: "",
+        neighborhood: "",
+        number: "",
         city: "",
         state: "",
         location: "",
@@ -199,6 +272,9 @@ export default function CreateAd() {
       setCepLookupMessage("Digite um CEP com 8 numeros.");
       setForm((current) => ({
         ...current,
+        street: "",
+        neighborhood: "",
+        number: "",
         city: "",
         state: "",
         location: "",
@@ -213,10 +289,10 @@ export default function CreateAd() {
     let active = true;
 
     setCepLookupTone("loading");
-    setCepLookupMessage("Buscando cidade e estado...");
+    setCepLookupMessage("Buscando endereço...");
 
     fetchAddressByCep(normalizedCep)
-      .then(({ city, state }) => {
+      .then(({ city, state, street, neighborhood }) => {
         if (!active) {
           return;
         }
@@ -224,12 +300,14 @@ export default function CreateAd() {
         lastResolvedCepRef.current = normalizedCep;
         setForm((current) => ({
           ...current,
+          street,
+          neighborhood,
           city,
           state,
-          location: `${city} - ${state}`,
+          location: [street, neighborhood, `${city} - ${state}`].filter(Boolean).join(", "),
         }));
         setCepLookupTone("success");
-        setCepLookupMessage("Cidade e estado preenchidos automaticamente.");
+        setCepLookupMessage("Endereço preenchido automaticamente. Informe o número para concluir.");
       })
       .catch((error) => {
         if (!active) {
@@ -239,6 +317,9 @@ export default function CreateAd() {
         lastResolvedCepRef.current = "";
         setForm((current) => ({
           ...current,
+          street: "",
+          neighborhood: "",
+          number: "",
           city: "",
           state: "",
           location: "",
@@ -262,6 +343,7 @@ export default function CreateAd() {
     setCepLookupTone("idle");
     setCepLookupMessage("");
     setPriceInsight(getMarketInsight());
+    setPublishTransport(false);
     lastResolvedCepRef.current = "";
     setForm({
       inventoryId: "",
@@ -271,12 +353,22 @@ export default function CreateAd() {
       quantity: "",
       unit: "kg",
       cep: "",
+      street: "",
+      neighborhood: "",
+      number: "",
       city: "",
       state: "",
       location: "",
       price: "",
       suggestedPrice: "0.00",
       photos: [],
+    });
+    setTransportForm({
+      suggestedFreight: "",
+      pickupWindow: "",
+      destination: "A combinar com o comprador",
+      vehicleType: "",
+      notes: "",
     });
   };
 
@@ -293,7 +385,7 @@ export default function CreateAd() {
       description: form.description.trim(),
       quantity: Number(form.quantity),
       unit: form.unit,
-      location: form.location,
+      location: locationLabel,
       price: Number(form.price || form.suggestedPrice),
       imageUrl: form.photos[0] || undefined,
     });
@@ -307,9 +399,47 @@ export default function CreateAd() {
       return;
     }
 
+    if (publishTransport && result.item) {
+      try {
+        const freightProcess = await api.createFreightProcess({
+          orderNumber: `AD-${result.item.id}`,
+          adId: result.item.id,
+          client: "Comprador a definir",
+          material: form.type || selectedInventory.type,
+          origin: locationLabel,
+          destination: transportForm.destination,
+          cubicMeters: 0,
+          weightTon: quantityInTons(form.quantity, form.unit),
+          source: "marketplace",
+          freightMode: "quote",
+        });
+
+        await api.publishFreightOpportunity(freightProcess.id, {
+          suggestedValue: Number(transportForm.suggestedFreight),
+          pickupWindow: transportForm.pickupWindow,
+          vehicleType: transportForm.vehicleType,
+          notes: transportForm.notes,
+          distanceKm: 80,
+        });
+      } catch (error) {
+        toast({
+          title: "Anúncio publicado; transporte pendente",
+          description:
+            error instanceof Error
+              ? error.message
+              : "O anúncio foi publicado, mas não foi possível abrir a oportunidade de frete.",
+          variant: "destructive",
+        });
+        resetForm();
+        return;
+      }
+    }
+
     toast({
-      title: "Anuncio publicado",
-      description: "Seu resíduo já está disponível no marketplace.",
+      title: publishTransport ? "Anuncio e transporte publicados" : "Anuncio publicado",
+      description: publishTransport
+        ? "Seu resíduo foi para o marketplace e a demanda de transporte foi enviada para transportadoras."
+        : "Seu resíduo já está disponível no marketplace.",
     });
 
     resetForm();
@@ -356,8 +486,45 @@ export default function CreateAd() {
     type: form.type,
     quantity: Number(form.quantity) || undefined,
     unit: form.unit,
-    location: form.location || undefined,
+    location: locationLabel || undefined,
   });
+
+  const toggleTransportPublication = async () => {
+    const nextValue = !publishTransport;
+    setPublishTransport(nextValue);
+
+    if (nextValue) {
+      const fallbackFreight = getSuggestedFreightValue(form.type, form.quantity, form.unit);
+      const fallbackVehicle = getSuggestedVehicleType(form.type);
+      setTransportForm((current) => ({
+        ...current,
+        suggestedFreight: current.suggestedFreight || fallbackFreight,
+        pickupWindow: current.pickupWindow || "Até 2 dias após confirmação",
+        vehicleType: current.vehicleType || fallbackVehicle,
+        notes:
+          current.notes ||
+          "Transporte vinculado ao anúncio. Coleta no endereço informado e destino definido após reserva do comprador.",
+      }));
+
+      try {
+        const recommendation = await api.getFreightRecommendation({
+          material: form.type,
+          distanceKm: 80,
+          weightTon: quantityInTons(form.quantity, form.unit),
+          origin: locationLabel,
+          destination: transportForm.destination,
+        });
+        setTransportForm((current) => ({
+          ...current,
+          suggestedFreight: recommendation.suggestedValue.toFixed(2),
+          vehicleType: recommendation.vehicleType,
+          notes: recommendation.recommendation,
+        }));
+      } catch {
+        // O cálculo local preenchido acima mantém o fluxo disponível sem a IA.
+      }
+    }
+  };
 
   const handleSuggestDescription = async () => {
     if (!form.title || !form.type) {
@@ -428,9 +595,11 @@ export default function CreateAd() {
     }
   };
 
-  const isLocationReady = Boolean(form.location && form.city && form.state && normalizedCep.length === 8);
+  const isLocationReady = Boolean(form.city && form.state && form.number && normalizedCep.length === 8);
   const canAdvanceFromDetails = Boolean(form.title && form.quantity && isLocationReady);
-  const canPublish = Boolean(form.quantity && isLocationReady);
+  const canPublishTransport =
+    !publishTransport || Boolean(transportForm.suggestedFreight && transportForm.pickupWindow && transportForm.vehicleType);
+  const canPublish = Boolean(form.quantity && isLocationReady && canPublishTransport);
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -557,6 +726,9 @@ export default function CreateAd() {
                       setForm((current) => ({
                         ...current,
                         cep: formatCep(e.target.value),
+                        street: "",
+                        neighborhood: "",
+                        number: "",
                         city: "",
                         state: "",
                         location: "",
@@ -566,15 +738,48 @@ export default function CreateAd() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_9rem]">
-                <div className="space-y-2">
-                  <Label>Cidade</Label>
-                  <Input value={form.city} placeholder="Preenchido automaticamente" readOnly />
+              <div className="rounded-[28px] border border-primary/15 bg-[linear-gradient(135deg,hsl(var(--primary)/0.08),hsl(var(--background)))] p-4 shadow-[inset_0_1px_0_hsl(var(--primary)/0.12)]">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <MapPin className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Endereço de origem</p>
+                    <p className="text-xs text-muted-foreground">O CEP preenche rua, bairro, cidade e estado.</p>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Estado</Label>
-                  <Input value={form.state} placeholder="UF" readOnly />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_9rem]">
+                  <div className="space-y-2">
+                    <Label>Rua</Label>
+                    <Input value={form.street} placeholder="Preenchida automaticamente" readOnly />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Número</Label>
+                    <Input
+                      value={form.number}
+                      onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))}
+                      placeholder="Ex.: 120"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem]">
+                  <div className="space-y-2">
+                    <Label>Bairro</Label>
+                    <Input value={form.neighborhood} placeholder="Preenchido automaticamente" readOnly />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Cidade</Label>
+                    <Input value={form.city} placeholder="Preenchida automaticamente" readOnly />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Estado</Label>
+                    <Input value={form.state} placeholder="UF" readOnly />
+                  </div>
                 </div>
               </div>
 
@@ -799,7 +1004,7 @@ export default function CreateAd() {
                   <span className="font-medium">{form.cep || "-"}</span>
                 </div>
                 <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-muted-foreground">Cidade / Estado</span>
+                  <span className="text-muted-foreground">Endereço de origem</span>
                   <span className="font-medium">{locationLabel || "-"}</span>
                 </div>
                 <div className="flex flex-col gap-1 border-b border-border py-2 sm:flex-row sm:items-center sm:justify-between">
@@ -819,6 +1024,127 @@ export default function CreateAd() {
                   </div>
                 )}
               </div>
+
+              <Card className="overflow-hidden rounded-[28px] border-primary/20 bg-[linear-gradient(135deg,hsl(var(--primary)/0.10),hsl(var(--card)))]">
+                <CardContent className="space-y-5 p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                        <Truck className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">Lançar transporte para transportadoras</p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          Publique junto com o anúncio uma oportunidade de frete para transportadoras enviarem proposta.
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant={publishTransport ? "default" : "outline"}
+                      className="shrink-0 rounded-2xl"
+                      onClick={toggleTransportPublication}
+                    >
+                      {publishTransport ? "Transporte ativo" : "Ativar transporte"}
+                    </Button>
+                  </div>
+
+                  {publishTransport && (
+                    <div className="space-y-4">
+                      <div className="rounded-[24px] border border-primary/20 bg-background/70 p-4">
+                        <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-primary">
+                          <Route className="h-4 w-4" />
+                          Rota inicial
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center">
+                          <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <MapPin className="h-4 w-4 text-primary" />
+                              Origem
+                            </div>
+                            <p className="mt-2 text-sm font-semibold text-foreground">{locationLabel || "Local do anúncio"}</p>
+                          </div>
+                          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-primary">
+                            <Send className="h-4 w-4 rotate-90 md:rotate-0" />
+                          </div>
+                          <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <PackageCheck className="h-4 w-4 text-primary" />
+                              Destino
+                            </div>
+                            <Input
+                              value={transportForm.destination}
+                              onChange={(event) =>
+                                setTransportForm((current) => ({ ...current, destination: event.target.value }))
+                              }
+                              className="mt-2 h-10 rounded-xl"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Valor sugerido do frete</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={transportForm.suggestedFreight}
+                            onChange={(event) =>
+                              setTransportForm((current) => ({ ...current, suggestedFreight: event.target.value }))
+                            }
+                            placeholder="R$"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Janela de coleta</Label>
+                          <div className="relative">
+                            <CalendarClock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
+                            <Input
+                              value={transportForm.pickupWindow}
+                              onChange={(event) =>
+                                setTransportForm((current) => ({ ...current, pickupWindow: event.target.value }))
+                              }
+                              className="pl-9"
+                              placeholder="Ex.: Até 2 dias após confirmação"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 sm:col-span-2">
+                          <Label>Tipo de veículo necessário</Label>
+                          <Input
+                            value={transportForm.vehicleType}
+                            onChange={(event) =>
+                              setTransportForm((current) => ({ ...current, vehicleType: event.target.value }))
+                            }
+                            placeholder="Ex.: Baú médio, truck, roll-on"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Observações para a transportadora</Label>
+                        <Textarea
+                          value={transportForm.notes}
+                          onChange={(event) =>
+                            setTransportForm((current) => ({ ...current, notes: event.target.value }))
+                          }
+                          rows={3}
+                        />
+                      </div>
+
+                      <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
+                        Ao publicar, as transportadoras verão material, quantidade, origem, destino inicial, janela de
+                        coleta, veículo sugerido e valor base para enviar proposta.
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           )}
 

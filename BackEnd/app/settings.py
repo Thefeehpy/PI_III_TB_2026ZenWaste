@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     'anuncios',
     'marketplace',
     'market',
+    'assistente_ia.apps.AssistenteIAConfig',
+    'transportes',
 ]
 
 MIDDLEWARE = [

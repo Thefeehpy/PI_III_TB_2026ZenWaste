@@ -1,7 +1,6 @@
 from decimal import Decimal
 
 from django.db import transaction
-from django.utils import timezone
 from rest_framework import serializers
 
 from anuncios.models import Reserva
@@ -9,6 +8,8 @@ from authentication.services import normalize_text
 from anuncios.models import Anuncio
 from produtos.models import MovimentacaoEstoque, Produto
 from produtos.serializers import reservation_table_exists
+
+from produtos.factories import MovimentacaoEstoqueFactory
 
 
 def clean_inventory_name(name):
@@ -123,12 +124,11 @@ def update_inventory_item(produto, data):
 
 @transaction.atomic
 def delete_inventory_item(produto):
-    closed_ads = Anuncio.objects.filter(produto=produto, status_anuncio="ativo").update(
-        status_anuncio="inativo",
-        data_final=timezone.localdate(),
-    )
+    anuncios_ativos = list(Anuncio.objects.filter(produto=produto, status_anuncio="ativo"))
+    for anuncio in anuncios_ativos:
+        anuncio.cancelar()
     produto.excluir_produto()
-    return closed_ads
+    return len(anuncios_ativos)
 
 
 def refresh_product_reservations(produto):
@@ -189,31 +189,31 @@ def update_product_reservation(reserva, status_value):
     reserva.atualizar_status()
     return reserva
 
-
 @transaction.atomic
 def register_inventory_movement(produto, empresa, data):
     if not empresa or produto.empresa_id != empresa.id_empresa:
         raise serializers.ValidationError({"message": "Este item de estoque nao pertence ao usuario autenticado."})
 
     try:
+        # Bloqueia a linha da tabela para evitar concorrência
         produto_bloqueado = Produto.objects.select_for_update().get(
             id_produto=produto.id_produto,
             empresa=empresa,
         )
     except Produto.DoesNotExist:
         raise serializers.ValidationError({"message": "Item de estoque nao encontrado para este usuario."})
+        
     quantity = data["quantity"]
     movement_type = data["type"]
 
-    resulting_quantity = (
-        produto_bloqueado.quantidade + quantity
-        if movement_type == "entrada"
-        else produto_bloqueado.quantidade - quantity
-    )
+    # 1. Delega à Factory a criação da estratégia correta
+    movimentacao = MovimentacaoEstoqueFactory.criar(movement_type, produto_bloqueado, quantity)
+    
+    # 2. Calcula e valida usando a classe específica
+    resulting_quantity = movimentacao.calcular_saldo()
+    movimentacao.validar(resulting_quantity)
 
-    if resulting_quantity < Decimal("0"):
-        raise serializers.ValidationError({"message": "Saida maior que a quantidade disponivel."})
-
+    # 3. Persiste a alteração no banco
     produto_bloqueado.atualizar_produto(quantidade=resulting_quantity)
 
     movement = MovimentacaoEstoque.objects.create(
@@ -227,6 +227,7 @@ def register_inventory_movement(produto, empresa, data):
 
     refresh_product_reservations(produto_bloqueado)
 
+    # 4. Sincroniza a instância em memória original
     produto.quantidade = produto_bloqueado.quantidade
     produto.status = produto_bloqueado.status
     produto.atualizado_em = produto_bloqueado.atualizado_em

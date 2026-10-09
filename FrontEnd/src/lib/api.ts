@@ -289,5 +289,60 @@ export const api = {
       },
     );
   },
+
+  async getFreightRecommendation(input: {
+    material: string;
+    distanceKm: number;
+    weightTon?: number;
+    cubicMeters?: number;
+    origin?: string;
+    destination?: string;
+  }) {
+    return request<{
+      suggestedValue: number;
+      vehicleType: string;
+      recommendation: string;
+      costPerKm: number;
+      source: "ai" | "fallback";
+      aiAvailable: boolean;
+      message?: string;
+    }>("/assistente-ia/recommend-freight/", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  async createFreightProcess(input: {
+    orderNumber: string;
+    adId?: string;
+    client: string;
+    material: string;
+    origin: string;
+    destination: string;
+    cubicMeters: number;
+    weightTon: number;
+    forecastDate?: string | null;
+    source?: "erp" | "manual" | "marketplace";
+    freightMode?: "quote" | "contracted" | "customer_pickup";
+  }) {
+    return request<{ id: string } & Record<string, unknown>>("/transportes/fretes/", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  async publishFreightOpportunity(processId: string, input: {
+    suggestedValue?: number;
+    pickupWindow: string;
+    vehicleType?: string;
+    notes?: string;
+    distanceKm?: number;
+    environmentalScore?: number;
+  }) {
+    return request<Record<string, unknown>>(`/transportes/fretes/${processId}/publicar/`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
 };
 
