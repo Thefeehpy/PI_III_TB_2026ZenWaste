@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,6 +26,13 @@ import DriverDeliveries from "./pages/DriverDeliveries";
 import CarrierDashboard from "./pages/CarrierDashboard";
 import ClientDeliverySignature from "./pages/ClientDeliverySignature";
 import NotFound from "./pages/NotFound";
+import { PaymentLoading } from "@/components/payment/CheckoutUI";
+
+const Checkout = lazy(() => import("./pages/Checkout"));
+const CheckoutPayment = lazy(() => import("./pages/CheckoutPayment"));
+const CheckoutPix = lazy(() => import("./pages/CheckoutPix"));
+const OrderDetails = lazy(() => import("./pages/OrderDetails"));
+const Orders = lazy(() => import("./pages/Orders"));
 
 const queryClient = new QueryClient();
 
@@ -47,9 +55,14 @@ const App = () => (
                   <Route path="/delivery-signature/:orderNumber" element={<ClientDeliverySignature />} />
 
                   {/* Marketplace (Navbar layout) */}
-                  <Route element={<MarketplaceLayout />}>
+                  <Route element={<Suspense fallback={<PaymentLoading />}><MarketplaceLayout /></Suspense>}>
                     <Route path="/marketplace" element={<Marketplace />} />
                     <Route path="/market-intelligence" element={<MarketIntelligence />} />
+                    <Route path="/checkout/:itemId" element={<Checkout />} />
+                    <Route path="/checkout/payment/:orderId" element={<CheckoutPayment />} />
+                    <Route path="/checkout/pix/:orderId" element={<CheckoutPix />} />
+                    <Route path="/orders/:orderId" element={<OrderDetails />} />
+                    <Route path="/orders" element={<Orders />} />
                   </Route>
 
                   <Route element={<ProtectedRoute />}>

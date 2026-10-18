@@ -1,6 +1,6 @@
 ﻿import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, LogIn, LogOut, Menu, ShoppingBag, TrendingUp } from "lucide-react";
+import { LayoutDashboard, LogIn, LogOut, Menu, Package, ShoppingBag, TrendingUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -11,6 +11,7 @@ import logo from "@/assets/logo-zenwaste.png";
 const links = [
   { to: "/marketplace", label: "Marketplace", icon: ShoppingBag },
   { to: "/market-intelligence", label: "Bolsa de Valores", icon: TrendingUp },
+  { to: "/orders", label: "Minhas compras", icon: Package },
 ];
 
 export function MarketplaceNavbar() {
@@ -36,13 +37,13 @@ export function MarketplaceNavbar() {
           <img src={logo} alt="ZenWaste" className="w-32 h-auto shrink-0 sm:w-36" />
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-1 lg:flex">
           {links.map((link) => (
             <Link
               key={link.to}
               to={link.to}
               className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                location.pathname === link.to
+                location.pathname === link.to || (link.to === "/orders" && location.pathname.startsWith("/orders/"))
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
@@ -53,7 +54,7 @@ export function MarketplaceNavbar() {
           ))}
         </nav>
 
-        <div className="ml-auto hidden items-center gap-2 md:flex">
+        <div className="ml-auto hidden items-center gap-2 lg:flex">
           <ThemeToggle />
 
           <Button variant="outline" size="sm" asChild>
@@ -65,8 +66,8 @@ export function MarketplaceNavbar() {
 
           {isAuthenticated ? (
             <>
-              <div className="hidden text-right lg:block">
-                <p className="text-sm font-medium text-foreground">{user?.razaoSocial}</p>
+              <div className="hidden max-w-40 text-right xl:block">
+                <p className="truncate text-sm font-medium text-foreground">{user?.razaoSocial}</p>
                 <p className="text-xs text-muted-foreground">Sessão ativa</p>
               </div>
               <Button size="sm" variant="secondary" onClick={handleLogout}>
@@ -84,7 +85,7 @@ export function MarketplaceNavbar() {
           )}
         </div>
 
-        <div className="ml-auto flex items-center gap-2 md:hidden">
+        <div className="ml-auto flex items-center gap-2 lg:hidden">
           <ThemeToggle />
           <Button
             size="icon"
@@ -115,7 +116,7 @@ export function MarketplaceNavbar() {
                   to={link.to}
                   onClick={handleNavigation}
                   className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
-                    location.pathname === link.to
+                    location.pathname === link.to || (link.to === "/orders" && location.pathname.startsWith("/orders/"))
                       ? "bg-accent text-accent-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}

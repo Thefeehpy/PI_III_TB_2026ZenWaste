@@ -1,5 +1,7 @@
-﻿import { Building2, MapPin, MessageCircle } from "lucide-react";
+﻿import { Building2, MapPin } from "lucide-react";
 
+import { Link } from "react-router-dom";
+import { ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,11 +12,6 @@ interface WasteCardProps {
 }
 
 export function WasteCard({ item }: WasteCardProps) {
-  const whatsappMessage = encodeURIComponent(
-    `Olá! Vi o anúncio "${item.name}" na ZenWaste e tenho interesse. Podemos negociar?`,
-  );
-  const whatsappUrl = item.whatsappUrl || `https://wa.me/?text=${whatsappMessage}`;
-
   return (
     <Card className="group animate-fade-in overflow-hidden transition-shadow hover:shadow-lg">
       <div className="aspect-video overflow-hidden">
@@ -56,10 +53,10 @@ export function WasteCard({ item }: WasteCardProps) {
           </div>
         </div>
         <Button asChild className="w-full gap-2">
-          <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-            <MessageCircle className="h-4 w-4" />
-            Contatar Vendedor
-          </a>
+          <Link to={`/checkout/${encodeURIComponent(item.id)}`} aria-label={`Comprar ${item.name}`}>
+            <ShoppingBag className="h-4 w-4" />
+            Comprar agora
+          </Link>
         </Button>
       </CardContent>
     </Card>
