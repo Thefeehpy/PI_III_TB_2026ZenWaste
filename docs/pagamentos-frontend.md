@@ -1,6 +1,6 @@
 # Pagamentos do marketplace
 
-Esta entrega é **somente front-end**. Não altera o Django, não realiza cobranças, não reserva estoque e não envia dados a um provedor de pagamentos. O aviso de demonstração é intencional.
+As telas oferecem uma demonstração local e um adapter HTTP para o app Django `pedidos`. O sandbox Django não movimenta dinheiro e seu Pix não é um BR Code bancário. Cobranças reais dependem da implementação de um provedor comercial.
 
 ## Navegação
 
@@ -26,32 +26,35 @@ O botão **Comprar agora** do `WasteCard` inicia o fluxo. **Minhas compras** est
 
 ## Ponto de integração
 
-O contrato público está em `src/types/payment.ts`, na interface `PaymentService`. A implementação atual é `src/services/demo-payment-service.ts`, selecionada em `src/hooks/use-payments.ts`.
+O contrato público está em `src/types/payment.ts`, na interface `PaymentService`. O modo padrão usa `src/services/demo-payment-service.ts`. Para apontar o checkout ao Django, configure `VITE_PAYMENT_MODE=backend` no ambiente do Vite e reinicie o servidor. Nesse modo, checkout/histórico exigem login e usam a sessão da empresa. A API base continua configurada por `VITE_API_URL` (padrão `http://127.0.0.1:8000/api`).
 
-Para integrar, criar um adaptador HTTP que implemente essa interface e selecioná-lo em `usePayments`. O escopo do cache deve continuar separado por usuário. O serviço real deve retornar `mode: "live"`; condicionar também os avisos de demonstração, o download e a disponibilidade de compra sem autenticação à configuração da aplicação. `simulateResult` é opcional e deve ser omitido no adaptador real.
+O adapter HTTP está em `src/services/api-payment-service.ts`. O escopo do cache continua separado por usuário. O servidor de desenvolvimento usa o gateway sandbox quando `DEBUG=True`; todas as respostas continuam marcadas visualmente como demonstração. `simulateResult` só é usado pelo sandbox e não deve ser oferecido em produção.
 
 O formulário atual bloqueia a finalização em modo `live`: antes da ativação, substituir a geração do token de demonstração em `CheckoutPayment.tsx` pelos campos hospedados/SDK de tokenização do provedor. PAN e CVV nunca devem passar pelo adaptador HTTP, pelos logs ou pelo armazenamento da aplicação. Autenticação adicional de cartão, se exigida pelo provedor, deve ser tratada pelo SDK antes da consulta final do pedido.
 
-### Endpoints propostos (ainda não implementados)
+### Endpoints Django
 
-| Operação | Endpoint sugerido | Contrato |
+| Operação | Endpoint | Contrato |
 | --- | --- | --- |
-| Criar pedido | `POST /api/orders/` | `listingId`, `quantity`, `buyer`, `fulfillment: "pickup"`; chave de idempotência no header |
-| Histórico | `GET /api/orders/` | Apenas pedidos do usuário autenticado; mapear para `PaymentOrder[]` |
-| Detalhes/status | `GET /api/orders/:id/` | `PaymentOrder`, incluindo status atualizado |
-| Cartão | `POST /api/orders/:id/payments/` | Método, token do provedor, parcelas; chave de idempotência no header |
-| Pix | `POST /api/orders/:id/pix/` | Retornar pedido com `pix: { id, copyPaste, expiresAt }` |
-| Cancelar | `POST /api/orders/:id/cancel/` | Retornar pedido atualizado; invalidar cobrança pendente |
+| Criar pedido | `POST /api/orders/` | `listingId`, `quantity`, `buyer`; `Idempotency-Key` obrigatório |
+| Histórico | `GET /api/orders/` | Pedidos da empresa autenticada |
+| Detalhes/status | `GET /api/orders/:uuid/` | `PaymentOrder` com status atualizado |
+| Cartão | `POST /api/orders/:uuid/payments/` | Método, token do PSP, parcelas; `Idempotency-Key` obrigatório |
+| Pix | `POST /api/orders/:uuid/pix/` | Pedido com `pix: { id, copyPaste, expiresAt }`; chave idempotente obrigatória |
+| Cancelar | `POST /api/orders/:uuid/cancel/` | Pedido atualizado; invalida tentativa pendente |
+| Webhook | `POST /api/payments/webhooks/:provider/` | Evento final assinado e com valor em centavos |
 
-O adaptador recebe `listing` no contrato de demonstração para montar a prévia. **Ao chamar o backend, enviar somente `listing.id` e a quantidade; nunca confiar no objeto, no preço ou no total enviado pelo cliente.** O backend deve recalcular preço, disponibilidade, limites, parcelas e total, e devolver o snapshot autorizado. Todos os valores monetários de `PaymentOrder` são inteiros em centavos de BRL; quantidades admitem até três casas decimais. Nenhuma taxa ou frete é inventado na tela: esta versão considera retirada, sem frete incluso.
+O adapter recebe `listing` no contrato compartilhado para montar a prévia. **Ao chamar o backend, envia somente `listing.id` e quantidade; nunca confia no preço ou total do cliente.** O servidor calcula preço, disponibilidade e total, e retorna o snapshot autorizado. Valores monetários em `PaymentOrder` são centavos inteiros de BRL; quantidades aceitam até três casas decimais. A compra é para retirada, sem frete incluso.
 
 ### Estados e consistência
 
 `awaiting_payment` → `pending` → `paid` / `failed` / `expired`; pedidos ainda não pagos podem virar `canceled`. `failed` e `expired` permitem nova tentativa. `paid` e `canceled` são finais. A API deve garantir essas transições atomicamente e proteger tentativas simultâneas. A demonstração mantém idempotência por operação e bloqueia duplo clique na UI.
 
-O backend deve autenticar e autorizar cada acesso, reservar/liberar estoque conforme as regras do produto, invalidar o Pix anterior ao trocar de método ou cancelar e validar o prazo no servidor. O estado `paid` deve vir de confirmação confiável do provedor/webhook, nunca do front-end. Devolver erros de negócio em mensagens legíveis. Manter datas ISO 8601 com fuso; as telas apresentam datas no fuso do navegador e valores em pt-BR.
+O backend autentica e autoriza cada pedido pela empresa, reserva/libera estoque, invalida pagamentos anteriores ao trocar de método/cancelar e valida prazos no servidor. `paid` vem do PSP/webhook; somente o sandbox local aceita simulação. Erros de negócio retornam mensagens legíveis. Datas são ISO 8601 com fuso e valores são exibidos em pt-BR.
 
-Para Pix real, `copyPaste` precisa ser o **payload completo** devolvido pelo provedor (BR Code). Ele alimenta QR Code e cópia, sem reconstrução no navegador. Não substituir por uma chave Pix avulsa. O provedor deve fornecer um identificador de cobrança único e `expiresAt`. Regenerações concorrentes precisam ser idempotentes no servidor.
+Para Pix real, `copyPaste` precisa ser o **payload completo** devolvido pelo PSP (BR Code), usado diretamente pelo QR e pela cópia. Não deve ser reconstruído no navegador nem substituído por uma chave Pix. O PSP fornece identificador único, validade e deve respeitar as chaves de idempotência.
+
+A configuração do gateway, setup PostgreSQL e os limites para habilitar cobranças reais estão documentados em `BackEnd/pedidos/README.md`. O repositório ainda não contém um adaptador de PSP comercial; o modo atual não realiza cobranças reais.
 
 ## Validação local
 

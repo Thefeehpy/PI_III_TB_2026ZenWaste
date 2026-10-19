@@ -81,7 +81,9 @@ def create_ad(empresa, data):
     )
 
 
+@transaction.atomic
 def update_ad(anuncio, data):
+    anuncio = Anuncio.objects.select_for_update().select_related("produto").get(pk=anuncio.pk)
     produto = anuncio.produto
 
     product_fields = {
@@ -101,6 +103,14 @@ def update_ad(anuncio, data):
         raise serializers.ValidationError({
             "message": "A quantidade anunciada nao pode ultrapassar o saldo atual do produto."
         })
+    if "quantity" in data:
+        from pedidos.services import reserved_quantity_for_listing
+
+        reserved_quantity = reserved_quantity_for_listing(anuncio.pk)
+        if data["quantity"] < reserved_quantity:
+            raise serializers.ValidationError({
+                "message": "A quantidade do anuncio nao pode ficar abaixo dos pedidos reservados."
+            })
 
     for request_field, model_field in product_fields.items():
         if request_field in data:
@@ -131,8 +141,16 @@ def list_seller_ads(empresa):
 
 @transaction.atomic
 def finalize_ad_sale(anuncio, data):
+    anuncio = Anuncio.objects.select_for_update().select_related("produto").get(pk=anuncio.pk)
     produto = anuncio.produto
     sold_quantity = data["soldQuantity"]
+
+    from pedidos.services import reserved_quantity_for_listing
+
+    if reserved_quantity_for_listing(anuncio.pk) > 0:
+        raise serializers.ValidationError({
+            "message": "Este anuncio possui pedidos aguardando pagamento e nao pode ser finalizado manualmente."
+        })
 
     if anuncio.status_anuncio != "ativo":
         raise serializers.ValidationError({"message": "Apenas anuncios ativos podem ser finalizados."})

@@ -1,12 +1,19 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { createApiPaymentService } from "@/services/api-payment-service";
 import { createDemoPaymentService } from "@/services/demo-payment-service";
 
 export function usePayments() {
   const { user } = useAuth();
   const scope = user?.id ?? "guest";
-  const service = useMemo(() => createDemoPaymentService(scope), [scope]);
+  const service = useMemo(
+    () =>
+      import.meta.env.VITE_PAYMENT_MODE === "backend"
+        ? createApiPaymentService()
+        : createDemoPaymentService(scope),
+    [scope],
+  );
   return { service, scope };
 }
 

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -36,6 +36,14 @@ const Orders = lazy(() => import("./pages/Orders"));
 
 const queryClient = new QueryClient();
 
+function PaymentRoutes() {
+  return import.meta.env.VITE_PAYMENT_MODE === "backend" ? (
+    <ProtectedRoute />
+  ) : (
+    <Outlet />
+  );
+}
+
 const App = () => (
   <ThemeProvider>
     <QueryClientProvider client={queryClient}>
@@ -58,11 +66,13 @@ const App = () => (
                   <Route element={<Suspense fallback={<PaymentLoading />}><MarketplaceLayout /></Suspense>}>
                     <Route path="/marketplace" element={<Marketplace />} />
                     <Route path="/market-intelligence" element={<MarketIntelligence />} />
-                    <Route path="/checkout/:itemId" element={<Checkout />} />
-                    <Route path="/checkout/payment/:orderId" element={<CheckoutPayment />} />
-                    <Route path="/checkout/pix/:orderId" element={<CheckoutPix />} />
-                    <Route path="/orders/:orderId" element={<OrderDetails />} />
-                    <Route path="/orders" element={<Orders />} />
+                    <Route element={<PaymentRoutes />}>
+                      <Route path="/checkout/:itemId" element={<Checkout />} />
+                      <Route path="/checkout/payment/:orderId" element={<CheckoutPayment />} />
+                      <Route path="/checkout/pix/:orderId" element={<CheckoutPix />} />
+                      <Route path="/orders/:orderId" element={<OrderDetails />} />
+                      <Route path="/orders" element={<Orders />} />
+                    </Route>
                   </Route>
 
                   <Route element={<ProtectedRoute />}>

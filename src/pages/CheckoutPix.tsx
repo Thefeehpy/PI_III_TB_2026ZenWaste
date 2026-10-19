@@ -45,6 +45,7 @@ export default function CheckoutPix() {
   const [actionError, setActionError] = useState("");
   const [checked, setChecked] = useState(false);
   const lock = useRef(false);
+  const requestKey = useRef(crypto.randomUUID());
   const cache = useQueryClient();
   const navigate = useNavigate();
   const copyPaste = order?.pix?.copyPaste;
@@ -110,8 +111,9 @@ export default function CheckoutPix() {
       } else {
         const updated =
           action === "renew"
-            ? await service.createPix(order.id)
+            ? await service.createPix(order.id, requestKey.current)
             : await service.simulateResult!(order.id, "paid");
+          if (action === "renew") requestKey.current = crypto.randomUUID();
         cache.setQueryData(["payment-order", scope, order.id], updated);
         void cache.invalidateQueries({ queryKey: ["payment-orders", scope] });
         if (updated.status === "paid") navigate(`/orders/${order.id}`);

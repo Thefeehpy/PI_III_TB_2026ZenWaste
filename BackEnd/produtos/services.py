@@ -129,6 +129,12 @@ def update_inventory_item(produto, data):
 
 @transaction.atomic
 def delete_inventory_item(produto):
+    from pedidos.models import Order
+
+    if Order.objects.filter(listing__produto=produto).exists():
+        raise serializers.ValidationError({
+            "message": "Este item possui historico de pedidos e nao pode ser excluido."
+        })
     closed_ads = Anuncio.objects.filter(produto=produto, status_anuncio="ativo").update(
         status_anuncio="inativo",
         data_final=timezone.localdate(),
@@ -234,6 +240,14 @@ def register_inventory_movement(produto, empresa, data):
 
     if resulting_quantity < Decimal("0"):
         raise serializers.ValidationError({"message": "Saida maior que a quantidade disponivel."})
+    if movement_type == "saida":
+        from pedidos.services import reserved_quantity_for_product
+
+        reserved_quantity = reserved_quantity_for_product(produto_bloqueado.pk)
+        if resulting_quantity < reserved_quantity:
+            raise serializers.ValidationError({
+                "message": "Esta quantidade esta reservada por pedidos aguardando pagamento."
+            })
 
     produto_bloqueado.quantidade = resulting_quantity
     sync_status(produto_bloqueado)

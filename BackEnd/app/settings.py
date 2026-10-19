@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import os
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,10 +22,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-s=!$sv$!$s*_g*&0many3kk$sbl(vj0du--lrvt$schj+2rw$-'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('ZENWASTE_DEBUG', 'True').lower() in ('1', 'true', 'yes')
+DEVELOPMENT_SECRET_KEY = 'django-insecure-s=!$sv$!$s*_g*&0many3kk$sbl(vj0du--lrvt$schj+2rw$-'
+SECRET_KEY = os.getenv('ZENWASTE_SECRET_KEY') or DEVELOPMENT_SECRET_KEY
+if not DEBUG and SECRET_KEY == DEVELOPMENT_SECRET_KEY:
+    raise ImproperlyConfigured('Configure ZENWASTE_SECRET_KEY fora do ambiente local.')
 
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']
 
@@ -51,6 +53,7 @@ INSTALLED_APPS = [
     'anuncios',
     'marketplace',
     'market',
+    'pedidos',
 ]
 
 MIDDLEWARE = [
@@ -95,7 +98,7 @@ if DB_ENGINE == 'postgresql':
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': os.getenv('ZENWASTE_DB_NAME', 'zenwaste'),
             'USER': os.getenv('ZENWASTE_DB_USER', 'postgres'),
-            'PASSWORD': os.getenv('ZENWASTE_DB_PASSWORD', '123'),
+            'PASSWORD': os.getenv('ZENWASTE_DB_PASSWORD', ''),
             'HOST': os.getenv('ZENWASTE_DB_HOST', 'localhost'),
             'PORT': os.getenv('ZENWASTE_DB_PORT', '5432'),
         }
@@ -168,3 +171,8 @@ REST_FRAMEWORK = {
     )
     
 }
+
+PAYMENT_GATEWAY = os.getenv('ZENWASTE_PAYMENT_GATEWAY', 'sandbox' if DEBUG else 'disabled').lower()
+PAYMENT_GATEWAY_CLASS = os.getenv('ZENWASTE_PAYMENT_GATEWAY_CLASS', '')
+PAYMENT_WEBHOOK_SECRET = os.getenv('ZENWASTE_PAYMENT_WEBHOOK_SECRET', '')
+ORDER_RESERVATION_MINUTES = int(os.getenv('ZENWASTE_ORDER_RESERVATION_MINUTES', '30'))

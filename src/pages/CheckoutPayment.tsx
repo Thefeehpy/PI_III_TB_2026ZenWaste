@@ -125,7 +125,7 @@ export default function CheckoutPayment() {
     setBusy(true);
     setActionError("");
     try {
-      const updated = await service.createPix(order.id);
+      const updated = await service.createPix(order.id, key.current);
       finish(updated, `/checkout/pix/${order.id}`);
     } catch (cause) {
       setActionError(

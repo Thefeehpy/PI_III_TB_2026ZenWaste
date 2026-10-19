@@ -43,12 +43,12 @@ describe("frontend payment lifecycle", () => {
   it("reuses a valid Pix, expires it, then generates a different code", async () => {
     const service = createDemoPaymentService(crypto.randomUUID());
     const order = await settle(service.createOrder(input()));
-    const first = await settle(service.createPix(order.id));
-    const reused = await settle(service.createPix(order.id));
+    const first = await settle(service.createPix(order.id, "pix-first"));
+    const reused = await settle(service.createPix(order.id, "pix-retry"));
     expect(reused.pix.id).toBe(first.pix.id);
     await vi.advanceTimersByTimeAsync(15 * 60_000);
     expect((await settle(service.getOrder(order.id))).status).toBe("expired");
-    const renewed = await settle(service.createPix(order.id));
+    const renewed = await settle(service.createPix(order.id, "pix-renewed"));
     expect(renewed.pix.id).not.toBe(first.pix.id);
     expect(renewed.status).toBe("pending");
     expect(renewed.pix.copyPaste).toContain("SEM-VALOR-DE-PAGAMENTO");
@@ -57,7 +57,7 @@ describe("frontend payment lifecycle", () => {
   it("does not approve on status consultation and keeps paid orders final", async () => {
     const service = createDemoPaymentService(crypto.randomUUID());
     const order = await settle(service.createOrder(input()));
-    await settle(service.createPix(order.id));
+    await settle(service.createPix(order.id, "pix-pending"));
     expect((await settle(service.getOrder(order.id))).status).toBe("pending");
     expect(
       (await settle(service.simulateResult!(order.id, "paid"))).status,
@@ -101,6 +101,6 @@ describe("frontend payment lifecycle", () => {
     const service = createDemoPaymentService(crypto.randomUUID());
     const order = await settle(service.createOrder(input()));
     await settle(service.cancelOrder(order.id));
-    expect((await settle(service.createPix(order.id))).status).toBe("canceled");
+    expect((await settle(service.createPix(order.id, "pix-canceled"))).status).toBe("canceled");
   });
 });

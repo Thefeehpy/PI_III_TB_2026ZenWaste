@@ -59,7 +59,7 @@ export interface PaymentService {
   getOrder(id: string): Promise<PaymentOrder>;
   listOrders(): Promise<PaymentOrder[]>;
   payWithCard(id: string, input: CardPaymentInput): Promise<PaymentOrder>;
-  createPix(id: string): Promise<PaymentOrder>;
+  createPix(id: string, idempotencyKey: string): Promise<PaymentOrder>;
   cancelOrder(id: string): Promise<PaymentOrder>;
   simulateResult?: (
     id: string,

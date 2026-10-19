@@ -1,4 +1,5 @@
 ﻿import type { InventoryItem, InventoryMovement, SellerWasteItem, WasteItem } from "@/data/mockData";
+import type { CardPaymentInput, CreateOrderInput, PaymentOrder } from "@/types/payment";
 
 const API_URL = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api").replace(/\/$/, "");
 const TOKEN_STORAGE_KEY = "zenwaste.auth-token";
@@ -239,6 +240,63 @@ export const api = {
     }>(`/marketplace/ads/${adId}/finalize/`, {
       method: "POST",
       body: JSON.stringify({ soldQuantity }),
+    });
+  },
+
+  async createOrder(input: CreateOrderInput) {
+    return request<PaymentOrder>("/orders/", {
+      method: "POST",
+      headers: { "Idempotency-Key": input.idempotencyKey },
+      body: JSON.stringify({
+        listingId: input.listing.id,
+        quantity: input.quantity,
+        buyer: input.buyer,
+      }),
+    });
+  },
+
+  async getOrder(orderId: string) {
+    return request<PaymentOrder>(`/orders/${orderId}/`);
+  },
+
+  async listOrders() {
+    const response = await request<{ items: PaymentOrder[] }>("/orders/");
+    return response.items;
+  },
+
+  async payOrderWithCard(orderId: string, input: CardPaymentInput) {
+    return request<PaymentOrder>(`/orders/${orderId}/payments/`, {
+      method: "POST",
+      headers: { "Idempotency-Key": input.idempotencyKey },
+      body: JSON.stringify({
+        method: input.method,
+        token: input.token,
+        brand: input.brand,
+        last4: input.last4,
+        installments: input.installments,
+      }),
+    });
+  },
+
+  async createOrderPix(orderId: string, idempotencyKey: string) {
+    return request<PaymentOrder>(`/orders/${orderId}/pix/`, {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({}),
+    });
+  },
+
+  async cancelOrder(orderId: string) {
+    return request<PaymentOrder>(`/orders/${orderId}/cancel/`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  },
+
+  async simulateOrderResult(orderId: string, result: "paid" | "failed") {
+    return request<PaymentOrder>(`/orders/${orderId}/sandbox-result/`, {
+      method: "POST",
+      body: JSON.stringify({ result }),
     });
   },
 
