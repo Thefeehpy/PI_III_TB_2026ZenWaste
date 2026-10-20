@@ -1,16 +1,23 @@
-﻿import { useEffect, useMemo, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, CalendarClock, Clock3, Package2, Target, Trash2 } from "lucide-react";
-
+﻿import { useRef, useState } from "react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  CalendarClock,
+  Check,
+  ChevronRight,
+  History,
+  Loader2,
+  Package2,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,19 +25,18 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { InventoryMovementModal } from "@/components/InventoryMovementModal";
+import { InventoryReservationModal } from "@/components/InventoryReservationModal";
+import { InventoryMovementHistoryModal } from "@/components/InventoryMovementHistoryModal";
 import { useInventory } from "@/contexts/InventoryContext";
-import type { InventoryItem, InventoryMovement } from "@/data/mockData";
-import { useToast } from "@/hooks/use-toast";
+import type { InventoryItem } from "@/data/mockData";
+import { toast } from "sonner";
 import {
   formatInventoryCalendarDate,
-  formatInventoryDate,
   formatInventoryQuantity,
-  inventoryMovementMap,
   inventoryStatusMap,
 } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
@@ -39,448 +45,310 @@ interface InventoryItemDetailsModalProps {
   item: InventoryItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onRequestMovement: (item: InventoryItem, type: InventoryMovement["type"]) => void;
   onItemDeleted?: () => void;
 }
 
-type ReservationDraft = {
-  targetQuantity: string;
-  deadline: string;
-};
+type ItemAction = "reservation" | "entrada" | "saida" | "history" | "delete";
 
-function buildReservationDraft(item: InventoryItem): ReservationDraft {
-  const hasReservation = item.targetQuantity > 0;
-
-  return {
-    targetQuantity: hasReservation ? String(item.targetQuantity) : "",
-    deadline: hasReservation ? item.deadline : "",
-  };
+export function InventoryItemDetailsModal(
+  props: InventoryItemDetailsModalProps,
+) {
+  if (!props.item || !props.open) return null;
+  return <ItemDetails key={props.item.id} {...props} item={props.item} />;
 }
 
-export function InventoryItemDetailsModal({
+function ItemDetails({
   item,
   open,
   onOpenChange,
-  onRequestMovement,
   onItemDeleted,
-}: InventoryItemDetailsModalProps) {
-  const [isEditingReservation, setIsEditingReservation] = useState(false);
-  const [isSavingReservation, setIsSavingReservation] = useState(false);
-  const [reservationDraft, setReservationDraft] = useState<ReservationDraft>({
-    targetQuantity: "",
-    deadline: "",
-  });
-  const { deleteItem, movements, updateItem } = useInventory();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    if (!open || !item) {
-      setIsEditingReservation(false);
-      setIsSavingReservation(false);
-      setReservationDraft({
-        targetQuantity: "",
-        deadline: "",
-      });
-      return;
-    }
-
-    setIsEditingReservation(false);
-    setIsSavingReservation(false);
-    setReservationDraft(buildReservationDraft(item));
-  }, [open, item]);
-
-  const itemMovements = useMemo(
-    () => (item ? movements.filter((movement) => movement.itemId === item.id) : []),
-    [item, movements],
-  );
-
-  if (!item) {
-    return null;
-  }
-
+}: InventoryItemDetailsModalProps & { item: InventoryItem }) {
+  const [action, setAction] = useState<ItemAction | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const actionButton = useRef<HTMLButtonElement | null>(null);
+  const deleteLock = useRef(false);
+  const { deleteItem, movements } = useInventory();
   const status = inventoryStatusMap[item.status];
-  const hasReservation = item.targetQuantity > 0;
-  const reservationGap = Math.max(item.targetQuantity - item.quantity, 0);
-  const availableAfterReservation = Math.max(item.quantity - item.targetQuantity, 0);
-  const latestMovement = itemMovements[0];
-  const handleSaveReservation = async () => {
-    const numericTargetQuantity = Number(reservationDraft.targetQuantity);
-
-    if (!Number.isFinite(numericTargetQuantity) || numericTargetQuantity <= 0) {
-      toast({
-        title: "Reserva invalida",
-        description: "Informe uma quantidade reservada maior que zero.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!reservationDraft.deadline) {
-      toast({
-        title: "Prazo obrigatorio",
-        description: "Defina o prazo da reserva antes de salvar.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSavingReservation(true);
-
-    const result = await updateItem({
-      itemId: item.id,
-      targetQuantity: numericTargetQuantity,
-      deadline: reservationDraft.deadline,
-    });
-
-    setIsSavingReservation(false);
-
-    if (!result.success) {
-      toast({
-        title: "Reserva não atualizada",
-        description: result.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Reserva atualizada",
-      description: result.message,
-    });
-
-    setIsEditingReservation(false);
+  const reserved = item.targetQuantity > 0;
+  const missing = Math.max(item.targetQuantity - item.quantity, 0);
+  const free = Math.max(item.quantity - item.targetQuantity, 0);
+  const coverage = reserved
+    ? Math.min(100, Math.round((item.quantity / item.targetQuantity) * 100))
+    : 0;
+  const movementCount = movements.filter(
+    (movement) => movement.itemId === item.id,
+  ).length;
+  const openAction = (next: ItemAction, trigger: HTMLButtonElement) => {
+    actionButton.current = trigger;
+    setAction(next);
+  };
+  const closeAction = (next: boolean) => {
+    if (!next) setAction(null);
+  };
+  const restoreFocus = (event: Event) => {
+    event.preventDefault();
+    actionButton.current?.focus();
   };
 
-  const handleOpenMovement = (type: InventoryMovement["type"]) => {
-    onOpenChange(false);
-    onRequestMovement(item, type);
-  };
-
-  const handleDeleteItem = async () => {
-    const result = await deleteItem(item.id);
-
-    if (!result.success) {
-      toast({
-        title: "Item não excluído",
-        description: result.message,
-        variant: "destructive",
+  const handleDelete = async () => {
+    if (deleteLock.current) return;
+    deleteLock.current = true;
+    setDeleting(true);
+    try {
+      const result = await deleteItem(item.id);
+      if (!result.success) {
+        toast.error("Item não excluído", { description: result.message });
+        return;
+      }
+      toast.success("Item excluído", { description: result.message });
+      onOpenChange(false);
+      onItemDeleted?.();
+    } catch {
+      toast.error("Item não excluído", {
+        description: "Não foi possível excluir o item. Tente novamente.",
       });
-      return;
+    } finally {
+      deleteLock.current = false;
+      setDeleting(false);
     }
-
-    toast({
-      title: "Item excluído",
-      description: result.message,
-    });
-
-    onOpenChange(false);
-    onItemDeleted?.();
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto p-0 sm:max-w-5xl">
-        <div className="border-b border-border bg-muted/30 px-6 py-6">
-          <DialogHeader className="space-y-3 text-left">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <DialogTitle className="text-2xl">{item.name}</DialogTitle>
-                <DialogDescription className="mt-2 max-w-3xl leading-6">
-                  Consulte as informações completas deste produto, acompanhe entradas e saídas e ajuste a reserva do
-                  cliente no mesmo lugar.
-                </DialogDescription>
-              </div>
-
-              <Badge variant={status.badgeVariant} className={cn("w-fit rounded-full px-3 py-1", status.className)}>
-                {status.label}
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!action) onOpenChange(next);
+      }}
+    >
+      <DialogContent
+        data-testid="inventory-details-modal"
+        closeLabel="Fechar detalhes"
+        className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl flex-col gap-0 overflow-hidden rounded-[28px] border-border/70 p-0 shadow-2xl sm:rounded-[28px]"
+      >
+        <DialogHeader className="shrink-0 px-6 pb-5 pt-6 text-left sm:px-7">
+          <div className="flex items-center gap-4 pr-5">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Package2 className="h-6 w-6" />
+            </span>
+            <div className="min-w-0">
+              <DialogTitle className="break-words text-2xl font-semibold tracking-tight">
+                {item.name}
+              </DialogTitle>
+              <DialogDescription className="mt-1.5 text-sm">
+                {item.type}
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+        <div className="min-h-0 overflow-y-auto px-6 pb-5 sm:px-7">
+          <div className="rounded-[22px] border border-primary/15 bg-primary/[0.045] p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                Saldo em estoque
+              </p>
+              <Badge
+                variant={status.badgeVariant}
+                className={cn(
+                  "rounded-full px-2.5 py-1 text-[10px] font-medium",
+                  status.className,
+                )}
+              >
+                {!reserved && item.quantity > 0 ? "Disponível" : status.label}
               </Badge>
             </div>
-          </DialogHeader>
-
-          <div className="mt-5 rounded-[24px] border border-border/70 bg-background/85 p-4">
-            <p className="text-sm font-medium text-foreground">{item.type}</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">{status.description}</p>
-          </div>
-        </div>
-
-        <div className="space-y-6 p-6">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-[24px] border border-border/70 bg-card p-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Package2 className="h-4 w-4" />
-                Saldo atual
-              </div>
-              <p className="mt-3 text-2xl font-semibold text-foreground">
-                {formatInventoryQuantity(item.quantity, item.unit)}
-              </p>
-            </div>
-
-            <div className="rounded-[24px] border border-border/70 bg-card p-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Target className="h-4 w-4" />
-                Reserva do cliente
-              </div>
-              <p className="mt-3 text-2xl font-semibold text-foreground">
-                {hasReservation ? formatInventoryQuantity(item.targetQuantity, item.unit) : "Sem reserva"}
-              </p>
-            </div>
-
-            <div className="rounded-[24px] border border-border/70 bg-card p-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <CalendarClock className="h-4 w-4" />
-                Prazo
-              </div>
-              <p className="mt-3 text-2xl font-semibold text-foreground">
-                {hasReservation ? formatInventoryCalendarDate(item.deadline) : "Não definido"}
-              </p>
-            </div>
-
-            <div className="rounded-[24px] border border-border/70 bg-card p-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock3 className="h-4 w-4" />
-                Última atualização
-              </div>
-              <p className="mt-3 text-base font-semibold text-foreground">{formatInventoryDate(item.updatedAt)}</p>
-            </div>
-          </div>
-
-          <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-            <div className="space-y-4">
-              <div className="rounded-[24px] border border-border/70 bg-muted/[0.18] p-4">
-                <p className="font-medium text-foreground">Observação rápida</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {!hasReservation
-                    ? "Este item ainda não possui reserva de cliente. Cadastre uma reserva quando houver um compromisso de entrega."
-                    : reservationGap > 0
-                      ? `Ainda faltam ${formatInventoryQuantity(reservationGap, item.unit)} para cobrir a reserva atual deste produto.`
-                      : `A reserva já está coberta. Restam ${formatInventoryQuantity(availableAfterReservation, item.unit)} livres após o compromisso atual.`}
+            <p
+              className="mt-2 flex flex-wrap items-baseline gap-x-2 font-display text-4xl font-semibold tracking-tight sm:text-5xl"
+              data-testid="inventory-current-balance"
+            >
+              {item.quantity.toLocaleString("pt-BR")}
+              <span className="text-lg font-medium tracking-normal text-muted-foreground">
+                {item.unit}
+              </span>
+            </p>
+            <div className="mt-5 grid grid-cols-2 gap-4 border-t border-primary/10 pt-4 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Reservado</p>
+                <p className="mt-1.5 font-semibold">
+                  {reserved
+                    ? formatInventoryQuantity(item.targetQuantity, item.unit)
+                    : "Sem reserva"}
                 </p>
               </div>
-
-              <div className="rounded-[24px] border border-border/70 bg-card p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-foreground">Reserva de cliente</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Cadastre ou ajuste a quantidade reservada e o prazo diretamente neste modal.
-                    </p>
-                  </div>
-                  {!isEditingReservation && (
-                    <Button type="button" variant="outline" className="rounded-xl" onClick={() => setIsEditingReservation(true)}>
-                      {hasReservation ? "Editar reserva" : "Cadastrar reserva"}
-                    </Button>
-                  )}
-                </div>
-
-                {isEditingReservation ? (
-                  <div className="mt-4 space-y-3">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">Quantidade reservada</label>
-                      <Input
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        value={reservationDraft.targetQuantity}
-                        onChange={(event) =>
-                          setReservationDraft((current) => ({
-                            ...current,
-                            targetQuantity: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">Prazo da reserva</label>
-                      <Input
-                        type="date"
-                        value={reservationDraft.deadline}
-                        onChange={(event) =>
-                          setReservationDraft((current) => ({
-                            ...current,
-                            deadline: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-
-                    <div className="flex gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="flex-1 rounded-xl"
-                        onClick={() => {
-                          setIsEditingReservation(false);
-                          setReservationDraft(buildReservationDraft(item));
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button
-                        type="button"
-                        className="flex-1 rounded-xl"
-                        onClick={handleSaveReservation}
-                        disabled={isSavingReservation}
-                      >
-                        {isSavingReservation ? "Salvando..." : "Salvar reserva"}
-                      </Button>
-                    </div>
-                  </div>
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  Livre após reserva
+                </p>
+                <p className="mt-1.5 font-semibold">
+                  {formatInventoryQuantity(free, item.unit)}
+                </p>
+              </div>
+            </div>
+          </div>
+          {reserved ? (
+            <div className="mt-5 space-y-3">
+              <div className="flex items-center justify-between gap-3 text-xs">
+                <p className="text-muted-foreground">Cobertura da reserva</p>
+                <span className="font-semibold text-primary">{coverage}%</span>
+              </div>
+              <div
+                role="progressbar"
+                aria-label="Cobertura da reserva"
+                aria-valuenow={coverage}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                className="h-1.5 overflow-hidden rounded-full bg-muted"
+              >
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-300 motion-reduce:transition-none"
+                  style={{ width: String(coverage) + "%" }}
+                />
+              </div>
+              <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                {missing > 0 ? (
+                  <>
+                    Faltam{" "}
+                    <strong className="font-semibold text-foreground">
+                      {formatInventoryQuantity(missing, item.unit)}
+                    </strong>{" "}
+                    para cobrir a reserva.
+                  </>
                 ) : (
-                  <div className="mt-4 space-y-2 text-sm">
-                    {hasReservation ? (
-                      <>
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-muted-foreground">Quantidade reservada</span>
-                          <span className="font-medium text-foreground">
-                            {formatInventoryQuantity(item.targetQuantity, item.unit)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-muted-foreground">Prazo da reserva</span>
-                          <span className="font-medium text-foreground">{formatInventoryCalendarDate(item.deadline)}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-muted-foreground">
-                            {reservationGap > 0 ? "Volume faltante" : "Volume livre após reserva"}
-                          </span>
-                          <span className="font-medium text-foreground">
-                            {formatInventoryQuantity(
-                              reservationGap > 0 ? reservationGap : availableAfterReservation,
-                              item.unit,
-                            )}
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-muted-foreground">
-                        Nenhuma reserva cadastrada para este item.
-                      </p>
-                    )}
-                  </div>
+                  <>
+                    <Check className="h-3.5 w-3.5 text-primary" />
+                    Reserva totalmente coberta.
+                  </>
                 )}
-              </div>
-
-              <div className="rounded-[24px] border border-border/70 bg-card p-4">
-                <p className="font-medium text-foreground">Ações do estoque</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Abra o fluxo de movimentação para registrar novas entradas ou saídas deste produto.
-                </p>
-
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <Button
-                    type="button"
-                    className="h-12 justify-between rounded-2xl bg-primary/10 px-4 text-primary hover:bg-primary/15"
-                    variant="ghost"
-                    onClick={() => handleOpenMovement("entrada")}
-                  >
-                    Registrar entrada
-                    <ArrowUpRight className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    className="h-12 justify-between rounded-2xl bg-destructive/10 px-4 text-destructive hover:bg-destructive/15"
-                    variant="ghost"
-                    onClick={() => handleOpenMovement("saida")}
-                  >
-                    Registrar saída
-                    <ArrowDownRight className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                {latestMovement && (
-                  <div className="mt-4 rounded-2xl border border-border/70 bg-muted/[0.18] p-3 text-sm">
-                    <p className="text-muted-foreground">Ultimo movimento</p>
-                    <p className="mt-2 font-medium text-foreground">
-                      {inventoryMovementMap[latestMovement.type].label} em {formatInventoryDate(latestMovement.createdAt)}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-[24px] border border-border/70 bg-card p-4">
-              <p className="font-medium text-foreground">Entradas e saídas do item</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Histórico completo das movimentações registradas para este produto.
               </p>
-
-              {itemMovements.length === 0 ? (
-                <div className="mt-4 rounded-2xl border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-                  Nenhuma movimentação registrada ainda para este item.
-                </div>
-              ) : (
-                <div className="mt-4 max-h-[28rem] space-y-3 overflow-y-auto pr-1">
-                  {itemMovements.map((movement) => {
-                    const movementMeta = inventoryMovementMap[movement.type];
-
-                    return (
-                      <div key={movement.id} className="rounded-2xl border border-border/70 bg-muted/[0.14] p-4">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge
-                                variant={movementMeta.badgeVariant}
-                                className={cn("rounded-full px-2.5 py-0.5 text-xs", movementMeta.className)}
-                              >
-                                {movementMeta.label}
-                              </Badge>
-                              <span className="text-sm font-medium text-foreground">
-                                {formatInventoryQuantity(movement.quantity, movement.unit)}
-                              </span>
-                            </div>
-                            <p className="mt-2 text-xs text-muted-foreground">{formatInventoryDate(movement.createdAt)}</p>
-                          </div>
-
-                          <div className="text-right">
-                            <p className="text-xs text-muted-foreground">Saldo após registro</p>
-                            <p className="text-sm font-semibold text-foreground">
-                              {formatInventoryQuantity(movement.resultingQuantity, movement.unit)}
-                            </p>
-                          </div>
-                        </div>
-
-                        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                          {movement.note || "Movimentação registrada sem observação adicional."}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
+          ) : null}
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-4 text-xs">
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <CalendarClock className="h-4 w-4" />
+              Prazo da reserva
+            </span>
+            <span className="font-medium">
+              {reserved && item.deadline
+                ? formatInventoryCalendarDate(item.deadline)
+                : "Não definido"}
+            </span>
           </div>
-
-          <DialogFooter className="border-t border-border pt-5">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button type="button" variant="destructive" className="gap-2">
-                  <Trash2 className="h-4 w-4" />
-                  Excluir item
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Excluir este item?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta ação remove o item do estoque e encerra os anúncios vinculados a ele.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeleteItem}>
-                    Excluir item
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Fechar
-            </Button>
-          </DialogFooter>
         </div>
+        <footer className="shrink-0 border-t border-border/70 bg-muted/20 px-5 pb-3 pt-4 sm:px-6">
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto min-w-0 flex-col gap-2 whitespace-normal rounded-2xl bg-card px-2 py-3 text-xs sm:h-12 sm:flex-row sm:text-sm"
+              onClick={(e) => openAction("reservation", e.currentTarget)}
+            >
+              <Pencil className="h-4 w-4" />
+              {reserved ? "Editar reserva" : "Criar reserva"}
+            </Button>
+            <Button
+              type="button"
+              className="h-auto min-w-0 flex-col gap-2 rounded-2xl px-2 py-3 text-xs sm:h-12 sm:flex-row sm:text-sm"
+              onClick={(e) => openAction("entrada", e.currentTarget)}
+            >
+              <ArrowUpRight className="h-4 w-4" />
+              Entrada
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto min-w-0 flex-col gap-2 rounded-2xl border-destructive/20 bg-card px-2 py-3 text-xs text-destructive hover:bg-destructive/5 hover:text-destructive sm:h-12 sm:flex-row sm:text-sm"
+              onClick={(e) => openAction("saida", e.currentTarget)}
+            >
+              <ArrowDownRight className="h-4 w-4" />
+              Saída
+            </Button>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-9 gap-1.5 rounded-xl px-2 text-xs text-muted-foreground"
+              onClick={(e) => openAction("history", e.currentTarget)}
+            >
+              <History className="h-3.5 w-3.5" />
+              Histórico{movementCount ? " (" + movementCount + ")" : ""}
+              <ChevronRight className="h-3 w-3" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-9 rounded-xl px-2 text-xs text-muted-foreground hover:bg-destructive/5 hover:text-destructive"
+              onClick={(e) => openAction("delete", e.currentTarget)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Excluir item
+            </Button>
+          </div>
+        </footer>
+
+        <InventoryReservationModal
+          item={item}
+          open={action === "reservation"}
+          onOpenChange={closeAction}
+          onCloseAutoFocus={restoreFocus}
+        />
+        <InventoryMovementModal
+          item={item}
+          open={action === "entrada" || action === "saida"}
+          onOpenChange={closeAction}
+          initialType={action === "saida" ? "saida" : "entrada"}
+          onCloseAutoFocus={restoreFocus}
+        />
+        <InventoryMovementHistoryModal
+          item={item}
+          open={action === "history"}
+          onOpenChange={closeAction}
+          onCloseAutoFocus={restoreFocus}
+        />
+        <AlertDialog
+          open={action === "delete"}
+          onOpenChange={(next) => {
+            if (!deleting) closeAction(next);
+          }}
+        >
+          <AlertDialogContent
+            onCloseAutoFocus={restoreFocus}
+            className="z-[70] w-[calc(100%-2rem)] rounded-3xl sm:rounded-3xl"
+          >
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir {item.name}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                O item será removido do estoque e os anúncios vinculados serão
+                encerrados. Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={deleting}
+                className="rounded-xl"
+                onClick={() => setAction(null)}
+              >
+                Manter item
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={deleting}
+                className="rounded-xl"
+                onClick={() => void handleDelete()}
+              >
+                {deleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                {deleting ? "Excluindo…" : "Confirmar exclusão"}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
 }
-

@@ -16,7 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { MaskedInput } from "@/components/ui/masked-input";
 import { Label } from "@/components/ui/label";
+import { formatCPF } from "@/utils/input-masks";
 
 const deliveryLinks = [
   {
@@ -49,24 +51,6 @@ const deliveryLinks = [
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "").slice(0, 11);
-}
-
-function formatCpf(value: string) {
-  const digits = onlyDigits(value);
-
-  if (digits.length <= 3) {
-    return digits;
-  }
-
-  if (digits.length <= 6) {
-    return `${digits.slice(0, 3)}.${digits.slice(3)}`;
-  }
-
-  if (digits.length <= 9) {
-    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
-  }
-
-  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
 }
 
 function maskCpf(value: string) {
@@ -250,13 +234,15 @@ export default function ClientDeliverySignature() {
 
                     <div className="space-y-2">
                       <Label htmlFor="client-receiver-cpf">CPF</Label>
-                      <Input
+                      <MaskedInput
                         id="client-receiver-cpf"
                         inputMode="numeric"
+                        maxLength={14}
                         value={receiverCpf}
-                        onChange={(event) => {
+                        formatValue={formatCPF}
+                        onValueChange={(value) => {
                           resetIdentityRelease();
-                          setReceiverCpf(formatCpf(event.target.value));
+                          setReceiverCpf(value);
                         }}
                         placeholder="000.000.000-00"
                         className="h-12 rounded-2xl"

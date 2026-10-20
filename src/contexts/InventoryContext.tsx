@@ -180,7 +180,10 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
           }
 
           if (input.targetQuantity !== undefined) {
-            const targetQuantity = Math.max(1, Number(input.targetQuantity) || 1);
+            const targetQuantity = Number(input.targetQuantity);
+            if (!Number.isFinite(targetQuantity) || targetQuantity <= 0) {
+              return { success: false, message: "Informe uma quantidade reservada maior que zero." };
+            }
             payload.targetQuantity = targetQuantity;
           }
 

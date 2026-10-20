@@ -16,11 +16,13 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { MaskedInput } from "@/components/ui/masked-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { formatCNPJ, validateCNPJ } from "@/utils/cnpj";
+import { formatCarrierDocument, formatPhone } from "@/utils/input-masks";
 import iconLogo from "@/assets/icone-logo.png";
 import logo from "@/assets/logo-zenwaste.png";
 
@@ -173,7 +175,7 @@ export default function Register() {
       cnpj: form.cnpj,
       segmento: form.segmento,
       email: form.email,
-      telefone: form.telefone,
+      telefone: form.telefone.replace(/\D/g, ""),
       password: form.password,
     });
 
@@ -282,12 +284,15 @@ export default function Register() {
 
                   <div className="space-y-2">
                     <Label htmlFor="cnpj">CNPJ</Label>
-                    <Input
+                    <MaskedInput
                       id="cnpj"
+                      inputMode="numeric"
+                      maxLength={18}
                       placeholder="00.000.000/0000-00"
                       className="h-12 rounded-2xl border-border/70 bg-background/70 shadow-inner shadow-black/5 backdrop-blur focus-visible:ring-primary/40"
                       value={form.cnpj}
-                      onChange={(e) => handleCnpjChange(e.target.value)}
+                      formatValue={formatCNPJ}
+                      onValueChange={handleCnpjChange}
                       required
                     />
                     {cnpjError && <p className="text-sm text-destructive">{cnpjError}</p>}
@@ -332,12 +337,13 @@ export default function Register() {
 
                     <div className="space-y-2">
                       <Label htmlFor="carrier-document">CNPJ / Registro ANTT</Label>
-                      <Input
+                      <MaskedInput
                         id="carrier-document"
                         placeholder="00.000.000/0000-00 ou registro"
                         className="h-12 rounded-2xl border-border/70 bg-background/70 shadow-inner shadow-black/5 backdrop-blur focus-visible:ring-primary/40"
                         value={carrierForm.document}
-                        onChange={(event) => setCarrierForm((current) => ({ ...current, document: event.target.value }))}
+                        formatValue={formatCarrierDocument}
+                        onValueChange={(value) => setCarrierForm((current) => ({ ...current, document: value }))}
                       />
                     </div>
                   </div>
@@ -449,12 +455,16 @@ export default function Register() {
                   <Label htmlFor="tel">Telefone / WhatsApp</Label>
                   <div className="relative">
                     <Phone className="auth-field-icon absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
-                    <Input
+                    <MaskedInput
                       id="tel"
+                      type="tel"
+                      autoComplete="tel-national"
+                      maxLength={15}
                       placeholder="(00) 00000-0000"
                       className="h-12 rounded-2xl border-border/70 bg-background/70 pl-11 shadow-inner shadow-black/5 backdrop-blur focus-visible:ring-primary/40"
                       value={form.telefone}
-                      onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+                      formatValue={formatPhone}
+                      onValueChange={(value) => setForm({ ...form, telefone: value })}
                       required
                     />
                   </div>

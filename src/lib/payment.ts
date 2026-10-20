@@ -29,19 +29,7 @@ export const statusLabels: Record<OrderStatus, string> = {
   expired: "Pix expirado",
 };
 
-export function formatDocument(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 14);
-  return digits.length <= 11
-    ? digits
-        .replace(/(\d{3})(\d)/, "$1.$2")
-        .replace(/(\d{3})(\d)/, "$1.$2")
-        .replace(/(\d{3})(\d{1,2})$/, "$1-$2")
-    : digits
-        .replace(/^(\d{2})(\d)/, "$1.$2")
-        .replace(/\.(\d{3})(\d)/, ".$1.$2")
-        .replace(/\.(\d{3})(\d)/, ".$1/$2")
-        .replace(/(\d{4})(\d)/, "$1-$2");
-}
+export { formatDocument } from "@/utils/input-masks";
 
 export function validDocument(value: string) {
   const digits = value.replace(/\D/g, "");

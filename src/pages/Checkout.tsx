@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePayments } from "@/hooks/use-payments";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MaskedInput } from "@/components/ui/masked-input";
 import { Label } from "@/components/ui/label";
 import {
   CheckoutShell,
@@ -32,6 +33,7 @@ import {
   validateBuyer,
 } from "@/lib/payment";
 import type { BuyerDetails } from "@/types/payment";
+import { formatPhone } from "@/utils/input-masks";
 
 export default function Checkout() {
   const { itemId } = useParams();
@@ -57,7 +59,7 @@ function CheckoutForm({ item }: { item: import("@/data/mockData").WasteItem }) {
     name: user?.razaoSocial ?? "",
     email: user?.email ?? "",
     document: formatDocument(user?.cnpj ?? ""),
-    phone: user?.telefone ?? "",
+    phone: formatPhone(user?.telefone ?? ""),
   }));
   const [errors, setErrors] = useState<
     Partial<Record<keyof BuyerDetails, string>>
@@ -306,7 +308,7 @@ function CheckoutForm({ item }: { item: import("@/data/mockData").WasteItem }) {
                   className={"full" in field ? "sm:col-span-2" : ""}
                 >
                   <Label htmlFor={`buyer-${field.key}`}>{field.label}</Label>
-                  <Input
+                  <MaskedInput
                     id={`buyer-${field.key}`}
                     type={
                       field.key === "email"
@@ -323,7 +325,7 @@ function CheckoutForm({ item }: { item: import("@/data/mockData").WasteItem }) {
                       field.key === "document"
                         ? 18
                         : field.key === "phone"
-                          ? 16
+                          ? 15
                           : 150
                     }
                     className="payment-input mt-2"
@@ -331,14 +333,14 @@ function CheckoutForm({ item }: { item: import("@/data/mockData").WasteItem }) {
                     aria-describedby={
                       errors[field.key] ? `error-${field.key}` : undefined
                     }
-                    onChange={(e) =>
-                      updateBuyer(
-                        field.key,
-                        field.key === "document"
-                          ? formatDocument(e.target.value)
-                          : e.target.value,
-                      )
+                    formatValue={
+                      field.key === "document"
+                        ? formatDocument
+                        : field.key === "phone"
+                          ? formatPhone
+                          : undefined
                     }
+                    onValueChange={(value) => updateBuyer(field.key, value)}
                   />
                   <FieldError id={`error-${field.key}`}>
                     {errors[field.key]}

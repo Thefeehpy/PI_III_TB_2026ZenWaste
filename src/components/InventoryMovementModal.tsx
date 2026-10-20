@@ -1,6 +1,10 @@
-﻿import { useEffect, useMemo, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, Boxes, CalendarClock, Target } from "lucide-react";
-
+﻿import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,22 +16,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useInventory } from "@/contexts/InventoryContext";
 import type { InventoryItem, InventoryMovement } from "@/data/mockData";
-import { useToast } from "@/hooks/use-toast";
-import {
-  formatInventoryCalendarDate,
-  formatInventoryDate,
-  formatInventoryQuantity,
-  inventoryMovementMap,
-} from "@/lib/inventory";
+import { toast } from "sonner";
+import { formatInventoryQuantity } from "@/lib/inventory";
+import { cn } from "@/lib/utils";
 
 interface InventoryMovementModalProps {
   item: InventoryItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialType?: InventoryMovement["type"];
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 export function InventoryMovementModal({
@@ -35,256 +36,221 @@ export function InventoryMovementModal({
   open,
   onOpenChange,
   initialType = "entrada",
+  onCloseAutoFocus,
 }: InventoryMovementModalProps) {
-  const [movementType, setMovementType] = useState<InventoryMovement["type"]>(initialType);
   const [quantity, setQuantity] = useState("");
-  const { adjustItemQuantity, movements } = useInventory();
-  const { toast } = useToast();
-
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const lock = useRef(false);
+  const { adjustItemQuantity } = useInventory();
   useEffect(() => {
-    if (!open) {
-      return;
+    if (open) {
+      setQuantity("");
+      setNote("");
+      setError("");
     }
+  }, [open, item?.id, initialType]);
+  if (!item) return null;
+  const entry = initialType === "entrada";
+  const numeric = Number(quantity);
+  const valid =
+    Number.isFinite(numeric) &&
+    numeric >= 0.001 &&
+    numeric <= 9999999.999 &&
+    Math.abs(numeric * 1000 - Math.round(numeric * 1000)) < 0.000001;
+  const exceeds = !entry && valid && numeric > item.quantity;
+  const projected = item.quantity + (valid ? (entry ? numeric : -numeric) : 0);
+  const Icon = entry ? ArrowUpRight : ArrowDownRight;
+  const changeOpen = (next: boolean) => {
+    if (!lock.current) onOpenChange(next);
+  };
 
-    setMovementType(initialType);
-    setQuantity("");
-  }, [initialType, open, item?.id]);
-
-  const itemMovements = useMemo(
-    () => (item ? movements.filter((movement) => movement.itemId === item.id) : []),
-    [item, movements],
-  );
-  const latestMovement = itemMovements[0];
-
-  const numericQuantity = Number(quantity);
-  const hasValidQuantity = Number.isFinite(numericQuantity) && numericQuantity > 0;
-  const exceedsAvailable = !!item && movementType === "saida" && hasValidQuantity && numericQuantity > item.quantity;
-  const projectedQuantity = item
-    ? Math.max(0, item.quantity + (movementType === "entrada" ? numericQuantity || 0 : -(numericQuantity || 0)))
-    : 0;
-  const actionMeta = inventoryMovementMap[movementType];
-  const plannedTimestamp = formatInventoryDate(new Date().toISOString());
-  const plannedQuantity = item
-    ? hasValidQuantity
-      ? formatInventoryQuantity(numericQuantity, item.unit)
-      : `Aguardando valor em ${item.unit}`
-    : "Aguardando valor";
-  const latestMovementLabel = latestMovement ? formatInventoryDate(latestMovement.createdAt) : "Nenhuma movimentação ainda";
-  const itemDeadlineLabel = item && item.targetQuantity > 0 ? formatInventoryCalendarDate(item.deadline) : "Sem reserva";
-
-  const handleSubmit = async (event: React.FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
-
-    if (!item) {
-      return;
-    }
-
-    if (!hasValidQuantity) {
-      toast({
-        title: "Quantidade invalida",
-        description: "Informe um valor maior que zero para movimentar este item.",
-        variant: "destructive",
+    if (lock.current || !valid || exceeds) return;
+    lock.current = true;
+    setSaving(true);
+    setError("");
+    try {
+      const result = await adjustItemQuantity({
+        itemId: item.id,
+        quantity: numeric,
+        type: initialType,
+        note: note.trim() || undefined,
       });
-      return;
-    }
-
-    if (exceedsAvailable) {
-      toast({
-        title: "Saida acima do saldo",
-        description: "A quantidade de saída não pode ultrapassar o saldo disponível deste item.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const result = await adjustItemQuantity({
-      itemId: item.id,
-      quantity: numericQuantity,
-      type: movementType,
-    });
-
-    if (!result.success) {
-      toast({
-        title: "Movimentação não concluída",
+      if (!result.success) {
+        setError(result.message);
+        return;
+      }
+      toast.success(entry ? "Entrada registrada" : "Saída registrada", {
         description: result.message,
-        variant: "destructive",
       });
-      return;
+      onOpenChange(false);
+    } catch {
+      setError("Não foi possível registrar a movimentação. Tente novamente.");
+    } finally {
+      lock.current = false;
+      setSaving(false);
     }
-
-    toast({
-      title: movementType === "entrada" ? "Entrada registrada" : "Saida registrada",
-      description: result.message,
-    });
-
-    onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto p-0 sm:max-w-4xl">
-        <div className="border-b border-border bg-muted/30 px-6 py-6">
-          <DialogHeader className="space-y-3 text-left">
-            <DialogTitle className="text-2xl">Movimentar estoque</DialogTitle>
-            <DialogDescription className="max-w-2xl leading-6">
-              Registre entradas e saídas com mais contexto. O comentário fica salvo no histórico do item e aparece
-              junto das atualizações recentes da operação.
-            </DialogDescription>
-          </DialogHeader>
-
-          {item && (
-            <div className="mt-5 rounded-[24px] border border-border/70 bg-background/85 p-4">
-              <p className="text-sm font-medium text-foreground">{item.name}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{item.type}</p>
-            </div>
-          )}
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6 p-6">
-          <Tabs value={movementType} onValueChange={(value) => setMovementType(value as InventoryMovement["type"])}>
-            <TabsList className="grid h-auto w-full grid-cols-2 rounded-2xl bg-muted p-1">
-              <TabsTrigger value="entrada" className="gap-2 rounded-xl py-3">
-                <ArrowUpRight className="h-4 w-4" />
-                Entrada
-              </TabsTrigger>
-              <TabsTrigger value="saida" className="gap-2 rounded-xl py-3">
-                <ArrowDownRight className="h-4 w-4" />
-                Saida
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          {item && (
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                <div className="flex flex-col rounded-[24px] border border-border/70 bg-card p-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Boxes className="h-4 w-4" />
-                    Saldo atual
-                  </div>
-                  <p className="mt-3 text-2xl font-semibold text-foreground">
-                    {formatInventoryQuantity(item.quantity, item.unit)}
-                  </p>
-                </div>
-
-                <div className="flex flex-col rounded-[24px] border border-border/70 bg-card p-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Target className="h-4 w-4" />
-                    Reserva vinculada
-                  </div>
-                  <p className="mt-3 text-2xl font-semibold text-foreground">
-                    {formatInventoryQuantity(item.targetQuantity, item.unit)}
-                  </p>
-                </div>
-
-                <div
-                  className={`flex flex-col rounded-[24px] border p-4 ${
-                    exceedsAvailable ? "border-destructive/30 bg-destructive/5" : "border-border/70 bg-card"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    {movementType === "entrada" ? (
-                      <ArrowUpRight className="h-4 w-4 text-primary" />
-                    ) : (
-                      <ArrowDownRight className="h-4 w-4 text-destructive" />
-                    )}
-                    Saldo projetado
-                  </div>
-                  <p className="mt-3 text-2xl font-semibold text-foreground">
-                    {formatInventoryQuantity(projectedQuantity, item.unit)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-[24px] border border-border/70 bg-muted/[0.18] p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="font-medium text-foreground">Painel rapido do registro</p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      Horário previsto, prazo do item e última leitura reunidos para facilitar a movimentação.
-                    </p>
-                  </div>
-                  <span
-                    className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-medium ${actionMeta.className}`}
-                  >
-                    {actionMeta.label}
-                  </span>
-                </div>
-
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-border/70 bg-background/80 p-3">
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Registro previsto</p>
-                    <p className="mt-2 text-sm font-semibold text-foreground">{plannedTimestamp}</p>
-                  </div>
-
-                  <div className="rounded-2xl border border-border/70 bg-background/80 p-3">
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Volume informado</p>
-                    <p className="mt-2 text-sm font-semibold text-foreground">{plannedQuantity}</p>
-                  </div>
-
-                  <div className="rounded-2xl border border-border/70 bg-background/80 p-3">
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Prazo da reserva</p>
-                    <p className="mt-2 text-sm font-semibold text-foreground">{itemDeadlineLabel}</p>
-                  </div>
-
-                  <div className="rounded-2xl border border-border/70 bg-background/80 p-3">
-                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                      <CalendarClock className="h-4 w-4" />
-                      Última atualização
-                    </div>
-                    <p className="mt-2 text-sm font-semibold text-foreground">{latestMovementLabel}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {latestMovement
-                        ? `Saldo resultante: ${formatInventoryQuantity(latestMovement.resultingQuantity, latestMovement.unit)}`
-                        : "O histórico aparece aqui assim que a primeira movimentação for salva."}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-[24px] border border-border/70 bg-card p-4">
-                <Label htmlFor="movement-quantity">Quantidade a movimentar</Label>
-                <div className="relative mt-3">
-                  <Input
-                    id="movement-quantity"
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={quantity}
-                    onChange={(event) => setQuantity(event.target.value)}
-                    placeholder={item ? `Ex.: ${item.unit === "kg" ? "250" : "10"}` : "0"}
-                    className="h-12 pr-16 text-lg"
-                    required
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
-                    {item?.unit ?? "un"}
-                  </span>
-                </div>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  {actionMeta.label} em {item?.unit ?? "unidade"} para atualizar o saldo do item.
+    <Dialog open={open} onOpenChange={changeOpen}>
+      <DialogContent
+        onCloseAutoFocus={onCloseAutoFocus}
+        closeLabel="Fechar movimentação"
+        overlayClassName="z-[60] bg-black/40 backdrop-blur-[2px]"
+        className="z-[70] flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden rounded-[28px] p-0 sm:rounded-[28px]"
+        onEscapeKeyDown={(event) => {
+          if (saving) event.preventDefault();
+        }}
+      >
+        <DialogHeader className="shrink-0 p-6 pb-5 text-left">
+          <span
+            className={cn(
+              "mb-2 flex h-11 w-11 items-center justify-center rounded-2xl",
+              entry
+                ? "bg-primary/10 text-primary"
+                : "bg-destructive/10 text-destructive",
+            )}
+          >
+            <Icon className="h-5 w-5" />
+          </span>
+          <DialogTitle className="text-xl">
+            Registrar {entry ? "entrada" : "saída"}
+          </DialogTitle>
+          <DialogDescription className="break-words">
+            {item.name} · {item.type}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="flex min-h-0 flex-col">
+          <fieldset
+            disabled={saving}
+            className="min-h-0 space-y-5 overflow-y-auto px-6 pb-6"
+          >
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-2xl border border-border/70 bg-muted/25 p-4">
+              <div>
+                <p className="text-[11px] text-muted-foreground">Saldo atual</p>
+                <p className="mt-1.5 break-words text-lg font-semibold">
+                  {formatInventoryQuantity(item.quantity, item.unit)}
                 </p>
-                {exceedsAvailable && (
-                  <p className="mt-2 text-xs font-medium text-destructive">
-                    A saída informada ultrapassa o saldo disponível deste item.
-                  </p>
-                )}
               </div>
-
-              <div className={`rounded-[24px] border px-4 py-3 text-sm ${actionMeta.className}`}>
-                {movementType === "entrada"
-                  ? "Use entrada para registrar novo volume recebido, retornado ou reclassificado no estoque."
-                  : "Use saída para registrar consumo interno, descarte, venda ou qualquer baixa operacional do item."}
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              <div className="text-right">
+                <p className="text-[11px] text-muted-foreground">
+                  Após {entry ? "entrada" : "saída"}
+                </p>
+                <p
+                  className={cn(
+                    "mt-1.5 break-words text-lg font-semibold",
+                    exceeds ? "text-destructive" : "text-primary",
+                  )}
+                  data-testid="movement-projected-balance"
+                >
+                  {exceeds
+                    ? "Saldo insuficiente"
+                    : formatInventoryQuantity(
+                        Number(projected.toFixed(3)),
+                        item.unit,
+                      )}
+                </p>
               </div>
             </div>
-          )}
-
-          <DialogFooter className="gap-3 border-t border-border pt-5 sm:justify-between sm:space-x-0">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <div className="space-y-2">
+              <Label htmlFor="movement-quantity">
+                Quantidade ({item.unit})
+              </Label>
+              <Input
+                id="movement-quantity"
+                type="number"
+                inputMode="decimal"
+                min="0.001"
+                step="0.001"
+                max={entry ? 9999999.999 : item.quantity}
+                value={quantity}
+                onChange={(event) => {
+                  setQuantity(event.target.value);
+                  setError("");
+                }}
+                placeholder="0,000"
+                className="h-12 rounded-xl text-lg"
+                required
+                aria-invalid={exceeds || (quantity !== "" && !valid)}
+                aria-describedby="movement-quantity-help"
+              />
+              <p
+                id="movement-quantity-help"
+                className={cn(
+                  "text-xs leading-relaxed",
+                  exceeds || (quantity !== "" && !valid)
+                    ? "text-destructive"
+                    : "text-muted-foreground",
+                )}
+              >
+                {exceeds
+                  ? "A saída não pode ultrapassar o saldo disponível."
+                  : quantity !== "" && !valid
+                    ? "Informe uma quantidade válida, com até três casas decimais."
+                    : entry
+                      ? "Informe o volume recebido para somar ao estoque."
+                      : "Informe o volume que será retirado do estoque."}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="movement-note">
+                Observação{" "}
+                <span className="font-normal text-muted-foreground">
+                  (opcional)
+                </span>
+              </Label>
+              <Textarea
+                id="movement-note"
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                maxLength={255}
+                placeholder={
+                  entry
+                    ? "Ex.: recebimento de um novo lote"
+                    : "Ex.: material enviado para produção"
+                }
+                className="min-h-20 resize-none rounded-xl"
+              />
+            </div>
+            {error ? (
+              <p
+                role="alert"
+                className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive"
+              >
+                {error}
+              </p>
+            ) : null}
+          </fieldset>
+          <DialogFooter className="shrink-0 flex-row gap-2 border-t border-border/70 bg-muted/20 p-4 sm:space-x-0">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saving}
+              className="h-11 flex-1 rounded-xl"
+              onClick={() => changeOpen(false)}
+            >
               Cancelar
             </Button>
-            <Button type="submit" className="gap-2" disabled={!item || !hasValidQuantity || exceedsAvailable}>
-              {movementType === "entrada" ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-              Registrar {movementType === "entrada" ? "entrada" : "saída"}
+            <Button
+              type="submit"
+              disabled={saving || !valid || exceeds}
+              className={cn(
+                "h-11 flex-1 rounded-xl",
+                !entry &&
+                  "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+              )}
+            >
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Icon className="h-4 w-4" />
+              )}
+              {saving ? "Registrando…" : "Confirmar"}
             </Button>
           </DialogFooter>
         </form>
@@ -292,4 +258,3 @@ export function InventoryMovementModal({
     </Dialog>
   );
 }
-
