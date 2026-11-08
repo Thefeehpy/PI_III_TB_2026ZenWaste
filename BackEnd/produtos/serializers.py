@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from anuncios.models import Reserva
 from produtos.models import MovimentacaoEstoque, Produto
-from produtos.disponibilidade import quantidade_comprometida
+from produtos.consultas import quantidade_comprometida_carregada
 
 
 class SerializadorProduto(serializers.ModelSerializer):
@@ -146,14 +146,20 @@ class SerializadorItemEstoque(serializers.ModelSerializer):
         return float(produto.quantidade)
 
     def obter_quantidade_comprometida(self, produto):
-        return float(quantidade_comprometida(produto.pk))
+        return float(quantidade_comprometida_carregada(produto))
 
     def obter_quantidade_disponivel(self, produto):
-        return float(max(Decimal("0"), produto.quantidade - quantidade_comprometida(produto.pk)))
+        return float(max(Decimal("0"), produto.quantidade - quantidade_comprometida_carregada(produto)))
 
     def obter_meta_captacao(self, produto):
         if hasattr(produto, "_meta_captacao"):
             return float(produto._meta_captacao)
+
+        if hasattr(produto, "_reservas_para_saldo"):
+            return float(sum(
+                (reserva.quantidade_reservada for reserva in produto._reservas_para_saldo if reserva.modalidade == "captacao"),
+                Decimal("0"),
+            ))
 
         total = Decimal("0")
         reservas = getattr(produto, "reservas", None)
@@ -169,9 +175,12 @@ class SerializadorItemEstoque(serializers.ModelSerializer):
         if hasattr(produto, "_prazo_captacao") and produto._prazo_captacao:
             return produto._prazo_captacao.isoformat()
 
-        reserva = produto.reservas.filter(
-            modalidade="captacao", situacao__in=("em_captacao", "pronta"),
-        ).order_by("data_reserva").first()
+        if hasattr(produto, "_reservas_para_saldo"):
+            reserva = next((reserva for reserva in produto._reservas_para_saldo if reserva.modalidade == "captacao"), None)
+        else:
+            reserva = produto.reservas.filter(
+                modalidade="captacao", situacao__in=("em_captacao", "pronta"),
+            ).order_by("data_reserva").first()
         if reserva and reserva.prazo_reserva:
             return reserva.prazo_reserva.isoformat()
         if reserva:

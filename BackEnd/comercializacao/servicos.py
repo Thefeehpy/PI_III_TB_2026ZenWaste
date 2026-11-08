@@ -6,6 +6,7 @@ from anuncios.imagens import normalizar_imagens, validar_valor_imagem
 from anuncios.models import Anuncio, ImagemAnuncio
 from app.excecoes import ErroRegraNegocio
 from produtos.disponibilidade import quantidade_comprometida
+from produtos.consultas import carregar_saldos
 from produtos.catalogos import resolver_categoria, resolver_unidade, atualizar_catalogo_produto
 from empresas.models import Empresa
 from produtos.models import Produto
@@ -138,7 +139,10 @@ def atualizar_anuncio(anuncio, dados):
 
 
 def listar_anuncios_vendedor(empresa):
-    return _anuncios_com_detalhes(Anuncio.objects.filter(produto__empresa=empresa)).order_by("-data_publicacao")
+    return carregar_saldos(
+        _anuncios_com_detalhes(Anuncio.objects.filter(produto__empresa=empresa)).order_by("-data_publicacao"),
+        prefixo_produto="produto",
+    )
 
 
 @transaction.atomic

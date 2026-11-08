@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from autenticacao.servicos import VisaoAPIZenWaste, obter_empresa_da_requisicao, exigir_empresa
 from anuncios.models import Reserva
 from produtos.models import MovimentacaoEstoque, Produto
+from produtos.consultas import carregar_saldos
 from produtos.serializers import (
     SerializadorEntradaItemEstoque,
     SerializadorItemEstoque,
@@ -80,7 +81,10 @@ class VisaoAPIItensEstoque(VisaoAPIZenWaste):
         if erro:
             return erro
 
-        itens = Produto.objects.filter(empresa=empresa, ativo=True).select_related("categoria", "unidade_medida").order_by("-atualizado_em")
+        itens = carregar_saldos(
+            Produto.objects.filter(empresa=empresa, ativo=True)
+            .select_related("categoria", "unidade_medida").order_by("-atualizado_em")
+        )
         return Response({"items": SerializadorItemEstoque(itens, many=True).data})
 
     def post(self, requisicao):

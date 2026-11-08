@@ -24,7 +24,7 @@ from pedidos.servicos import (
 
 def serializar_pedido(pedido):
     tentativas = getattr(pedido, 'tentativas_pagamento', None)
-    pagamento = tentativas[0] if tentativas else pedido.pagamentos.order_by('-criado_em').first()
+    pagamento = (tentativas[0] if tentativas else None) if tentativas is not None else pedido.pagamentos.order_by('-criado_em').first()
     metodo = pagamento.metodo if pagamento else pedido.metodo or None
     material = {
         "id": str(pedido.anuncio_id),

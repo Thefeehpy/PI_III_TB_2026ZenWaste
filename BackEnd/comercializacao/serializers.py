@@ -6,7 +6,7 @@ from rest_framework import serializers
 from anuncios.imagens import QUANTIDADE_MAXIMA_IMAGENS_ANUNCIO, TAMANHO_MAXIMO_VALOR_IMAGEM, normalizar_imagens, validar_valor_imagem
 from anuncios.models import Anuncio, ImagemAnuncio
 from app.excecoes import ErroRegraNegocio
-from produtos.disponibilidade import quantidade_comprometida
+from produtos.consultas import quantidade_comprometida_carregada
 
 URL_IMAGEM_PADRAO = "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=400&h=300&fit=crop"
 
@@ -160,6 +160,6 @@ class SerializadorAnuncioVendedor(SerializadorAnuncioComercial):
         return str(anuncio.produto_id)
 
     def obter_quantidade_disponivel(self, anuncio):
-        disponivel_produto = anuncio.produto.quantidade - quantidade_comprometida(anuncio.produto_id)
-        disponivel_anuncio = anuncio.nr_qtd - quantidade_comprometida(anuncio.produto_id, id_anuncio=anuncio.pk)
+        disponivel_produto = anuncio.produto.quantidade - quantidade_comprometida_carregada(anuncio.produto)
+        disponivel_anuncio = anuncio.nr_qtd - quantidade_comprometida_carregada(anuncio.produto, id_anuncio=anuncio.pk)
         return float(max(Decimal("0"), min(disponivel_produto, disponivel_anuncio)))
