@@ -29,8 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useInventory } from "@/contexts/InventoryContext";
-import type { InventoryMovement } from "@/data/mockData";
+import { useEstoque } from "@/contexts/InventoryContext";
+import type { MovimentacaoEstoque } from "@/types/estoque";
 import { formatInventoryDate, formatInventoryQuantity } from "@/lib/inventory";
 import {
   emptyMovementFilters,
@@ -61,7 +61,7 @@ export function InventoryMovementsModal({
   onOpenChange: (open: boolean) => void;
   onCloseAutoFocus?: (event: Event) => void;
 }) {
-  const { movements, items, isLoading } = useInventory();
+  const { movimentacoes: movements, itens: items, carregando: isLoading, erroMovimentacoes, atualizarEstoque } = useEstoque();
   const [filters, setFilters] = useState<MovementFilters>(emptyMovementFilters);
   const [period, setPeriod] = useState<MovementPeriod | "custom">("all");
   const [page, setPage] = useState(1);
@@ -395,6 +395,12 @@ export function InventoryMovementsModal({
               ) : null}
             </div>
           </div>
+          {erroMovimentacoes ? (
+            <div role="alert" className="mt-3 rounded-xl bg-destructive/10 p-3 text-sm">
+              <p>{erroMovimentacoes}</p>
+              <Button variant="outline" className="mt-2" disabled={isLoading} onClick={() => void atualizarEstoque()}>Tentar novamente</Button>
+            </div>
+          ) : null}
           {rangeError ? (
             <p
               id="movement-date-error"
@@ -454,14 +460,18 @@ export function InventoryMovementsModal({
                 <History className="h-7 w-7 text-primary" />
               </span>
               <h3 className="text-base font-semibold">
-                {rangeError
+                {erroMovimentacoes
+                  ? "Histórico indisponível"
+                  : rangeError
                   ? "Revise o período selecionado"
                   : movements.length
                     ? "Nenhuma movimentação encontrada"
                     : "Seu histórico começa aqui"}
               </h3>
               <p className="mt-2 max-w-sm text-xs leading-relaxed text-muted-foreground">
-                {rangeError
+                {erroMovimentacoes
+                  ? "Tente novamente para consultar as movimentações."
+                  : rangeError
                   ? "Ajuste as datas para consultar as movimentações."
                   : movements.length
                     ? "Tente outro material, período ou termo de busca."
@@ -681,7 +691,7 @@ export function InventoryMovementsModal({
   );
 }
 
-function MovementType({ type }: { type: InventoryMovement["type"] }) {
+function MovementType({ type }: { type: MovimentacaoEstoque["type"] }) {
   const entry = type === "entrada";
   const Icon = entry ? ArrowUpRight : ArrowDownRight;
   return (

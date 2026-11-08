@@ -1,4 +1,4 @@
-﻿import { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -31,8 +31,8 @@ import {
 import { InventoryMovementModal } from "@/components/InventoryMovementModal";
 import { InventoryReservationModal } from "@/components/InventoryReservationModal";
 import { InventoryMovementHistoryModal } from "@/components/InventoryMovementHistoryModal";
-import { useInventory } from "@/contexts/InventoryContext";
-import type { InventoryItem } from "@/data/mockData";
+import { useEstoque } from "@/contexts/InventoryContext";
+import type { ItemEstoque } from "@/types/estoque";
 import { toast } from "sonner";
 import {
   formatInventoryCalendarDate,
@@ -42,7 +42,7 @@ import {
 import { cn } from "@/lib/utils";
 
 interface InventoryItemDetailsModalProps {
-  item: InventoryItem | null;
+  item: ItemEstoque | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onItemDeleted?: () => void;
@@ -62,16 +62,16 @@ function ItemDetails({
   open,
   onOpenChange,
   onItemDeleted,
-}: InventoryItemDetailsModalProps & { item: InventoryItem }) {
+}: InventoryItemDetailsModalProps & { item: ItemEstoque }) {
   const [action, setAction] = useState<ItemAction | null>(null);
   const [deleting, setDeleting] = useState(false);
   const actionButton = useRef<HTMLButtonElement | null>(null);
   const deleteLock = useRef(false);
-  const { deleteItem, movements } = useInventory();
+  const { desativarItem, movimentacoes: movements } = useEstoque();
   const status = inventoryStatusMap[item.status];
   const reserved = item.targetQuantity > 0;
   const missing = Math.max(item.targetQuantity - item.quantity, 0);
-  const free = Math.max(item.quantity - item.targetQuantity, 0);
+  const free = item.availableQuantity;
   const coverage = reserved
     ? Math.min(100, Math.round((item.quantity / item.targetQuantity) * 100))
     : 0;
@@ -95,12 +95,12 @@ function ItemDetails({
     deleteLock.current = true;
     setDeleting(true);
     try {
-      const result = await deleteItem(item.id);
-      if (!result.success) {
-        toast.error("Item não excluído", { description: result.message });
+      const result = await desativarItem(item.id);
+      if (!result.sucesso) {
+        toast.error("Item não excluído", { description: result.mensagem });
         return;
       }
-      toast.success("Item excluído", { description: result.message });
+      toast.success("Item excluído", { description: result.mensagem });
       onOpenChange(false);
       onItemDeleted?.();
     } catch {
@@ -144,7 +144,7 @@ function ItemDetails({
           <div className="rounded-[22px] border border-primary/15 bg-primary/[0.045] p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-medium text-muted-foreground">
-                Saldo em estoque
+                Saldo físico em estoque
               </p>
               <Badge
                 variant={status.badgeVariant}
@@ -153,7 +153,7 @@ function ItemDetails({
                   status.className,
                 )}
               >
-                {!reserved && item.quantity > 0 ? "Disponível" : status.label}
+                {!reserved && item.availableQuantity > 0 ? "Disponível" : status.label}
               </Badge>
             </div>
             <p
@@ -167,16 +167,14 @@ function ItemDetails({
             </p>
             <div className="mt-5 grid grid-cols-2 gap-4 border-t border-primary/10 pt-4 text-sm">
               <div>
-                <p className="text-xs text-muted-foreground">Reservado</p>
+                <p className="text-xs text-muted-foreground">Comprometido</p>
                 <p className="mt-1.5 font-semibold">
-                  {reserved
-                    ? formatInventoryQuantity(item.targetQuantity, item.unit)
-                    : "Sem reserva"}
+                  {formatInventoryQuantity(item.committedQuantity, item.unit)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">
-                  Livre após reserva
+                  Disponível
                 </p>
                 <p className="mt-1.5 font-semibold">
                   {formatInventoryQuantity(free, item.unit)}
@@ -186,6 +184,7 @@ function ItemDetails({
           </div>
           {reserved ? (
             <div className="mt-5 space-y-3">
+              <p className="text-xs text-muted-foreground">Meta de captação: {formatInventoryQuantity(item.targetQuantity, item.unit)}. Esta meta não compromete o saldo disponível.</p>
               <div className="flex items-center justify-between gap-3 text-xs">
                 <p className="text-muted-foreground">Cobertura da reserva</p>
                 <span className="font-semibold text-primary">{coverage}%</span>
@@ -317,8 +316,8 @@ function ItemDetails({
             <AlertDialogHeader>
               <AlertDialogTitle>Excluir {item.name}?</AlertDialogTitle>
               <AlertDialogDescription>
-                O item será removido do estoque e os anúncios vinculados serão
-                encerrados. Esta ação não pode ser desfeita.
+                O item será desativado e os anúncios vinculados serão
+                encerrados. O histórico de movimentações será preservado.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="gap-2">

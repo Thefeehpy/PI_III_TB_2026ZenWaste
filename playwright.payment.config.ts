@@ -1,8 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
+import { diretorioResultados } from "./tests/suporte/evidencias";
 
 export default defineConfig({
   testDir: "./tests/payments",
-  outputDir: ".workspace/payment-test-results",
+  outputDir: diretorioResultados(),
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,

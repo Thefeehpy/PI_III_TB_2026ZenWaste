@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { marketplaceItems } from "@/data/mockData";
-import { clearAuthToken, setAuthToken } from "@/lib/api";
+import { marketplaceItems } from "@/test/fixtures/anuncios";
+import { removerTokenAutenticacao, armazenarTokenAutenticacao } from "@/services/cliente-http";
 import { createApiPaymentService } from "@/services/api-payment-service";
 import type { PaymentOrder } from "@/types/payment";
 
@@ -24,7 +24,7 @@ const order: PaymentOrder = {
 
 describe("Django payment adapter", () => {
   afterEach(() => {
-    clearAuthToken();
+    removerTokenAutenticacao();
     vi.unstubAllGlobals();
   });
 
@@ -33,7 +33,7 @@ describe("Django payment adapter", () => {
       new Response(JSON.stringify(order), { status: 201 }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    setAuthToken("signed-company-token");
+    armazenarTokenAutenticacao("signed-company-token");
     const service = createApiPaymentService();
 
     await service.createOrder({

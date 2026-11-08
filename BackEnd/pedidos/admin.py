@@ -1,26 +1,40 @@
 from django.contrib import admin
 
-from pedidos.models import Order, PaymentAttempt, WebhookEvent
+from pedidos.models import Pedido, TentativaPagamento, EventoWebhook
 
 
-@admin.register(Order)
-class OrderAdmin(admin.ModelAdmin):
-    list_display = ("number", "buyer_company", "status", "total_amount", "created_at")
-    list_filter = ("status", "method", "created_at")
-    search_fields = ("number", "buyer_name", "buyer_email", "buyer_document")
-    readonly_fields = ("id", "created_at", "updated_at", "paid_at")
+class AdministracaoHistoricoSomenteLeitura(admin.ModelAdmin):
+    def get_readonly_fields(self, requisicao, obj=None):
+        return tuple(campo.name for campo in self.model._meta.fields)
+
+    def has_add_permission(self, requisicao):
+        return False
+
+    def has_change_permission(self, requisicao, obj=None):
+        return False
+
+    def has_delete_permission(self, requisicao, obj=None):
+        return False
 
 
-@admin.register(PaymentAttempt)
-class PaymentAttemptAdmin(admin.ModelAdmin):
-    list_display = ("order", "provider", "method", "status", "amount_cents", "created_at")
-    list_filter = ("provider", "method", "status")
-    search_fields = ("order__number", "provider_reference")
-    readonly_fields = tuple(field.name for field in PaymentAttempt._meta.fields)
+@admin.register(Pedido)
+class AdministracaoPedido(AdministracaoHistoricoSomenteLeitura):
+    list_display = ('numero', 'empresa_compradora', 'situacao', 'valor_total', 'criado_em')
+    list_filter = ('situacao', 'metodo', 'criado_em')
+    search_fields = ('numero', 'nome_comprador', 'email_comprador', 'documento_comprador')
+    readonly_fields = ("id", 'criado_em', 'atualizado_em', 'pago_em')
 
 
-@admin.register(WebhookEvent)
-class WebhookEventAdmin(admin.ModelAdmin):
-    list_display = ("provider", "event_id", "payment", "processed", "received_at")
-    list_filter = ("provider", "processed")
-    readonly_fields = tuple(field.name for field in WebhookEvent._meta.fields)
+@admin.register(TentativaPagamento)
+class AdministracaoTentativaPagamento(AdministracaoHistoricoSomenteLeitura):
+    list_display = ('pedido', 'provedor', 'metodo', 'situacao', 'valor_centavos', 'criado_em')
+    list_filter = ('provedor', 'metodo', 'situacao')
+    search_fields = ('pedido__numero', 'referencia_provedor')
+    readonly_fields = tuple(campo.name for campo in TentativaPagamento._meta.fields)
+
+
+@admin.register(EventoWebhook)
+class AdministracaoEventoWebhook(AdministracaoHistoricoSomenteLeitura):
+    list_display = ('provedor', 'identificador_externo', 'pagamento', 'processado', 'recebido_em')
+    list_filter = ('provedor', 'processado')
+    readonly_fields = tuple(campo.name for campo in EventoWebhook._meta.fields)

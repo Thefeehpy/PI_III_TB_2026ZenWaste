@@ -1,22 +1,22 @@
 from django.urls import path
 
 from pedidos.views import (
-	OrderCancelAPIView,
-	OrderDetailAPIView,
-	OrderPaymentAPIView,
-	OrderPixAPIView,
-	OrdersAPIView,
-	PaymentWebhookAPIView,
-	SandboxPaymentResultAPIView,
+	VisaoAPICancelamentoPedido,
+	VisaoAPIDetalhePedido,
+	VisaoAPIPagamentoCartao,
+	VisaoAPIPagamentoPix,
+	VisaoAPIPedidos,
+	VisaoAPINotificacaoPagamento,
+	VisaoAPISimulacaoPagamento,
 )
 
 
 urlpatterns = [
-	path("orders/", OrdersAPIView.as_view(), name="api-orders"),
-	path("orders/<uuid:pk>/", OrderDetailAPIView.as_view(), name="api-order-detail"),
-	path("orders/<uuid:pk>/payments/", OrderPaymentAPIView.as_view(), name="api-order-card-payment"),
-	path("orders/<uuid:pk>/pix/", OrderPixAPIView.as_view(), name="api-order-pix"),
-	path("orders/<uuid:pk>/cancel/", OrderCancelAPIView.as_view(), name="api-order-cancel"),
-	path("orders/<uuid:pk>/sandbox-result/", SandboxPaymentResultAPIView.as_view(), name="api-order-sandbox-result"),
-	path("payments/webhooks/<slug:provider>/", PaymentWebhookAPIView.as_view(), name="api-payment-webhook"),
+	path("orders/", VisaoAPIPedidos.as_view(), name="api-orders"),
+	path("orders/<uuid:pk>/", VisaoAPIDetalhePedido.as_view(), name="api-order-detail"),
+	path("orders/<uuid:pk>/payments/", VisaoAPIPagamentoCartao.as_view(), name="api-order-card-payment"),
+	path("orders/<uuid:pk>/pix/", VisaoAPIPagamentoPix.as_view(), name="api-order-pix"),
+	path("orders/<uuid:pk>/cancel/", VisaoAPICancelamentoPedido.as_view(), name="api-order-cancel"),
+	path("orders/<uuid:pk>/sandbox-result/", VisaoAPISimulacaoPagamento.as_view(), name="api-order-sandbox-result"),
+	path("payments/webhooks/<slug:provedor>/", VisaoAPINotificacaoPagamento.as_view(), name="api-payment-webhook"),
 ]

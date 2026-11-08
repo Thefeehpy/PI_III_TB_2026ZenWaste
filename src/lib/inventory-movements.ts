@@ -1,10 +1,10 @@
-import type { InventoryMovement } from "@/data/mockData";
+import type { MovimentacaoEstoque } from "@/types/estoque";
 import { formatInventoryDate } from "@/lib/inventory";
 
 export interface MovementFilters {
   search: string;
   itemId: string;
-  type: "all" | InventoryMovement["type"];
+  type: "all" | MovimentacaoEstoque["type"];
   from: string;
   to: string;
   sort: "newest" | "oldest";
@@ -61,7 +61,7 @@ function normalize(value: string) {
 }
 
 export function filterInventoryMovements(
-  movements: InventoryMovement[],
+  movements: MovimentacaoEstoque[],
   filters: MovementFilters,
 ) {
   if (movementRangeError(filters.from, filters.to)) return [];
@@ -102,7 +102,7 @@ function csvCell(value: string | number) {
   return '"' + text.replace(/"/g, '""') + '"';
 }
 
-export function inventoryMovementsCsv(movements: InventoryMovement[]) {
+export function inventoryMovementsCsv(movements: MovimentacaoEstoque[]) {
   const number = (value: number) =>
     value.toLocaleString("pt-BR", {
       useGrouping: false,

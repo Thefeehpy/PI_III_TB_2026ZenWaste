@@ -1,4 +1,4 @@
-import type { WasteItem } from "@/data/mockData";
+import type { Anuncio, MaterialNegociado } from "@/types/anuncio";
 
 export type PaymentMethod = "credit" | "debit" | "pix";
 export type OrderStatus =
@@ -22,7 +22,7 @@ export interface PaymentOrder {
   number: string;
   createdAt: string;
   paidAt?: string;
-  item: WasteItem;
+  item: MaterialNegociado;
   quantity: number;
   /** Monetary amounts are always integer BRL cents. The backend must calculate them again. */
   totalCents: number;
@@ -36,7 +36,7 @@ export interface PaymentOrder {
 }
 
 export interface CreateOrderInput {
-  listing: WasteItem;
+  listing: Anuncio;
   quantity: number;
   buyer: BuyerDetails;
   /** Reuse this key when retrying a request after an uncertain response. */

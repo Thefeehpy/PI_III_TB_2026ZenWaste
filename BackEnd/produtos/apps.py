@@ -1,8 +1,8 @@
 from django.apps import AppConfig
 
 
-class ProdutosConfig(AppConfig):
+class ConfiguracaoProdutos(AppConfig):
     name = 'produtos'
     def ready(self):
-        import produtos.signals
+        import produtos.sinais
 

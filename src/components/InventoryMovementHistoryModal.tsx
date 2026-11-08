@@ -7,8 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useInventory } from "@/contexts/InventoryContext";
-import type { InventoryItem } from "@/data/mockData";
+import { useEstoque } from "@/contexts/InventoryContext";
+import type { ItemEstoque } from "@/types/estoque";
 import { formatInventoryDate, formatInventoryQuantity } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
 
@@ -18,12 +18,12 @@ export function InventoryMovementHistoryModal({
   onOpenChange,
   onCloseAutoFocus,
 }: {
-  item: InventoryItem;
+  item: ItemEstoque;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCloseAutoFocus?: (event: Event) => void;
 }) {
-  const { movements } = useInventory();
+  const { movimentacoes: movements, carregando, erroMovimentacoes, atualizarEstoque } = useEstoque();
   const history = movements.filter((movement) => movement.itemId === item.id);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -45,8 +45,14 @@ export function InventoryMovementHistoryModal({
             {history.length !== 1 ? "s" : ""}
           </DialogDescription>
         </DialogHeader>
+        {erroMovimentacoes ? (
+          <div role="alert" className="mx-6 my-3 rounded-xl bg-destructive/10 p-3 text-sm">
+            <p>{erroMovimentacoes}</p>
+            <Button variant="outline" className="mt-2" disabled={carregando} onClick={() => void atualizarEstoque()}>Tentar novamente</Button>
+          </div>
+        ) : null}
         <div className="min-h-0 overflow-y-auto px-6 py-2">
-          {history.length ? (
+          {carregando && !history.length ? <p role="status" className="py-6 text-sm text-muted-foreground">Carregando histórico…</p> : history.length ? (
             <ol className="divide-y divide-border/60">
               {history.map((movement) => {
                 const entry = movement.type === "entrada";
@@ -103,7 +109,7 @@ export function InventoryMovementHistoryModal({
                 );
               })}
             </ol>
-          ) : (
+          ) : !erroMovimentacoes ? (
             <div className="py-12 text-center">
               <History className="mx-auto mb-3 h-7 w-7 text-muted-foreground/50" />
               <p className="text-sm font-medium">Nenhuma movimentação ainda</p>
@@ -111,7 +117,7 @@ export function InventoryMovementHistoryModal({
                 As entradas e saídas deste item aparecerão aqui.
               </p>
             </div>
-          )}
+          ) : null}
         </div>
         <div className="shrink-0 border-t border-border/70 bg-muted/20 p-4">
           <Button

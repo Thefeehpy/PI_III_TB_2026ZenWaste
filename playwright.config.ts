@@ -1,10 +1,17 @@
-import { createLovableConfig } from "lovable-agent-playwright-config/config";
+import { defineConfig } from "@playwright/test";
+import { diretorioResultados } from "./tests/suporte/evidencias";
 
-export default createLovableConfig({
-  // Add your custom playwright configuration overrides here
-  // Example:
-  // timeout: 60000,
-  // use: {
-  //   baseURL: 'http://localhost:3000',
-  // },
+export default defineConfig({
+  testDir: "./tests",
+  outputDir: diretorioResultados(),
+  use: {
+    screenshot: "only-on-failure",
+    baseURL: "http://127.0.0.1:5173",
+    channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
+  },
+  webServer: {
+    command: "npm run dev -- --host 127.0.0.1 --port 5173 --strictPort",
+    url: "http://127.0.0.1:5173",
+    reuseExistingServer: !process.env.CI,
+  },
 });

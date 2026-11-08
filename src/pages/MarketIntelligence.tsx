@@ -8,48 +8,19 @@
   XAxis,
   YAxis,
 } from "recharts";
-import { useEffect, useState } from "react";
 import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { priceHistory } from "@/data/mockData";
+import { Button } from "@/components/ui/button";
 import { useChartTheme } from "@/hooks/use-chart-theme";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { getMarketInsight, getMaterialMetrics } from "@/lib/market-intelligence";
-import { api } from "@/lib/api";
-
-const defaultMaterials = getMaterialMetrics();
+import { usePrecosMercado } from "@/hooks/use-precos-mercado";
 
 export default function MarketIntelligence() {
   const isMobile = useIsMobile();
   const chartTheme = useChartTheme();
-  const [marketData, setMarketData] = useState({
-    priceHistory,
-    materials: defaultMaterials,
-    insight: getMarketInsight(),
-  });
-
-  useEffect(() => {
-    let active = true;
-
-    api
-      .getMarketPrices()
-      .then((response) => {
-        if (active) {
-          setMarketData({
-            priceHistory: response.priceHistory as typeof priceHistory,
-            materials: response.materials as typeof defaultMaterials,
-            insight: response.insight,
-          });
-        }
-      })
-      .catch(() => undefined);
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  const { dados, carregando, erro, atualizar } = usePrecosMercado();
 
   return (
     <div className="container space-y-6 py-6 sm:space-y-8 sm:py-8">
@@ -60,8 +31,15 @@ export default function MarketIntelligence() {
         </p>
       </div>
 
+      {carregando && <p role="status" className="text-sm text-muted-foreground">Carregando preços de mercado...</p>}
+      {erro && <div role="alert" className="rounded-xl border border-destructive/30 p-4 text-sm">
+        <p>{erro}</p>
+        {dados && <p className="mt-1 text-muted-foreground">Exibindo a última consulta recebida.</p>}
+        <Button variant="outline" className="mt-3" onClick={() => void atualizar()} disabled={carregando}>Tentar novamente</Button>
+      </div>}
+      {!carregando && !erro && dados && dados.materials.length === 0 && <p className="text-muted-foreground">Nenhum preço de mercado disponível.</p>}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {marketData.materials.map((material) => {
+        {dados?.materials.map((material) => {
           const TrendIcon = material.change > 0 ? TrendingUp : material.change < 0 ? TrendingDown : Minus;
 
           return (
@@ -103,14 +81,14 @@ export default function MarketIntelligence() {
         })}
       </div>
 
-      <Card>
+      {dados && <Card>
         <CardHeader>
           <CardTitle>Evolução de Preços (Últimos 6 meses)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[320px] sm:h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={marketData.priceHistory}>
+              <LineChart data={dados.priceHistory}>
                 <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" />
                 <XAxis dataKey="month" stroke={chartTheme.axis} fontSize={isMobile ? 10 : 12} tickMargin={8} />
                 <YAxis
@@ -131,7 +109,7 @@ export default function MarketIntelligence() {
                   labelStyle={{ color: chartTheme.tooltipText }}
                 />
                 <Legend wrapperStyle={{ fontSize: isMobile ? 11 : 12, paddingTop: 12 }} />
-                {marketData.materials.map((material) => (
+                {dados.materials.map((material) => (
                   <Line
                     key={material.key}
                     type="monotone"
@@ -146,15 +124,15 @@ export default function MarketIntelligence() {
             </ResponsiveContainer>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card className="border-primary/20 bg-accent/30">
+      {dados && <Card className="border-primary/20 bg-accent/30">
         <CardContent className="p-6">
           <p className="text-sm text-muted-foreground">
-            <strong className="text-foreground">Insight IA:</strong> {marketData.insight}
+            <strong className="text-foreground">Análise de mercado:</strong> {dados.insight}
           </p>
         </CardContent>
-      </Card>
+      </Card>}
     </div>
   );
 }

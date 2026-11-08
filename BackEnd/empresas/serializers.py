@@ -1,9 +1,11 @@
 from rest_framework import serializers
 
+from app.excecoes import ErroRegraNegocio
 from empresas.models import Empresa
+from empresas.servicos import cadastrar_empresa, atualizar_empresa, validar_email_empresa
 
 
-class EmpresaSerializer(serializers.ModelSerializer):
+class SerializadorEmpresa(serializers.ModelSerializer):
     class Meta:
         model = Empresa
         fields = [
@@ -15,32 +17,27 @@ class EmpresaSerializer(serializers.ModelSerializer):
             "descricao_segmento",
             "email",
             "senha",
+            "ativo",
         ]
+        read_only_fields = ["ativo"]
         extra_kwargs = {
             "senha": {"write_only": True},
         }
 
-    def validate_senha(self, value):
-        if len(value) < 6:
+    def validate_senha(self, valor):
+        if len(valor) < 6:
             raise serializers.ValidationError("Senha muito curta!")
-        return value
+        return valor
 
-    def create(self, validated_data):
-        senha = validated_data.pop("senha")
-        empresa = Empresa(**validated_data)
-        empresa.definir_senha(senha)
-        empresa.save()
-        return empresa
+    def validate_email(self, valor):
+        try:
+            return validar_email_empresa(valor, empresa_atual=self.instance)
+        except ErroRegraNegocio as erro:
+            raise serializers.ValidationError(erro.detalhes["email"]) from erro
 
-    def update(self, instance, validated_data):
-        senha = validated_data.pop("senha", None)
+    def create(self, dados_validados):
+        return cadastrar_empresa(dados_validados)
 
-        for atributo, valor in validated_data.items():
-            setattr(instance, atributo, valor)
-
-        if senha:
-            instance.definir_senha(senha)
-
-        instance.save()
-        return instance
+    def update(self, instancia, dados_validados):
+        return atualizar_empresa(instancia, dados_validados)
 

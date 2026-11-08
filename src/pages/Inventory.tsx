@@ -1,4 +1,4 @@
-﻿import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -20,8 +20,8 @@ import { CreateItemModal } from "@/components/CreateItemModal";
 import { InventoryItemDetailsModal } from "@/components/InventoryItemDetailsModal";
 import { InventoryMovementsModal } from "@/components/InventoryMovementsModal";
 import { StockTable } from "@/components/StockTable";
-import { useInventory } from "@/contexts/InventoryContext";
-import type { InventoryItem } from "@/data/mockData";
+import { useEstoque } from "@/contexts/InventoryContext";
+import type { ItemEstoque } from "@/types/estoque";
 
 export default function Inventory() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -29,16 +29,16 @@ export default function Inventory() {
   const [movementsModalOpen, setMovementsModalOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const movementsButton = useRef<HTMLButtonElement>(null);
-  const { items, movements } = useInventory();
+  const { itens: items, movimentacoes: movements, carregando, erro, erroMovimentacoes, atualizarEstoque } = useEstoque();
   const selectedItem = useMemo(
     () => items.find((item) => item.id === selectedItemId) ?? null,
     [items, selectedItemId],
   );
-  const itemsWithBalance = items.filter((item) => item.quantity > 0).length;
+  const itemsWithBalance = items.filter((item) => item.availableQuantity > 0).length;
   const pendingReservations = items.filter(
     (item) => item.quantity < item.targetQuantity,
   ).length;
-  const handleViewItem = (item: InventoryItem) => {
+  const handleViewItem = (item: ItemEstoque) => {
     setSelectedItemId(item.id);
     setDetailsModalOpen(true);
   };
@@ -174,7 +174,18 @@ export default function Inventory() {
         </button>
       </div>
 
-      <Card className="rounded-[32px] border-border/70 shadow-sm">
+      {erro || erroMovimentacoes ? (
+        <div role="alert" className="rounded-2xl border border-destructive/25 bg-destructive/5 p-4 text-sm">
+          {erro ? <p>{erro}</p> : null}
+          {erroMovimentacoes ? <p>{erroMovimentacoes}</p> : null}
+          {items.length > 0 ? <p className="mt-1 text-muted-foreground">Os dados exibidos podem estar desatualizados.</p> : null}
+          <Button variant="outline" className="mt-3" disabled={carregando} onClick={() => void atualizarEstoque()}>
+            Tentar novamente
+          </Button>
+        </div>
+      ) : null}
+
+      <Card className="rounded-[32px] border-border/70 shadow-sm" aria-busy={carregando}>
         <CardHeader className="pb-3">
           <CardTitle className="text-xl">Itens em destaque</CardTitle>
           <CardDescription>
@@ -183,7 +194,11 @@ export default function Inventory() {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-5 pt-0">
-          <StockTable items={items} onViewItem={handleViewItem} />
+          {carregando && items.length === 0 ? (
+            <p role="status" className="py-10 text-center text-sm text-muted-foreground">Carregando estoque…</p>
+          ) : erro && items.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">O estoque não pôde ser consultado. Tente novamente.</p>
+          ) : <StockTable items={items} onViewItem={handleViewItem} />}
         </CardContent>
       </Card>
 

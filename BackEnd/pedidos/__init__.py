@@ -1,1 +1,1 @@
-"""Orders and marketplace payment processing."""
+"""Pedidos e processamento dos pagamentos da comercialização."""

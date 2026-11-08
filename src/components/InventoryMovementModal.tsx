@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   ArrowDownRight,
   ArrowRight,
@@ -17,17 +17,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useInventory } from "@/contexts/InventoryContext";
-import type { InventoryItem, InventoryMovement } from "@/data/mockData";
+import { useEstoque } from "@/contexts/InventoryContext";
+import type { ItemEstoque, MovimentacaoEstoque } from "@/types/estoque";
 import { toast } from "sonner";
 import { formatInventoryQuantity } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
 
 interface InventoryMovementModalProps {
-  item: InventoryItem | null;
+  item: ItemEstoque | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialType?: InventoryMovement["type"];
+  initialType?: MovimentacaoEstoque["type"];
   onCloseAutoFocus?: (event: Event) => void;
 }
 
@@ -43,7 +43,7 @@ export function InventoryMovementModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const lock = useRef(false);
-  const { adjustItemQuantity } = useInventory();
+  const { registrarMovimentacao } = useEstoque();
   useEffect(() => {
     if (open) {
       setQuantity("");
@@ -57,9 +57,9 @@ export function InventoryMovementModal({
   const valid =
     Number.isFinite(numeric) &&
     numeric >= 0.001 &&
-    numeric <= 9999999.999 &&
-    Math.abs(numeric * 1000 - Math.round(numeric * 1000)) < 0.000001;
-  const exceeds = !entry && valid && numeric > item.quantity;
+    numeric <= 999999999.999 &&
+    Number(numeric.toFixed(3)) === numeric;
+  const exceeds = !entry && valid && numeric > item.availableQuantity;
   const projected = item.quantity + (valid ? (entry ? numeric : -numeric) : 0);
   const Icon = entry ? ArrowUpRight : ArrowDownRight;
   const changeOpen = (next: boolean) => {
@@ -73,18 +73,18 @@ export function InventoryMovementModal({
     setSaving(true);
     setError("");
     try {
-      const result = await adjustItemQuantity({
+      const result = await registrarMovimentacao({
         itemId: item.id,
         quantity: numeric,
         type: initialType,
         note: note.trim() || undefined,
       });
-      if (!result.success) {
-        setError(result.message);
+      if (!result.sucesso) {
+        setError(result.mensagem);
         return;
       }
       toast.success(entry ? "Entrada registrada" : "Saída registrada", {
-        description: result.message,
+        description: result.mensagem,
       });
       onOpenChange(false);
     } catch {
@@ -167,7 +167,7 @@ export function InventoryMovementModal({
                 inputMode="decimal"
                 min="0.001"
                 step="0.001"
-                max={entry ? 9999999.999 : item.quantity}
+                max={entry ? 999999999.999 : item.availableQuantity}
                 value={quantity}
                 onChange={(event) => {
                   setQuantity(event.target.value);

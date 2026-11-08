@@ -1,7 +1,7 @@
-﻿import type { InventoryItem, InventoryMovement } from "@/data/mockData";
+import type { ItemEstoque, MovimentacaoEstoque } from "@/types/estoque";
 
 export const inventoryStatusMap: Record<
-  InventoryItem["status"],
+  ItemEstoque["status"],
   {
     label: string;
     badgeVariant: "default" | "secondary" | "outline";
@@ -34,7 +34,7 @@ export const inventoryStatusMap: Record<
 };
 
 export const inventoryMovementMap: Record<
-  InventoryMovement["type"],
+  MovimentacaoEstoque["type"],
   {
     label: string;
     badgeVariant: "default" | "outline";
@@ -53,23 +53,21 @@ export const inventoryMovementMap: Record<
   },
 };
 
-export function getInventoryItemStatus(quantity: number, targetQuantity: number): InventoryItem["status"] {
-  const safeTarget = Math.max(targetQuantity, 1);
-
+export function getInventoryItemStatus(quantity: number, targetQuantity: number): ItemEstoque["status"] {
   if (quantity <= 0) {
     return "em_estoque";
   }
 
-  if (quantity >= safeTarget) {
+  if (targetQuantity <= 0 || quantity >= targetQuantity) {
     return "concluido";
   }
 
   return "em_producao";
 }
 
-export function getInventoryProgress(item: Pick<InventoryItem, "quantity" | "targetQuantity">) {
-  const safeTarget = Math.max(item.targetQuantity, 1);
-  return Math.min(100, Math.round((Math.max(item.quantity, 0) / safeTarget) * 100));
+export function getInventoryProgress(item: Pick<ItemEstoque, "quantity" | "targetQuantity">) {
+  if (item.targetQuantity <= 0) return 0;
+  return Math.min(100, Math.round((Math.max(item.quantity, 0) / item.targetQuantity) * 100));
 }
 
 export function formatInventoryQuantity(value: number, unit: string) {

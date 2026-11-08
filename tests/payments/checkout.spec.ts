@@ -1,3 +1,4 @@
+import { caminhoEvidencia } from "../suporte/evidencias";
 import { test, expect, type Page } from "@playwright/test";
 
 const listing = {
@@ -50,7 +51,7 @@ test("credit purchase, session reload, receipt download and searchable history",
   await page.getByRole("button", { name: "Preencher dados de teste" }).click();
   await page.getByLabel("Parcelamento", { exact: true }).selectOption("3");
   await page.screenshot({
-    path: ".workspace/payment-card-desktop.png",
+    path: caminhoEvidencia("payment-card-desktop.png"),
     fullPage: true,
   });
   await page.getByRole("button", { name: "Simular pagamento de" }).click();
@@ -127,7 +128,7 @@ test("Pix renders a QR matching the copy code, expires, renews and confirms", as
     page.getByRole("status").filter({ hasText: "Ainda aguardando" }),
   ).toBeVisible();
   await page.screenshot({
-    path: ".workspace/payment-pix-desktop.png",
+    path: caminhoEvidencia("payment-pix-desktop.png"),
     fullPage: true,
   });
   await page.clock.install();
@@ -169,7 +170,7 @@ test("mobile dark checkout validates buyer, quantity, card and cancellation", as
     ),
   ).toBe(true);
   await page.screenshot({
-    path: ".workspace/payment-mobile-dark.png",
+    path: caminhoEvidencia("payment-mobile-dark.png"),
     fullPage: true,
   });
   await page.getByRole("link", { name: "Conferir dados do pedido" }).click();

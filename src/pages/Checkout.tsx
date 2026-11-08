@@ -9,7 +9,8 @@ import {
   Plus,
   UserRound,
 } from "lucide-react";
-import { useMarketplace } from "@/contexts/MarketplaceContext";
+import { useAnuncios } from "@/contexts/MarketplaceContext";
+import { EstadoConsulta } from "@/components/EstadoConsulta";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePayments } from "@/hooks/use-payments";
 import { Button } from "@/components/ui/button";
@@ -33,13 +34,15 @@ import {
   validateBuyer,
 } from "@/lib/payment";
 import type { BuyerDetails } from "@/types/payment";
+import type { Anuncio } from "@/types/anuncio";
 import { formatPhone } from "@/utils/input-masks";
 
 export default function Checkout() {
   const { itemId } = useParams();
-  const { items, isLoading } = useMarketplace();
-  const item = items.find((candidate) => candidate.id === itemId);
-  if (isLoading) return <PaymentLoading />;
+  const { anuncios, carregando, erro, atualizarAnuncios } = useAnuncios();
+  const item = anuncios.find((candidate) => candidate.id === itemId);
+  if (carregando) return <PaymentLoading />;
+  if (erro) return <div className="container py-8"><EstadoConsulta carregando={false} erro={erro} tentarNovamente={() => void atualizarAnuncios()} /></div>;
   if (!item || item.quantity <= 0)
     return (
       <PaymentEmpty
@@ -50,7 +53,7 @@ export default function Checkout() {
   return <CheckoutForm key={item.id} item={item} />;
 }
 
-function CheckoutForm({ item }: { item: import("@/data/mockData").WasteItem }) {
+function CheckoutForm({ item }: { item: Anuncio }) {
   const { user } = useAuth();
   const { service } = usePayments();
   const navigate = useNavigate();

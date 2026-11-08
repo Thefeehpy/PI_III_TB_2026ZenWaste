@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { InventoryMovement } from "@/data/mockData";
+import type { MovimentacaoEstoque } from "@/types/estoque";
 import {
   emptyMovementFilters,
   filterInventoryMovements,
@@ -11,8 +11,8 @@ import {
 const movement = (
   id: string,
   date: Date,
-  patch: Partial<InventoryMovement> = {},
-): InventoryMovement => ({
+  patch: Partial<MovimentacaoEstoque> = {},
+): MovimentacaoEstoque => ({
   id,
   itemId: "paper",
   itemName: "Papelão",

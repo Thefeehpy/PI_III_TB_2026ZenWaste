@@ -1,14 +1,19 @@
+import { caminhoEvidencia } from "../suporte/evidencias";
 import { test, expect, type Page } from "@playwright/test";
+import type { ItemEstoque } from "../../src/types/estoque";
 
 async function prepareInventory(
   page: Page,
-  { theme = "dark", failMovement = false, delay = 0 } = {},
+  { theme = "dark", failMovement = false, delay = 0, committedQuantity = 0 } = {},
 ) {
-  let item = {
+  let item: ItemEstoque = {
     id: "inventory-fixture",
     name: "vidro",
     type: "Vidro Industrial",
     quantity: 100,
+    description: "Vidro limpo para reciclagem",
+    committedQuantity,
+    availableQuantity: 100 - committedQuantity,
     unit: "kg",
     targetQuantity: 200,
     deadline: "2026-10-26",
@@ -53,6 +58,8 @@ async function prepareInventory(
             segmento: "Indústria",
             email: "teste@example.com",
             telefone: "11999999999",
+            ativo: true,
+            roles: ["vendedora", "compradora"],
           },
         },
       });
@@ -81,6 +88,7 @@ async function prepareInventory(
       };
       item.status =
         item.quantity >= item.targetQuantity ? "concluido" : "em_producao";
+      item.availableQuantity = Math.max(item.quantity - item.committedQuantity, 0);
       const movement = {
         ...movements[0],
         id: String(movements.length + 1),
@@ -109,7 +117,7 @@ async function prepareInventory(
       request.method() === "DELETE"
     ) {
       requests.deletes++;
-      return route.fulfill({ json: { closedAds: 0 } });
+      return route.fulfill({ json: { message: "Item desativado com sucesso.", closedAds: 0 } });
     }
     return route.fulfill({ json: { items: [] } });
   });
@@ -133,7 +141,7 @@ test("compact overview and stacked reservation editor preserve details and focus
     "aria-valuenow",
     "50",
   );
-  await page.screenshot({ path: ".workspace/inventory-overview-desktop.png" });
+  await page.screenshot({ path: caminhoEvidencia("inventory-overview-desktop.png") });
   await base.getByRole("button", { name: "Editar reserva" }).click();
   const editor = page.getByRole("dialog", {
     name: "Editar reserva",
@@ -145,7 +153,7 @@ test("compact overview and stacked reservation editor preserve details and focus
     "200",
   );
   await page.screenshot({
-    path: ".workspace/inventory-reservation-stacked.png",
+    path: caminhoEvidencia("inventory-reservation-stacked.png"),
   });
   await editor.getByLabel("Quantidade reservada (kg)").fill("150");
   await page.keyboard.press("Escape");
@@ -239,6 +247,10 @@ test("close button and outside click dismiss only the action dialog", async ({
     base.getByRole("button", { name: "Saída", exact: true }),
   ).toBeFocused();
   await base.getByRole("button", { name: "Editar reserva" }).click();
+  await page
+    .getByRole("dialog", { name: "Editar reserva", exact: true })
+    .getByLabel("Quantidade reservada (kg)")
+    .click();
   await page.mouse.click(20, 20);
   await expect(
     page.getByRole("dialog", { name: "Editar reserva", exact: true }),
@@ -272,6 +284,27 @@ test("request errors keep the operation and base open with no balance change", a
   await expect(base.getByTestId("inventory-current-balance")).toContainText(
     "100",
   );
+});
+
+test("a saída respeita o saldo disponível sem consumir a quantidade comprometida", async ({ page }) => {
+  const requisicoes = await prepareInventory(page, { committedQuantity: 60 });
+  const detalhes = page.getByTestId("inventory-details-modal");
+  await expect(detalhes.getByTestId("inventory-current-balance")).toContainText("100");
+  await detalhes.getByRole("button", { name: "Saída", exact: true }).click();
+  const saida = page.getByRole("dialog", { name: "Registrar saída", exact: true });
+  const quantidade = saida.getByLabel("Quantidade (kg)", { exact: true });
+  await expect(quantidade).toHaveAttribute("max", "40");
+  await quantidade.fill("50");
+  await expect(saida.getByText("A saída não pode ultrapassar o saldo disponível.")).toBeVisible();
+  await expect(saida.getByRole("button", { name: "Confirmar", exact: true })).toBeDisabled();
+  expect(requisicoes.movements).toHaveLength(0);
+
+  await quantidade.fill("40");
+  await expect(saida.getByTestId("movement-projected-balance")).toContainText("60 kg");
+  await saida.getByRole("button", { name: "Confirmar", exact: true }).click();
+  await expect(saida).toHaveCount(0);
+  await expect(detalhes.getByTestId("inventory-current-balance")).toContainText("60");
+  expect(requisicoes.movements).toEqual([{ type: "saida", quantity: 40 }]);
 });
 
 test("fractional reservations reach the API unchanged and deletion can be canceled", async ({
@@ -316,7 +349,7 @@ test("mobile layout keeps actions in view and the stacked editor inside the view
   await insideViewport(
     base.getByRole("button", { name: "Entrada", exact: true }),
   );
-  await page.screenshot({ path: ".workspace/inventory-overview-mobile.png" });
+  await page.screenshot({ path: caminhoEvidencia("inventory-overview-mobile.png") });
   await base.getByRole("button", { name: "Entrada", exact: true }).click();
   const entry = page.getByRole("dialog", {
     name: "Registrar entrada",
@@ -326,7 +359,7 @@ test("mobile layout keeps actions in view and the stacked editor inside the view
   await insideViewport(
     entry.getByRole("button", { name: "Confirmar", exact: true }),
   );
-  await page.screenshot({ path: ".workspace/inventory-entry-mobile.png" });
+  await page.screenshot({ path: caminhoEvidencia("inventory-entry-mobile.png") });
   await page.keyboard.press("Escape");
   await expect(base).toBeVisible();
 });

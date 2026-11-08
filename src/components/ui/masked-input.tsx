@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ComponentProps } from "react";
+import { useLayoutEffect, useRef, type ComponentProps } from "react";
 import { Input } from "@/components/ui/input";
 
 type MaskedInputProps = Omit<
@@ -17,8 +17,14 @@ export function MaskedInput({
   onKeyDown,
   ...props
 }: MaskedInputProps) {
-  const frame = useRef<number>();
-  useEffect(() => () => cancelAnimationFrame(frame.current ?? 0), []);
+  const ajustePendente = useRef<{ campo: HTMLInputElement; cursor: number }>();
+  useLayoutEffect(() => {
+    const ajuste = ajustePendente.current;
+    ajustePendente.current = undefined;
+    if (ajuste && document.activeElement === ajuste.campo) {
+      ajuste.campo.setSelectionRange(ajuste.cursor, ajuste.cursor);
+    }
+  }, [value]);
 
   const update = (input: HTMLInputElement, raw: string, position: number) => {
     const formatted = formatValue?.(raw) ?? raw;
@@ -35,12 +41,16 @@ export function MaskedInput({
     }
     if (!digitsBefore && formatted.startsWith("(")) caret = 1;
 
+    // Aplica o cursor na confirmação do valor, antes da próxima interação.
+    // Um RAF atrasado pode desfazer Ctrl+A ou uma seleção feita pelo usuário.
+    if (formatted === value) {
+      ajustePendente.current = undefined;
+      input.value = formatted;
+      input.setSelectionRange(caret, caret);
+    } else {
+      ajustePendente.current = { campo: input, cursor: caret };
+    }
     onValueChange(formatted);
-    cancelAnimationFrame(frame.current ?? 0);
-    frame.current = requestAnimationFrame(() => {
-      if (document.activeElement === input)
-        input.setSelectionRange(caret, caret);
-    });
   };
 
   return (

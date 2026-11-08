@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,8 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useInventory } from "@/contexts/InventoryContext";
-import { wasteTypes } from "@/data/mockData";
+import { useEstoque } from "@/contexts/InventoryContext";
+import { tiposResiduos } from "@/constants/catalogos";
 
 interface CreateItemModalProps {
   open: boolean;
@@ -29,23 +29,30 @@ const initialForm = {
 
 export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
   const [form, setForm] = useState(initialForm);
-  const { addItem } = useInventory();
+  const [salvando, definirSalvando] = useState(false);
+  const cadastroEmAndamento = useRef(false);
+  const { cadastrarItem } = useEstoque();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (cadastroEmAndamento.current) return;
+    cadastroEmAndamento.current = true;
+    definirSalvando(true);
 
-    const result = await addItem({
+    const result = await cadastrarItem({
       name: form.name,
       type: form.type,
       quantity: Number(form.quantity),
       unit: form.unit,
     });
+    cadastroEmAndamento.current = false;
+    definirSalvando(false);
 
-    if (!result.success) {
+    if (!result.sucesso) {
       toast({
         title: "Item não cadastrado",
-        description: result.message,
+        description: result.mensagem,
         variant: "destructive",
       });
       return;
@@ -53,7 +60,7 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
 
     toast({
       title: "Item cadastrado",
-      description: result.message,
+      description: result.mensagem,
     });
 
     onOpenChange(false);
@@ -61,7 +68,7 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(aberto) => { if (!salvando) onOpenChange(aberto); }}>
       <DialogContent className="overflow-hidden p-0 sm:max-w-2xl">
         <div className="border-b border-border bg-muted/40 px-6 py-6">
           <DialogHeader className="text-left">
@@ -85,7 +92,7 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {wasteTypes.map((type) => (
+                  {tiposResiduos.map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
                     </SelectItem>
@@ -102,7 +109,8 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
                 id="qty"
                 type="number"
                 min="0"
-                step="0.01"
+                step="0.001"
+                max="999999999.999"
                 value={form.quantity}
                 onChange={(e) => setForm({ ...form, quantity: e.target.value })}
                 required
@@ -130,11 +138,11 @@ export function CreateItemModal({ open, onOpenChange }: CreateItemModalProps) {
           </div>
 
           <DialogFooter className="gap-3 border-t border-border pt-5 sm:justify-between sm:space-x-0">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" disabled={salvando} onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={!form.type}>
-              Cadastrar item
+            <Button type="submit" disabled={salvando || !form.type}>
+              {salvando ? "Cadastrando..." : "Cadastrar item"}
             </Button>
           </DialogFooter>
         </form>

@@ -1,3 +1,12 @@
+# Documentação central do ZenWaste
+
+Documentos, diagramas, decisões e evidências: [00_INDICE.md](../../documentacao_zenwaste/00_INDICE.md).
+Destino: D:\SI\6_SEMESTRE_FHO\documentacao_zenwaste.
+
+O backend utiliza exclusivamente PostgreSQL. O banco atual não deve receber migrations sem autorização; a migration de fretes permanece pendente e esse módulo está adiado. O conteúdo anterior abaixo foi preservado como referência histórica; consulte o índice externo antes de executar instruções antigas.
+
+---
+
 ZenWaste
 Plataforma B2B para gestao interna de residuos industriais, marketplace e inteligencia de mercado.
 Entrega - Programacao para Web

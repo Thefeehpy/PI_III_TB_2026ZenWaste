@@ -1,216 +1,203 @@
-from rest_framework import generics, status
+from rest_framework import generics, status as codigos_http
 from rest_framework.exceptions import NotAuthenticated
 from rest_framework.response import Response
 
-from authentication.services import ZenWasteAPIView, empresa_from_request, require_empresa
+from autenticacao.servicos import VisaoAPIZenWaste, obter_empresa_da_requisicao, exigir_empresa
 from anuncios.models import Reserva
 from produtos.models import MovimentacaoEstoque, Produto
 from produtos.serializers import (
-    InventoryItemInputSerializer,
-    InventoryItemSerializer,
-    InventoryItemUpdateSerializer,
-    InventoryMovementInputSerializer,
-    InventoryMovementSerializer,
-    ProdutoSerializer,
-    ReservationInputSerializer,
-    ReservationSerializer,
-    ReservationStatusUpdateSerializer,
-    reservation_table_exists,
+    SerializadorEntradaItemEstoque,
+    SerializadorItemEstoque,
+    SerializadorAtualizacaoItemEstoque,
+    SerializadorEntradaMovimentacaoEstoque,
+    SerializadorMovimentacaoEstoque,
+    SerializadorProduto,
+    SerializadorEntradaReserva,
+    SerializadorReserva,
+    SerializadorAtualizacaoSituacaoReserva,
 )
-from produtos.services import (
-    create_inventory_item,
-    create_product_reservation,
-    delete_inventory_item,
-    register_inventory_movement,
-    update_inventory_item,
-    update_product_reservation,
+from produtos.servicos import (
+    criar_item_estoque,
+    criar_reserva_produto,
+    desativar_item_estoque,
+    registrar_movimentacao_estoque,
+    atualizar_item_estoque,
+    atualizar_reserva_produto,
 )
 
 
-class EmpresaScopedProdutoMixin:
+class MixinProdutoDaEmpresa:
     authentication_classes = []
     permission_classes = []
-    serializer_class = ProdutoSerializer
+    serializer_class = SerializadorProduto
 
-    def get_empresa(self):
-        empresa = empresa_from_request(self.request)
+    def obter_empresa(self):
+        empresa = obter_empresa_da_requisicao(self.request)
         if empresa is None:
             raise NotAuthenticated("Autenticacao obrigatoria.")
         return empresa
 
     def get_queryset(self):
-        return Produto.objects.filter(empresa=self.get_empresa())
+        return Produto.objects.filter(empresa=self.obter_empresa(), ativo=True).select_related("categoria", "unidade_medida")
 
-    def perform_create(self, serializer):
-        serializer.save(empresa=self.get_empresa())
+    def perform_create(self, serializador):
+        serializador.save(empresa=self.obter_empresa())
 
-    def perform_update(self, serializer):
-        serializer.save(empresa=self.get_empresa())
+    def perform_update(self, serializador):
+        serializador.save(empresa=self.obter_empresa())
+
+    def perform_destroy(self, instancia):
+        desativar_item_estoque(instancia)
 
 
-class ProdutoCreateListView(EmpresaScopedProdutoMixin, generics.ListCreateAPIView):
+class VisaoCriacaoListagemProduto(MixinProdutoDaEmpresa, generics.ListCreateAPIView):
     pass
 
 
-class ProdutoRetrieveUpdateDestroy(EmpresaScopedProdutoMixin, generics.RetrieveUpdateDestroyAPIView):
+class VisaoDetalheAtualizacaoDesativacaoProduto(MixinProdutoDaEmpresa, generics.RetrieveUpdateDestroyAPIView):
     pass
 
 
-class ProdutoCreate(EmpresaScopedProdutoMixin, generics.CreateAPIView):
+class VisaoCriacaoProduto(MixinProdutoDaEmpresa, generics.CreateAPIView):
     pass
 
 
-class ProdutoUpdate(EmpresaScopedProdutoMixin, generics.UpdateAPIView):
+class VisaoAtualizacaoProduto(MixinProdutoDaEmpresa, generics.UpdateAPIView):
     pass
 
 
-class ProdutoDestroy(EmpresaScopedProdutoMixin, generics.DestroyAPIView):
+class VisaoDesativacaoProduto(MixinProdutoDaEmpresa, generics.DestroyAPIView):
     pass
 
 
-class ProdutoRetrieve(EmpresaScopedProdutoMixin, generics.RetrieveAPIView):
+class VisaoDetalheProduto(MixinProdutoDaEmpresa, generics.RetrieveAPIView):
     pass
 
 
-class InventoryItemsAPIView(ZenWasteAPIView):
-    def get(self, request):
-        empresa, error = require_empresa(request)
-        if error:
-            return error
+class VisaoAPIItensEstoque(VisaoAPIZenWaste):
+    def get(self, requisicao):
+        empresa, erro = exigir_empresa(requisicao)
+        if erro:
+            return erro
 
-        items = Produto.objects.filter(empresa=empresa).order_by("-atualizado_em")
-        return Response({"items": InventoryItemSerializer(items, many=True).data})
+        itens = Produto.objects.filter(empresa=empresa, ativo=True).select_related("categoria", "unidade_medida").order_by("-atualizado_em")
+        return Response({"items": SerializadorItemEstoque(itens, many=True).data})
 
-    def post(self, request):
-        empresa, error = require_empresa(request)
-        if error:
-            return error
+    def post(self, requisicao):
+        empresa, erro = exigir_empresa(requisicao)
+        if erro:
+            return erro
 
-        serializer = InventoryItemInputSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        produto = create_inventory_item(empresa, serializer.validated_data)
+        serializador = SerializadorEntradaItemEstoque(data=requisicao.data)
+        serializador.is_valid(raise_exception=True)
+        produto = criar_item_estoque(empresa, serializador.validated_data)
 
-        return Response({"item": InventoryItemSerializer(produto).data}, status=status.HTTP_201_CREATED)
+        return Response({"item": SerializadorItemEstoque(produto).data}, status=codigos_http.HTTP_201_CREATED)
 
 
-class InventoryItemDetailAPIView(ZenWasteAPIView):
-    def patch(self, request, pk):
-        empresa, error = require_empresa(request)
-        if error:
-            return error
+class VisaoAPIDetalheItemEstoque(VisaoAPIZenWaste):
+    def patch(self, requisicao, pk):
+        empresa, erro = exigir_empresa(requisicao)
+        if erro:
+            return erro
 
         try:
-            produto = Produto.objects.get(id_produto=pk, empresa=empresa)
+            produto = Produto.objects.select_related("categoria", "unidade_medida").get(id_produto=pk, empresa=empresa, ativo=True)
         except Produto.DoesNotExist:
-            return Response({"message": "Item de estoque nao encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Item de estoque nao encontrado."}, status=codigos_http.HTTP_404_NOT_FOUND)
 
-        serializer = InventoryItemUpdateSerializer(data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        produto = update_inventory_item(produto, serializer.validated_data)
+        serializador = SerializadorAtualizacaoItemEstoque(data=requisicao.data, partial=True)
+        serializador.is_valid(raise_exception=True)
+        produto = atualizar_item_estoque(produto, serializador.validated_data)
 
-        return Response({"item": InventoryItemSerializer(produto).data})
+        return Response({"item": SerializadorItemEstoque(produto).data})
 
-    def delete(self, request, pk):
-        empresa, error = require_empresa(request)
-        if error:
-            return error
+    def delete(self, requisicao, pk):
+        empresa, erro = exigir_empresa(requisicao)
+        if erro:
+            return erro
 
         try:
-            produto = Produto.objects.get(id_produto=pk, empresa=empresa)
+            produto = Produto.objects.select_related("categoria", "unidade_medida").get(id_produto=pk, empresa=empresa, ativo=True)
         except Produto.DoesNotExist:
-            return Response({"message": "Item de estoque nao encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Item de estoque nao encontrado."}, status=codigos_http.HTTP_404_NOT_FOUND)
 
-        closed_ads = delete_inventory_item(produto)
-        return Response({"message": "Item excluido com sucesso.", "closedAds": closed_ads})
-
-
-class InventoryMovementsAPIView(ZenWasteAPIView):
-    def get(self, request):
-        empresa, error = require_empresa(request)
-        if error:
-            return error
-
-        movements = MovimentacaoEstoque.objects.filter(empresa=empresa, produto__empresa=empresa).select_related("produto")
-        return Response({"movements": InventoryMovementSerializer(movements, many=True).data})
+        anuncios_inativados = desativar_item_estoque(produto)
+        return Response({"message": "Item desativado com sucesso.", "closedAds": anuncios_inativados})
 
 
-class InventoryItemMovementAPIView(ZenWasteAPIView):
-    def post(self, request, pk):
-        empresa, error = require_empresa(request)
-        if error:
-            return error
+class VisaoAPIMovimentacoesEstoque(VisaoAPIZenWaste):
+    def get(self, requisicao):
+        empresa, erro = exigir_empresa(requisicao)
+        if erro:
+            return erro
+
+        movimentacoes = MovimentacaoEstoque.objects.filter(produto__empresa=empresa).select_related("produto", "produto__categoria", "produto__unidade_medida")
+        return Response({"movements": SerializadorMovimentacaoEstoque(movimentacoes, many=True).data})
+
+
+class VisaoAPIMovimentacaoItemEstoque(VisaoAPIZenWaste):
+    def post(self, requisicao, pk):
+        empresa, erro = exigir_empresa(requisicao)
+        if erro:
+            return erro
 
         try:
-            produto = Produto.objects.get(id_produto=pk, empresa=empresa)
+            produto = Produto.objects.select_related("categoria", "unidade_medida").get(id_produto=pk, empresa=empresa, ativo=True)
         except Produto.DoesNotExist:
-            return Response({"message": "Item de estoque nao encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Item de estoque nao encontrado."}, status=codigos_http.HTTP_404_NOT_FOUND)
 
-        serializer = InventoryMovementInputSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        movimento = register_inventory_movement(produto, empresa, serializer.validated_data)
+        serializador = SerializadorEntradaMovimentacaoEstoque(data=requisicao.data)
+        serializador.is_valid(raise_exception=True)
+        movimento = registrar_movimentacao_estoque(produto, empresa, serializador.validated_data)
 
         return Response({
-            "item": InventoryItemSerializer(produto).data,
-            "movement": InventoryMovementSerializer(movimento).data,
+            "item": SerializadorItemEstoque(produto).data,
+            "movement": SerializadorMovimentacaoEstoque(movimento).data,
         })
 
 
-class InventoryReservationsAPIView(ZenWasteAPIView):
-    def get(self, request):
-        empresa, error = require_empresa(request)
-        if error:
-            return error
+class VisaoAPIReservasEstoque(VisaoAPIZenWaste):
+    def get(self, requisicao):
+        empresa, erro = exigir_empresa(requisicao)
+        if erro:
+            return erro
 
-        if not reservation_table_exists():
-            return Response({"items": []})
-
-        reservations = Reserva.objects.filter(produto__empresa=empresa).select_related("produto")
-        return Response({"items": ReservationSerializer(reservations, many=True).data})
+        reservas = Reserva.objects.filter(produto__empresa=empresa).select_related("produto", "produto__categoria", "produto__unidade_medida")
+        return Response({"items": SerializadorReserva(reservas, many=True).data})
 
 
-class InventoryItemReservationsAPIView(ZenWasteAPIView):
-    def post(self, request, pk):
-        empresa, error = require_empresa(request)
-        if error:
-            return error
-
-        if not reservation_table_exists():
-            return Response(
-                {"message": "Reservas ainda nao estao disponiveis neste banco de dados."},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
+class VisaoAPIReservasItemEstoque(VisaoAPIZenWaste):
+    def post(self, requisicao, pk):
+        empresa, erro = exigir_empresa(requisicao)
+        if erro:
+            return erro
 
         try:
-            produto = Produto.objects.get(id_produto=pk, empresa=empresa)
+            produto = Produto.objects.select_related("categoria", "unidade_medida").get(id_produto=pk, empresa=empresa, ativo=True)
         except Produto.DoesNotExist:
-            return Response({"message": "Item de estoque nao encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Item de estoque nao encontrado."}, status=codigos_http.HTTP_404_NOT_FOUND)
 
-        serializer = ReservationInputSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        reserva = create_product_reservation(produto, serializer.validated_data)
+        serializador = SerializadorEntradaReserva(data=requisicao.data)
+        serializador.is_valid(raise_exception=True)
+        reserva = criar_reserva_produto(produto, serializador.validated_data)
 
-        return Response({"reservation": ReservationSerializer(reserva).data}, status=status.HTTP_201_CREATED)
+        return Response({"reservation": SerializadorReserva(reserva).data}, status=codigos_http.HTTP_201_CREATED)
 
 
-class InventoryReservationDetailAPIView(ZenWasteAPIView):
-    def patch(self, request, pk):
-        empresa, error = require_empresa(request)
-        if error:
-            return error
-
-        if not reservation_table_exists():
-            return Response(
-                {"message": "Reservas ainda nao estao disponiveis neste banco de dados."},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
+class VisaoAPIDetalheReservaEstoque(VisaoAPIZenWaste):
+    def patch(self, requisicao, pk):
+        empresa, erro = exigir_empresa(requisicao)
+        if erro:
+            return erro
 
         try:
             reserva = Reserva.objects.select_related("produto").get(id_reserva=pk, produto__empresa=empresa)
         except Reserva.DoesNotExist:
-            return Response({"message": "Reserva nao encontrada."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Reserva nao encontrada."}, status=codigos_http.HTTP_404_NOT_FOUND)
 
-        serializer = ReservationStatusUpdateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        reserva = update_product_reservation(reserva, serializer.validated_data["status"])
+        serializador = SerializadorAtualizacaoSituacaoReserva(data=requisicao.data)
+        serializador.is_valid(raise_exception=True)
+        reserva = atualizar_reserva_produto(reserva, serializador.validated_data["status"])
 
-        return Response({"reservation": ReservationSerializer(reserva).data})
+        return Response({"reservation": SerializadorReserva(reserva).data})

@@ -25,15 +25,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useInventory } from "@/contexts/InventoryContext";
-import { useMarketplace } from "@/contexts/MarketplaceContext";
-import type { SellerWasteItem } from "@/data/mockData";
+import { EstadoConsulta } from "@/components/EstadoConsulta";
+import { useAnuncios } from "@/contexts/MarketplaceContext";
+import type { AnuncioVendedor } from "@/types/anuncio";
 import { useToast } from "@/hooks/use-toast";
 import { formatInventoryDate, formatInventoryQuantity } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
 
 const statusMeta: Record<
-  SellerWasteItem["status"],
+  AnuncioVendedor["status"],
   {
     label: string;
     description: string;
@@ -70,14 +70,13 @@ function formatCurrency(value: number) {
   });
 }
 
-function getListingValue(listing: SellerWasteItem) {
-  const quantity = listing.status === "ativo" ? listing.availableQuantity || listing.quantity : listing.quantity;
+function getListingValue(listing: AnuncioVendedor) {
+  const quantity = listing.status === "ativo" ? listing.availableQuantity : listing.quantity;
   return quantity * listing.price;
 }
 
 export default function MyAds() {
-  const { refreshInventory } = useInventory();
-  const { deactivateItem, finalizeItem, sellerItems } = useMarketplace();
+  const { desativarAnuncio, finalizarVenda, anunciosEmpresa: sellerItems, carregandoEmpresa, erroEmpresa, atualizarAnunciosEmpresa, anunciosEmAlteracao } = useAnuncios();
   const { toast } = useToast();
 
   const sortedListings = useMemo(
@@ -92,7 +91,7 @@ export default function MyAds() {
           acc[listing.status] += 1;
           return acc;
         },
-        { ativo: 0, inativo: 0, vendido: 0 } satisfies Record<SellerWasteItem["status"], number>,
+        { ativo: 0, inativo: 0, vendido: 0 } satisfies Record<AnuncioVendedor["status"], number>,
       ),
     [sellerItems],
   );
@@ -105,36 +104,23 @@ export default function MyAds() {
     [sellerItems],
   );
 
-  const completedRevenue = useMemo(
-    () =>
-      sellerItems
-        .filter((listing) => listing.status === "vendido")
-        .reduce((sum, listing) => sum + getListingValue(listing), 0),
-    [sellerItems],
-  );
-
   const handleDeactivateListing = async (listingId: string) => {
-    const result = await deactivateItem(listingId);
+    const result = await desativarAnuncio(listingId);
 
     toast({
-      title: result.success ? "Anúncio encerrado" : "Anúncio não encerrado",
-      description: result.message,
-      variant: result.success ? "default" : "destructive",
+      title: result.sucesso ? "Anúncio encerrado" : "Anúncio não encerrado",
+      description: result.mensagem,
+      variant: result.sucesso ? "default" : "destructive",
     });
   };
 
-  const handleFinalizeListing = async (listing: SellerWasteItem) => {
-    const soldQuantity = listing.availableQuantity || listing.quantity;
-    const result = await finalizeItem(listing.id, soldQuantity);
-
-    if (result.success) {
-      await refreshInventory();
-    }
+  const handleFinalizeListing = async (listing: AnuncioVendedor) => {
+    const result = await finalizarVenda(listing.id, listing.availableQuantity);
 
     toast({
-      title: result.success ? "Anúncio finalizado" : "Anúncio não finalizado",
-      description: result.message,
-      variant: result.success ? "default" : "destructive",
+      title: result.sucesso ? "Venda registrada" : "Venda não registrada",
+      description: result.mensagem,
+      variant: result.sucesso ? "default" : "destructive",
     });
   };
 
@@ -241,9 +227,9 @@ export default function MyAds() {
           <CardContent className="p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm text-muted-foreground">Receita finalizada</p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">{formatCurrency(completedRevenue)}</p>
-                <p className="mt-2 text-xs text-muted-foreground">estimativa dos vendidos</p>
+                <p className="text-sm text-muted-foreground">Vendas concluídas</p>
+                <p className="mt-2 text-2xl font-semibold text-foreground">{statusCounts.vendido}</p>
+                <p className="mt-2 text-xs text-muted-foreground">anúncios com oferta concluída</p>
               </div>
               <div className="rounded-2xl bg-accent p-3 text-accent-foreground">
                 <BadgeDollarSign className="h-5 w-5" />
@@ -266,7 +252,8 @@ export default function MyAds() {
           </Badge>
         </CardHeader>
         <CardContent>
-          {sortedListings.length === 0 ? (
+          <EstadoConsulta carregando={carregandoEmpresa} erro={erroEmpresa} tentarNovamente={() => void atualizarAnunciosEmpresa()} />
+          {sortedListings.length === 0 && !carregandoEmpresa && !erroEmpresa ? (
             <div className="rounded-[28px] border border-dashed border-border bg-muted/20 p-8 text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <Megaphone className="h-6 w-6" />
@@ -279,12 +266,13 @@ export default function MyAds() {
                 <Link to="/dashboard/create-ad">Criar primeiro anúncio</Link>
               </Button>
             </div>
-          ) : (
+          ) : sortedListings.length > 0 ? (
             <div className="grid gap-4">
               {sortedListings.map((listing) => {
                 const status = statusMeta[listing.status];
                 const listingValue = getListingValue(listing);
-                const activeQuantity = listing.availableQuantity || listing.quantity;
+                const activeQuantity = listing.availableQuantity;
+                const alterando = anunciosEmAlteracao.includes(listing.id);
 
                 return (
                   <article
@@ -361,21 +349,21 @@ export default function MyAds() {
                             <div className="grid gap-2 sm:grid-cols-2">
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                  <Button type="button" size="sm" className="gap-2 rounded-xl">
+                                  <Button type="button" size="sm" className="gap-2 rounded-xl" disabled={alterando || activeQuantity <= 0}>
                                     <CheckCircle2 className="h-4 w-4" />
                                     Finalizar venda
                                   </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
-                                    <AlertDialogTitle>Finalizar este anúncio?</AlertDialogTitle>
+                                    <AlertDialogTitle>Registrar esta venda?</AlertDialogTitle>
                                     <AlertDialogDescription>
                                       O saldo do item será subtraído em {formatInventoryQuantity(activeQuantity, listing.unit)}.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleFinalizeListing(listing)}>
+                                    <AlertDialogAction disabled={alterando || activeQuantity <= 0} onClick={() => void handleFinalizeListing(listing)}>
                                       Finalizar venda
                                     </AlertDialogAction>
                                   </AlertDialogFooter>
@@ -384,7 +372,7 @@ export default function MyAds() {
 
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                  <Button type="button" size="sm" variant="outline" className="gap-2 rounded-xl">
+                                  <Button type="button" size="sm" variant="outline" className="gap-2 rounded-xl" disabled={alterando}>
                                     <PowerOff className="h-4 w-4" />
                                     Encerrar
                                   </Button>
@@ -398,7 +386,7 @@ export default function MyAds() {
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeactivateListing(listing.id)}>
+                                    <AlertDialogAction disabled={alterando} onClick={() => void handleDeactivateListing(listing.id)}>
                                       Encerrar anúncio
                                     </AlertDialogAction>
                                   </AlertDialogFooter>
@@ -417,7 +405,7 @@ export default function MyAds() {
                 );
               })}
             </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
     </div>

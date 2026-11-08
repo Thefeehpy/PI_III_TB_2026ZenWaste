@@ -1,7 +1,7 @@
 from django.apps import AppConfig
 
-class AnunciosConfig(AppConfig):
+class ConfiguracaoAnuncios(AppConfig):
     name = 'anuncios'
     def ready(self):
-        import anuncios.signals
+        import anuncios.sinais
 

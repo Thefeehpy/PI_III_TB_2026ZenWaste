@@ -13,7 +13,8 @@ import { CircleDollarSign, Sparkles, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { useInventory } from "@/contexts/InventoryContext";
+import { useEstoque } from "@/contexts/InventoryContext";
+import { EstadoConsulta } from "@/components/EstadoConsulta";
 import { useChartTheme } from "@/hooks/use-chart-theme";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatInventoryDate, formatInventoryQuantity } from "@/lib/inventory";
@@ -99,13 +100,13 @@ function getMockAiUnitPrice(type: string, name: string) {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { items, movements } = useInventory();
+  const { itens: items, movimentacoes: movements, carregando, erro, erroMovimentacoes, atualizarEstoque } = useEstoque();
   const isMobile = useIsMobile();
   const chartTheme = useChartTheme();
   const userName = user?.razaoSocial?.trim() || "usuário";
 
   const totalMassKg = useMemo(() => items.reduce((sum, item) => sum + toMassKg(item.quantity, item.unit), 0), [items]);
-  const itemsWithBalance = useMemo(() => items.filter((item) => item.quantity > 0).length, [items]);
+  const itemsWithBalance = useMemo(() => items.filter((item) => item.availableQuantity > 0).length, [items]);
   const uniqueTypes = useMemo(() => new Set(items.map((item) => item.type)).size, [items]);
   const weeklyMovements = useMemo(() => {
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -179,6 +180,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <EstadoConsulta carregando={carregando} erro={erro || erroMovimentacoes} tentarNovamente={() => void atualizarEstoque()} />
       <section className="relative overflow-hidden rounded-[30px] border border-primary/15 bg-[linear-gradient(135deg,hsl(var(--card))_0%,hsl(var(--accent))_100%)] p-5 shadow-[0_16px_44px_rgba(15,23,42,0.07)] sm:p-6">
         <div className="absolute -right-8 -top-12 h-36 w-36 rounded-full bg-primary/15 blur-3xl" />
         <div className="absolute bottom-0 left-1/3 h-24 w-24 rounded-full bg-info/10 blur-2xl" />
@@ -259,7 +261,7 @@ export default function Dashboard() {
           <div className="space-y-5">
             <div className="flex w-fit items-center gap-2 rounded-full border border-white/18 bg-white/12 px-3 py-1.5 text-xs font-medium uppercase text-white/80 backdrop-blur">
               <CircleDollarSign className="h-4 w-4 text-emerald-100" />
-              Prévia IA
+              Prévia demonstrativa
             </div>
 
             <div>

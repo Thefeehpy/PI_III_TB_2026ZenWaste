@@ -1,15 +1,20 @@
+import { caminhoEvidencia } from "../suporte/evidencias";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
+import type { ItemEstoque } from "../../src/types/estoque";
 
 test.use({ timezoneId: "America/Sao_Paulo" });
 
 async function prepare(page: Page, { empty = false, theme = "dark" } = {}) {
-  const items = [
+  const items: ItemEstoque[] = [
     {
       id: "glass",
       name: "Vidro",
       type: "Vidro Industrial",
       quantity: 100,
+      description: "Vidro limpo",
+      committedQuantity: 0,
+      availableQuantity: 100,
       unit: "kg",
       targetQuantity: 200,
       deadline: "2026-10-26",
@@ -22,6 +27,9 @@ async function prepare(page: Page, { empty = false, theme = "dark" } = {}) {
       name: "Papelão",
       type: "Papel e Papelão",
       quantity: 50,
+      description: "Papelão prensado",
+      committedQuantity: 0,
+      availableQuantity: 50,
       unit: "kg",
       targetQuantity: 20,
       deadline: "2026-10-26",
@@ -131,6 +139,8 @@ async function prepare(page: Page, { empty = false, theme = "dark" } = {}) {
             segmento: "Indústria",
             email: "teste@example.com",
             telefone: "11999999999",
+            ativo: true,
+            roles: ["vendedora", "compradora"],
           },
         },
       });
@@ -176,13 +186,13 @@ test("summary card is last, replaces the recent history and opens a large keyboa
   await expect(
     page.getByText("Movimentações recentes", { exact: true }),
   ).toHaveCount(0);
-  await page.screenshot({ path: ".workspace/inventory-history-card.png" });
+  await page.screenshot({ path: caminhoEvidencia("inventory-history-card.png") });
   const dialog = await openHistory(page);
   const box = await dialog.boundingBox();
   expect(box!.width).toBeGreaterThan(1000);
   expect(box!.height).toBeGreaterThan(350);
   await expect(dialog.getByTestId("movement-result-count")).toHaveText("27");
-  await page.screenshot({ path: ".workspace/inventory-history-desktop.png" });
+  await page.screenshot({ path: caminhoEvidencia("inventory-history-desktop.png") });
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(
@@ -236,7 +246,7 @@ test("shows three movements before scrolling and shrinks for fewer results", asy
   await expect(rows.nth(4)).not.toBeInViewport({ ratio: 0.1 });
   const initialHeight = (await dialog.boundingBox())!.height;
   await page.screenshot({
-    path: ".workspace/inventory-history-three-rows.png",
+    path: caminhoEvidencia("inventory-history-three-rows.png"),
   });
   await scrollArea.evaluate((element) => {
     element.scrollTop = 160;
@@ -380,7 +390,7 @@ test("mobile filters, results and pagination stay inside the viewport", async ({
   const box = await dialog.boundingBox();
   expect(box!.y).toBeGreaterThanOrEqual(0);
   expect(box!.y + box!.height).toBeLessThanOrEqual(720);
-  await page.screenshot({ path: ".workspace/inventory-history-mobile.png" });
+  await page.screenshot({ path: caminhoEvidencia("inventory-history-mobile.png") });
   await dialog
     .getByRole("button", { name: "Fechar movimentações", exact: true })
     .click();

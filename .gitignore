@@ -21,8 +21,10 @@ __pycache__/
 BackEnd/**/__pycache__/
 BackEnd/**/*.py[cod]
 back-end/.venv/
-back-end/db.sqlite3
+*.sqlite3
+db.sqlite3
 .workspace/
+test-results/
 
 # Editor directories and files
 .vscode/*

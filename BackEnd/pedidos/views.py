@@ -1,209 +1,209 @@
 from django.conf import settings
-from rest_framework import status
+from rest_framework import status as codigos_http
 from rest_framework.response import Response
 
-from authentication.services import ZenWasteAPIView, require_empresa
-from pedidos.gateways import PaymentGatewayError, get_payment_gateway
-from pedidos.models import Order
+from autenticacao.servicos import VisaoAPIZenWaste, exigir_empresa
+from pedidos.integracoes import ErroIntegracaoPagamento, obter_integracao_pagamento
+from pedidos.models import Pedido
 from pedidos.serializers import (
-    CardPaymentSerializer,
-    CreateOrderSerializer,
-    PixPaymentSerializer,
-    SandboxResultSerializer,
+    SerializadorPagamentoCartao,
+    SerializadorCriacaoPedido,
+    SerializadorPagamentoPix,
+    SerializadorResultadoSimulado,
 )
-from pedidos.services import (
-    apply_webhook_event,
-    cancel_order,
-    create_order,
-    get_buyer_order,
-    get_buyer_orders,
-    simulate_sandbox_result,
-    start_payment,
+from pedidos.servicos import (
+    processar_evento_webhook,
+    cancelar_pedido,
+    criar_pedido,
+    obter_pedido_compradora,
+    listar_pedidos_compradora,
+    simular_resultado_pagamento,
+    iniciar_pagamento,
 )
 
 
-def serialize_order(order):
-    attempts = getattr(order, "payment_attempts", None)
-    payment = attempts[0] if attempts else order.payments.order_by("-created_at").first()
-    method = payment.method if payment else order.method or None
-    item = {
-        "id": str(order.listing_id),
-        "name": order.item_name,
-        "type": order.item_type,
-        "description": order.item_description,
-        "quantity": float(order.quantity),
-        "unit": order.item_unit,
-        "price": float(order.unit_price),
-        "location": order.item_location,
-        "company": order.item_company,
-        "imageUrl": order.item_image_url,
+def serializar_pedido(pedido):
+    tentativas = getattr(pedido, 'tentativas_pagamento', None)
+    pagamento = tentativas[0] if tentativas else pedido.pagamentos.order_by('-criado_em').first()
+    metodo = pagamento.metodo if pagamento else pedido.metodo or None
+    material = {
+        "id": str(pedido.anuncio_id),
+        "name": pedido.nome_material_negociado,
+        "type": pedido.categoria_material_negociado,
+        "description": pedido.descricao_material_negociado,
+        "quantity": float(pedido.quantidade),
+        "unit": pedido.unidade_material_negociado,
+        "price": float(pedido.preco_unitario),
+        "location": pedido.localizacao_material_negociado,
+        "company": pedido.razao_social_vendedora,
+        "imageUrl": pedido.imagem_material_negociado,
     }
-    result = {
-        "id": str(order.pk),
-        "number": order.number,
-        "createdAt": order.created_at.isoformat(),
-        "totalCents": int(order.total_amount * 100),
-        "item": item,
-        "quantity": float(order.quantity),
+    resultado = {
+        "id": str(pedido.pk),
+        "number": pedido.numero,
+        "createdAt": pedido.criado_em.isoformat(),
+        "totalCents": int(pedido.valor_total * 100),
+        "item": material,
+        "quantity": float(pedido.quantidade),
         "buyer": {
-            "name": order.buyer_name,
-            "email": order.buyer_email,
-            "document": order.buyer_document,
-            "phone": order.buyer_phone,
+            "name": pedido.nome_comprador,
+            "email": pedido.email_comprador,
+            "document": pedido.documento_comprador,
+            "phone": pedido.telefone_comprador,
         },
-        "fulfillment": order.fulfillment,
-        "status": order.status,
-        "installments": order.installments,
+        "fulfillment": pedido.modalidade_entrega,
+        "status": pedido.situacao,
+        "installments": pedido.parcelas,
     }
-    if order.paid_at:
-        result["paidAt"] = order.paid_at.isoformat()
-    if method:
-        result["method"] = method
-    if payment and method in ("credit", "debit") and (payment.card_brand or payment.card_last4):
-        result["card"] = {"brand": payment.card_brand, "last4": payment.card_last4}
-    if payment and method == "pix" and payment.pix_copy_paste:
-        result["pix"] = {
-            "id": str(payment.pk),
-            "copyPaste": payment.pix_copy_paste,
-            "expiresAt": payment.pix_expires_at.isoformat() if payment.pix_expires_at else "",
+    if pedido.pago_em:
+        resultado["paidAt"] = pedido.pago_em.isoformat()
+    if metodo:
+        resultado["method"] = metodo
+    if pagamento and metodo in ("credit", "debit") and (pagamento.bandeira_cartao or pagamento.final_cartao):
+        resultado["card"] = {"brand": pagamento.bandeira_cartao, "last4": pagamento.final_cartao}
+    if pagamento and metodo == "pix" and pagamento.pix_copia_cola:
+        resultado["pix"] = {
+            "id": str(pagamento.pk),
+            "copyPaste": pagamento.pix_copia_cola,
+            "expiresAt": pagamento.pix_expira_em.isoformat() if pagamento.pix_expira_em else "",
         }
-    return result
+    return resultado
 
 
-def _authorized_order(request, pk):
-    empresa, error = require_empresa(request)
-    if error:
-        return None, None, error
-    order = get_buyer_order(pk, empresa)
-    if not order:
+def _obter_pedido_autorizado(requisicao, pk):
+    empresa, erro = exigir_empresa(requisicao)
+    if erro:
+        return None, None, erro
+    pedido = obter_pedido_compradora(pk, empresa)
+    if not pedido:
         return empresa, None, Response(
             {"message": "Pedido nao encontrado."},
-            status=status.HTTP_404_NOT_FOUND,
+            status=codigos_http.HTTP_404_NOT_FOUND,
         )
-    return empresa, order, None
+    return empresa, pedido, None
 
 
-class OrdersAPIView(ZenWasteAPIView):
-    def get(self, request):
-        empresa, error = require_empresa(request)
-        if error:
-            return error
-        orders = get_buyer_orders(empresa)
-        return Response({"items": [serialize_order(order) for order in orders]})
+class VisaoAPIPedidos(VisaoAPIZenWaste):
+    def get(self, requisicao):
+        empresa, erro = exigir_empresa(requisicao)
+        if erro:
+            return erro
+        pedidos = listar_pedidos_compradora(empresa)
+        return Response({"items": [serializar_pedido(pedido) for pedido in pedidos]})
 
-    def post(self, request):
-        empresa, error = require_empresa(request)
-        if error:
-            return error
-        serializer = CreateOrderSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        order = create_order(
+    def post(self, requisicao):
+        empresa, erro = exigir_empresa(requisicao)
+        if erro:
+            return erro
+        serializador = SerializadorCriacaoPedido(data=requisicao.data)
+        serializador.is_valid(raise_exception=True)
+        pedido = criar_pedido(
             empresa,
-            serializer.validated_data,
-            request.headers.get("Idempotency-Key"),
+            serializador.validated_data,
+            requisicao.headers.get("Idempotency-Key"),
         )
-        return Response(serialize_order(order), status=status.HTTP_201_CREATED)
+        return Response(serializar_pedido(pedido), status=codigos_http.HTTP_201_CREATED)
 
 
-class OrderDetailAPIView(ZenWasteAPIView):
-    def get(self, request, pk):
-        _, order, error = _authorized_order(request, pk)
-        if error:
-            return error
-        return Response(serialize_order(order))
+class VisaoAPIDetalhePedido(VisaoAPIZenWaste):
+    def get(self, requisicao, pk):
+        _, pedido, erro = _obter_pedido_autorizado(requisicao, pk)
+        if erro:
+            return erro
+        return Response(serializar_pedido(pedido))
 
 
-class OrderPaymentAPIView(ZenWasteAPIView):
-    def post(self, request, pk):
-        empresa, _, error = _authorized_order(request, pk)
-        if error:
-            return error
-        serializer = CardPaymentSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        order = start_payment(
+class VisaoAPIPagamentoCartao(VisaoAPIZenWaste):
+    def post(self, requisicao, pk):
+        empresa, _, erro = _obter_pedido_autorizado(requisicao, pk)
+        if erro:
+            return erro
+        serializador = SerializadorPagamentoCartao(data=requisicao.data)
+        serializador.is_valid(raise_exception=True)
+        pedido = iniciar_pagamento(
             pk,
             empresa,
             "card",
-            serializer.validated_data,
-            request.headers.get("Idempotency-Key"),
+            serializador.validated_data,
+            requisicao.headers.get("Idempotency-Key"),
         )
-        return Response(serialize_order(order))
+        return Response(serializar_pedido(pedido))
 
 
-class OrderPixAPIView(ZenWasteAPIView):
-    def post(self, request, pk):
-        empresa, _, error = _authorized_order(request, pk)
-        if error:
-            return error
-        serializer = PixPaymentSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        order = start_payment(
+class VisaoAPIPagamentoPix(VisaoAPIZenWaste):
+    def post(self, requisicao, pk):
+        empresa, _, erro = _obter_pedido_autorizado(requisicao, pk)
+        if erro:
+            return erro
+        serializador = SerializadorPagamentoPix(data=requisicao.data)
+        serializador.is_valid(raise_exception=True)
+        pedido = iniciar_pagamento(
             pk,
             empresa,
             "pix",
-            serializer.validated_data,
-            request.headers.get("Idempotency-Key"),
+            serializador.validated_data,
+            requisicao.headers.get("Idempotency-Key"),
         )
-        return Response(serialize_order(order))
+        return Response(serializar_pedido(pedido))
 
 
-class OrderCancelAPIView(ZenWasteAPIView):
-    def post(self, request, pk):
-        empresa, _, error = _authorized_order(request, pk)
-        if error:
-            return error
-        order = cancel_order(pk, empresa)
-        return Response(serialize_order(order))
+class VisaoAPICancelamentoPedido(VisaoAPIZenWaste):
+    def post(self, requisicao, pk):
+        empresa, _, erro = _obter_pedido_autorizado(requisicao, pk)
+        if erro:
+            return erro
+        pedido = cancelar_pedido(pk, empresa)
+        return Response(serializar_pedido(pedido))
 
 
-class SandboxPaymentResultAPIView(ZenWasteAPIView):
-    def post(self, request, pk):
-        empresa, _, error = _authorized_order(request, pk)
-        if error:
-            return error
-        serializer = SandboxResultSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        order = simulate_sandbox_result(pk, empresa, serializer.validated_data["result"])
-        return Response(serialize_order(order))
+class VisaoAPISimulacaoPagamento(VisaoAPIZenWaste):
+    def post(self, requisicao, pk):
+        empresa, _, erro = _obter_pedido_autorizado(requisicao, pk)
+        if erro:
+            return erro
+        serializador = SerializadorResultadoSimulado(data=requisicao.data)
+        serializador.is_valid(raise_exception=True)
+        pedido = simular_resultado_pagamento(pk, empresa, serializador.validated_data["result"])
+        return Response(serializar_pedido(pedido))
 
 
-class PaymentWebhookAPIView(ZenWasteAPIView):
+class VisaoAPINotificacaoPagamento(VisaoAPIZenWaste):
     authentication_classes = []
     permission_classes = []
 
-    def post(self, request, provider):
-        secret = getattr(settings, "PAYMENT_WEBHOOK_SECRET", "")
-        signature = request.headers.get("X-Payment-Signature", "")
-        if not secret:
+    def post(self, requisicao, provedor):
+        segredo = getattr(settings, 'SEGREDO_NOTIFICACAO_PAGAMENTO', "")
+        assinatura = requisicao.headers.get("X-Payment-Signature", "")
+        if not segredo:
             return Response(
                 {"message": "Webhook nao configurado."},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                status=codigos_http.HTTP_503_SERVICE_UNAVAILABLE,
             )
         try:
-            gateway = get_payment_gateway()
-            payload = gateway.verify_webhook(request.body, signature)
-        except PaymentGatewayError as exc:
-            return Response({"message": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
+            integracao = obter_integracao_pagamento()
+            conteudo = integracao.validar_notificacao(requisicao.body, assinatura)
+        except ErroIntegracaoPagamento as erro:
+            return Response({"message": str(erro)}, status=codigos_http.HTTP_401_UNAUTHORIZED)
 
-        text_fields = ("eventId", "paymentReference", "status")
+        campos_textuais = ("eventId", "paymentReference", "status")
         if (
-            any(not isinstance(payload.get(field), str) or not payload[field] for field in text_fields)
-            or not isinstance(payload.get("amountCents"), int)
-            or isinstance(payload.get("amountCents"), bool)
-            or payload["amountCents"] <= 0
+            any(not isinstance(conteudo.get(campo), str) or not conteudo[campo] for campo in campos_textuais)
+            or not isinstance(conteudo.get("amountCents"), int)
+            or isinstance(conteudo.get("amountCents"), bool)
+            or conteudo["amountCents"] <= 0
         ):
-            return Response({"message": "Evento incompleto."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Evento incompleto."}, status=codigos_http.HTTP_400_BAD_REQUEST)
 
-        if payload.get("currency", "BRL") != "BRL":
-            return Response({"message": "Moeda do evento invalida."}, status=status.HTTP_400_BAD_REQUEST)
+        if conteudo.get("currency", "BRL") != "BRL":
+            return Response({"message": "Moeda do evento invalida."}, status=codigos_http.HTTP_400_BAD_REQUEST)
 
-        if provider != getattr(settings, "PAYMENT_GATEWAY", "disabled"):
-            return Response({"message": "Provedor nao habilitado."}, status=status.HTTP_404_NOT_FOUND)
-        order = apply_webhook_event(
-            provider,
-            payload["eventId"],
-            payload["paymentReference"],
-            payload["status"],
-            payload["amountCents"],
+        if provedor != getattr(settings, 'INTEGRACAO_PAGAMENTO', "disabled"):
+            return Response({"message": "Provedor nao habilitado."}, status=codigos_http.HTTP_404_NOT_FOUND)
+        pedido = processar_evento_webhook(
+            provedor,
+            conteudo["eventId"],
+            conteudo["paymentReference"],
+            conteudo["status"],
+            conteudo["amountCents"],
         )
-        return Response({"received": True, "orderId": str(order.pk) if order else None})
+        return Response({"received": True, "orderId": str(pedido.pk) if pedido else None})

@@ -1,8 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
+import { diretorioResultados } from "./tests/suporte/evidencias";
 
 export default defineConfig({
   testDir: "./tests/inventory",
-  outputDir: ".workspace/inventory-test-results",
+  outputDir: diretorioResultados(),
   workers: 1,
   timeout: 60_000,
   expect: { timeout: 10_000 },

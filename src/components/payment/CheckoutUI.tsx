@@ -21,7 +21,7 @@ import {
   statusLabels,
 } from "@/lib/payment";
 import { cn } from "@/lib/utils";
-import type { WasteItem } from "@/data/mockData";
+import type { MaterialNegociado } from "@/types/anuncio";
 import type { OrderStatus } from "@/types/payment";
 
 export function DemoNotice({ children }: { children?: ReactNode }) {
@@ -176,7 +176,7 @@ export function OrderSummary({
   totalCents = calculateTotal(item.price, quantity),
   children,
 }: {
-  item: WasteItem;
+  item: MaterialNegociado;
   quantity: number;
   totalCents?: number;
   children?: ReactNode;

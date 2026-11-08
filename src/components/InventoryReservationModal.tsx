@@ -11,13 +11,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useInventory } from "@/contexts/InventoryContext";
-import type { InventoryItem } from "@/data/mockData";
+import { useEstoque } from "@/contexts/InventoryContext";
+import type { ItemEstoque } from "@/types/estoque";
 import { toast } from "sonner";
 import { formatInventoryQuantity } from "@/lib/inventory";
 
 interface InventoryReservationModalProps {
-  item: InventoryItem;
+  item: ItemEstoque;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCloseAutoFocus?: (event: Event) => void;
@@ -36,8 +36,8 @@ export function InventoryReservationModal({
   const lock = useRef(false);
   const latestItem = useRef(item);
   latestItem.current = item;
-  const { updateItem } = useInventory();
-  // Refresh the draft when the editor opens, without erasing edits after a stock refresh.
+  const { atualizarItem } = useEstoque();
+  // Atualiza o rascunho ao abrir, preservando a edição durante consultas ao estoque.
   useEffect(() => {
     const current = latestItem.current;
     if (open) {
@@ -52,8 +52,8 @@ export function InventoryReservationModal({
   const valid =
     Number.isFinite(numeric) &&
     numeric >= 0.001 &&
-    numeric <= 9999999.999 &&
-    Math.abs(numeric * 1000 - Math.round(numeric * 1000)) < 0.000001;
+    numeric <= 999999999.999 &&
+    Number(numeric.toFixed(3)) === numeric;
   const changeOpen = (next: boolean) => {
     if (!lock.current) onOpenChange(next);
   };
@@ -65,16 +65,16 @@ export function InventoryReservationModal({
     setSaving(true);
     setError("");
     try {
-      const result = await updateItem({
+      const result = await atualizarItem({
         itemId: item.id,
         targetQuantity: numeric,
         deadline,
       });
-      if (!result.success) {
-        setError(result.message);
+      if (!result.sucesso) {
+        setError(result.mensagem);
         return;
       }
-      toast.success("Reserva atualizada", { description: result.message });
+      toast.success("Reserva atualizada", { description: result.mensagem });
       onOpenChange(false);
     } catch {
       setError("Não foi possível salvar a reserva. Tente novamente.");
@@ -103,7 +103,7 @@ export function InventoryReservationModal({
             {item.targetQuantity > 0 ? "Editar reserva" : "Criar reserva"}
           </DialogTitle>
           <DialogDescription className="break-words">
-            Defina a quantidade e o prazo para {item.name}.
+            Defina a meta de captação e o prazo para {item.name}. Esta meta não compromete o saldo.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex min-h-0 flex-col">
@@ -112,7 +112,7 @@ export function InventoryReservationModal({
             className="min-h-0 space-y-5 overflow-y-auto px-6 pb-6"
           >
             <p className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-4 py-3 text-xs">
-              <span className="text-muted-foreground">Saldo disponível</span>
+              <span className="text-muted-foreground">Saldo físico</span>
               <strong className="font-semibold">
                 {formatInventoryQuantity(item.quantity, item.unit)}
               </strong>
@@ -126,7 +126,7 @@ export function InventoryReservationModal({
                 type="number"
                 inputMode="decimal"
                 min="0.001"
-                max="9999999.999"
+                max="999999999.999"
                 step="0.001"
                 value={quantity}
                 onChange={(e) => {
@@ -147,7 +147,7 @@ export function InventoryReservationModal({
                   ? "Informe uma quantidade válida, com até três casas decimais."
                   : valid && numeric > item.quantity
                     ? "O volume que falta ficará indicado como reserva pendente."
-                    : "Quantidade comprometida com a reserva deste item."}
+                    : "Meta de captação; compromissos de venda são contabilizados separadamente."}
               </p>
             </div>
             <div className="space-y-2">

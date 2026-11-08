@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDemoPaymentService } from "@/services/demo-payment-service";
-import { marketplaceItems } from "@/data/mockData";
+import { marketplaceItems } from "@/test/fixtures/anuncios";
 
 const input = () => ({
   listing: marketplaceItems[0],

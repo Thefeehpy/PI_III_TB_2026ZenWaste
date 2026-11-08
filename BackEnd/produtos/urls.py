@@ -1,22 +1,22 @@
 from django.urls import path
 
 from produtos.views import (
-    InventoryItemDetailAPIView,
-    InventoryItemMovementAPIView,
-    InventoryItemReservationsAPIView,
-    InventoryItemsAPIView,
-    InventoryMovementsAPIView,
-    InventoryReservationDetailAPIView,
-    InventoryReservationsAPIView,
+    VisaoAPIDetalheItemEstoque,
+    VisaoAPIMovimentacaoItemEstoque,
+    VisaoAPIReservasItemEstoque,
+    VisaoAPIItensEstoque,
+    VisaoAPIMovimentacoesEstoque,
+    VisaoAPIDetalheReservaEstoque,
+    VisaoAPIReservasEstoque,
 )
 
 
 urlpatterns = [
-    path("items/", InventoryItemsAPIView.as_view(), name="api-inventory-items"),
-    path("items/<int:pk>/", InventoryItemDetailAPIView.as_view(), name="api-inventory-item-detail"),
-    path("items/<int:pk>/movements/", InventoryItemMovementAPIView.as_view(), name="api-inventory-item-movements"),
-    path("items/<int:pk>/reservations/", InventoryItemReservationsAPIView.as_view(), name="api-inventory-item-reservations"),
-    path("movements/", InventoryMovementsAPIView.as_view(), name="api-inventory-movements"),
-    path("reservations/", InventoryReservationsAPIView.as_view(), name="api-inventory-reservations"),
-    path("reservations/<int:pk>/", InventoryReservationDetailAPIView.as_view(), name="api-inventory-reservation-detail"),
+    path("items/", VisaoAPIItensEstoque.as_view(), name="api-inventory-items"),
+    path("items/<int:pk>/", VisaoAPIDetalheItemEstoque.as_view(), name="api-inventory-item-detail"),
+    path("items/<int:pk>/movements/", VisaoAPIMovimentacaoItemEstoque.as_view(), name="api-inventory-item-movements"),
+    path("items/<int:pk>/reservations/", VisaoAPIReservasItemEstoque.as_view(), name="api-inventory-item-reservations"),
+    path("movements/", VisaoAPIMovimentacoesEstoque.as_view(), name="api-inventory-movements"),
+    path("reservations/", VisaoAPIReservasEstoque.as_view(), name="api-inventory-reservations"),
+    path("reservations/<int:pk>/", VisaoAPIDetalheReservaEstoque.as_view(), name="api-inventory-reservation-detail"),
 ]

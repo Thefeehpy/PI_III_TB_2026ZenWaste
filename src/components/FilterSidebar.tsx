@@ -1,7 +1,7 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
 
-import { locations, wasteTypes } from "@/data/mockData";
+import { localizacoesSugeridas, tiposResiduos } from "@/constants/catalogos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +44,7 @@ export function FilterSidebar({ filters, onChange, onClear }: FilterSidebarProps
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
-            {wasteTypes.map((type) => (
+            {tiposResiduos.map((type) => (
               <SelectItem key={type} value={type}>
                 {type}
               </SelectItem>
@@ -61,7 +61,7 @@ export function FilterSidebar({ filters, onChange, onClear }: FilterSidebarProps
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas</SelectItem>
-            {locations.map((location) => (
+            {localizacoesSugeridas.map((location) => (
               <SelectItem key={location} value={location}>
                 {location}
               </SelectItem>

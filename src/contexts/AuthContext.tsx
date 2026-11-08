@@ -1,110 +1,115 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import {
-  api,
-  clearAuthToken,
-  getStoredAuthToken,
-  setAuthToken,
-  type ApiUser,
-  type RegisterInput,
-} from "@/lib/api";
+import { servicoAutenticacao } from "@/services/servico-autenticacao";
+import { armazenarTokenAutenticacao, obterTokenAutenticacao, removerTokenAutenticacao } from "@/services/cliente-http";
+import type { CadastroEmpresa, EmpresaAutenticada } from "@/types/empresa";
 
-export type AuthUser = ApiUser;
+export type AuthUser = EmpresaAutenticada;
 
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
-  register: (input: RegisterInput) => Promise<{ success: boolean; message?: string }>;
+  register: (input: CadastroEmpresa) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(() => Boolean(getStoredAuthToken()));
+  const [empresa, definirEmpresa] = useState<EmpresaAutenticada | null>(null);
+  const [carregando, definirCarregando] = useState(() => Boolean(obterTokenAutenticacao()));
+  const geracaoSessao = useRef(0);
 
   useEffect(() => {
-    if (!getStoredAuthToken()) {
-      setIsLoading(false);
+    const tokenConsultado = obterTokenAutenticacao();
+    if (!tokenConsultado) {
+      definirCarregando(false);
       return;
     }
 
-    let active = true;
-    api
-      .me()
-      .then(({ user: loadedUser }) => {
-        if (active) {
-          setUser(loadedUser);
+    let ativo = true;
+    const geracao = ++geracaoSessao.current;
+    const podeAplicar = () => ativo && geracaoSessao.current === geracao && obterTokenAutenticacao() === tokenConsultado;
+    servicoAutenticacao
+      .obterEmpresaAtual()
+      .then(({ user: empresaCarregada }) => {
+        if (podeAplicar()) {
+          definirEmpresa(empresaCarregada);
         }
       })
       .catch(() => {
-        clearAuthToken();
-        if (active) {
-          setUser(null);
+        if (podeAplicar()) {
+          removerTokenAutenticacao();
+          definirEmpresa(null);
         }
       })
       .finally(() => {
-        if (active) {
-          setIsLoading(false);
+        if (ativo && geracaoSessao.current === geracao) {
+          definirCarregando(false);
         }
       });
 
     return () => {
-      active = false;
+      ativo = false;
     };
   }, []);
 
-  const value = useMemo<AuthContextValue>(
+  const valor = useMemo<AuthContextValue>(
     () => ({
-      user,
-      isAuthenticated: Boolean(user),
-      isLoading,
-      login: async (email, password) => {
+      user: empresa,
+      isAuthenticated: Boolean(empresa),
+      isLoading: carregando,
+      login: async (email, senha) => {
+        const geracao = ++geracaoSessao.current;
         try {
-          const response = await api.login(email, password);
-          setAuthToken(response.token);
-          setUser(response.user);
+          const resposta = await servicoAutenticacao.entrar(email, senha);
+          if (geracaoSessao.current !== geracao) return { success: false, message: "A sessão foi alterada durante a autenticação." };
+          armazenarTokenAutenticacao(resposta.token);
+          definirEmpresa(resposta.user);
           return { success: true };
-        } catch (error) {
+        } catch (erro) {
           return {
             success: false,
-            message: error instanceof Error ? error.message : "Não foi possível entrar.",
+            message: erro instanceof Error ? erro.message : "Não foi possível entrar.",
           };
+        } finally {
+          if (geracaoSessao.current === geracao) definirCarregando(false);
         }
       },
-      register: async (input) => {
+      register: async (entrada) => {
         try {
-          await api.register(input);
+          await servicoAutenticacao.cadastrar(entrada);
           return { success: true };
-        } catch (error) {
+        } catch (erro) {
           return {
             success: false,
-            message: error instanceof Error ? error.message : "Cadastro não concluído.",
+            message: erro instanceof Error ? erro.message : "Cadastro não concluído.",
           };
         }
       },
       logout: () => {
-        void api.logout().catch(() => undefined);
-        clearAuthToken();
-        setUser(null);
+        ++geracaoSessao.current;
+        void servicoAutenticacao.sair().catch(() => undefined);
+        removerTokenAutenticacao();
+        definirEmpresa(null);
+        definirCarregando(false);
       },
     }),
-    [isLoading, user],
+    [carregando, empresa],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
+  const contexto = useContext(AuthContext);
 
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+  if (!contexto) {
+    throw new Error("useAuth deve ser utilizado dentro de AuthProvider.");
   }
 
-  return context;
+  return contexto;
 }
 

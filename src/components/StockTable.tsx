@@ -1,15 +1,15 @@
-﻿import { CalendarClock, ChevronRight } from "lucide-react";
+import { CalendarClock, ChevronRight } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type { InventoryItem } from "@/data/mockData";
+import type { ItemEstoque } from "@/types/estoque";
 import { formatInventoryCalendarDate, formatInventoryQuantity, inventoryStatusMap } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
 
 interface StockTableProps {
-  items: InventoryItem[];
-  onViewItem: (item: InventoryItem) => void;
+  items: ItemEstoque[];
+  onViewItem: (item: ItemEstoque) => void;
 }
 
 export function StockTable({ items, onViewItem }: StockTableProps) {
@@ -34,7 +34,7 @@ export function StockTable({ items, onViewItem }: StockTableProps) {
           ? reservationGap > 0
             ? `Faltam ${formatInventoryQuantity(reservationGap, item.unit)} para cobrir a reserva.`
             : "Reserva coberta e item pronto para seguir operando."
-          : "Sem reserva de cliente vinculada.";
+          : "Sem meta de captação definida. Compromissos de venda são contabilizados separadamente.";
 
         return (
           <Card
@@ -55,10 +55,12 @@ export function StockTable({ items, onViewItem }: StockTableProps) {
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-border/70 bg-muted/20 p-3">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Saldo</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Saldo físico</p>
                   <p className="mt-2 text-lg font-semibold text-foreground">
                     {formatInventoryQuantity(item.quantity, item.unit)}
                   </p>
+                  <p className="mt-2 text-xs text-muted-foreground">Comprometido: {formatInventoryQuantity(item.committedQuantity, item.unit)}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Disponível: {formatInventoryQuantity(item.availableQuantity, item.unit)}</p>
                 </div>
 
                 <div className="rounded-2xl border border-border/70 bg-muted/20 p-3">

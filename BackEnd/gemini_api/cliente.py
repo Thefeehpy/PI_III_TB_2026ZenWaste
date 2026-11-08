@@ -9,110 +9,117 @@ except ImportError:
     genai = None
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+DIRETORIO_BASE = Path(__file__).resolve().parent.parent
 
-load_dotenv(BASE_DIR / ".env", override=True)
-api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("API_KEY", "")
-client = genai.Client(api_key=api_key) if genai and api_key else None
-last_error = ""
+load_dotenv(DIRETORIO_BASE / ".env", override=True)
+chave_api = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("API_KEY", "")
+cliente = genai.Client(api_key=chave_api) if genai and chave_api else None
+ultimo_erro = ""
 
 
-def _safe_error_message(error):
-    error_text = str(error)
+def _mensagem_erro_segura(erro):
+    texto_erro = str(erro)
+    codigo = getattr(erro, "code", None)
+    if codigo == 429:
+        return "Limite de uso do Gemini atingido. Confira a cota do projeto no Google AI Studio."
+    if codigo == 503:
+        return "Gemini temporariamente sobrecarregado. Tente novamente em alguns minutos."
+    if codigo == 504 or "timed out" in texto_erro.lower() or "timeout" in texto_erro.lower():
+        return "O Gemini excedeu o tempo de resposta. Tente novamente em alguns minutos."
+    if codigo == 404:
+        return "Modelo Gemini indisponivel para este projeto. Confira GEMINI_MODEL no BackEnd/.env."
 
-    if "reported as leaked" in error_text:
+    if "reported as leaked" in texto_erro:
         return "A chave do Gemini configurada foi bloqueada por vazamento. Gere uma nova chave e salve em GEMINI_API_KEY."
-    if "PERMISSION_DENIED" in error_text or "API_KEY_INVALID" in error_text:
+    if "PERMISSION_DENIED" in texto_erro or "API_KEY_INVALID" in texto_erro:
         return "A chave do Gemini nao tem permissao para gerar conteudo. Confira ou troque a GEMINI_API_KEY."
-    if "ConnectError" in error_text or "WinError 10013" in error_text:
+    if "ConnectError" in texto_erro or "WinError 10013" in texto_erro:
         return "Nao foi possivel conectar ao Gemini a partir deste ambiente."
 
     return "Nao foi possivel obter resposta do Gemini agora."
 
 
-def get_ai_status():
+def obter_situacao_ia():
     if genai is None:
         return {
             "available": False,
             "message": "SDK do Gemini nao instalado no Python em uso. Rode o backend pela .venv ou instale google-genai.",
         }
 
-    if not api_key:
+    if not chave_api:
         return {
             "available": False,
             "message": "Chave do Gemini nao configurada. Defina GEMINI_API_KEY no arquivo BackEnd/.env.",
         }
 
-    if last_error:
+    if ultimo_erro:
         return {
             "available": False,
-            "message": last_error,
+            "message": ultimo_erro,
         }
 
     return {
-        "available": client is not None,
+        "available": cliente is not None,
         "message": "",
     }
 
 
-def is_ai_available():
-    return get_ai_status()["available"]
+def ia_disponivel():
+    return cliente is not None
 
 
-def _generate_content(prompt):
-    global last_error
+def _gerar_conteudo(instrucao):
+    global ultimo_erro
 
-    if client is None:
+    if cliente is None:
         return None
 
     try:
-        response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
-    except TypeError:
-        try:
-            response = client.models.generate_content(model="gemini-2.5-flash", content=prompt)
-        except Exception as error:
-            last_error = _safe_error_message(error)
-            return None
-    except Exception as error:
-        last_error = _safe_error_message(error)
+        resposta = cliente.models.generate_content(
+            model=os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
+            contents=instrucao,
+            config={"http_options": {"timeout": 30000}},
+        )
+    except Exception as erro:
+        ultimo_erro = _mensagem_erro_segura(erro)
         return None
 
-    text = getattr(response, "text", None)
-    if text:
-        last_error = ""
-        return text.strip()
+    texto = getattr(resposta, "text", None)
+    if texto:
+        ultimo_erro = ""
+        return texto.strip()
 
-    last_error = "O Gemini respondeu sem texto para esta solicitacao."
+    ultimo_erro = "O Gemini respondeu sem texto para esta solicitacao."
     return None
 
 
-def get_product_ai_description(product_name):
-    prompt = f"""
-Crie uma descricao objetiva para o item industrial "{product_name}".
+def gerar_descricao_produto_ia(nome_produto):
+    instrucao = f"""
+Crie uma descricao objetiva para o item industrial "{nome_produto}".
 Regras:
 - Portugues do Brasil.
 - No maximo 300 caracteres.
 - Sem inventar certificacoes, marcas ou garantias.
 - Retorne apenas a descricao.
 """
-    return _generate_content(prompt)
+    return _gerar_conteudo(instrucao)
 
 
-def get_anounce_price_ai_description(product_context):
-    prompt = f"""
+def gerar_preco_anuncio_ia(contexto_produto):
+    instrucao = f"""
 Sugira um preco unitario em reais para este residuo industrial.
-Contexto: {product_context}
+Contexto: {contexto_produto}
 Regras:
 - O preco deve ser por unidade informada no contexto.
 - Retorne apenas um numero em reais, sem explicacao. Exemplo: 2,80
 """
-    return _generate_content(prompt)
+    return _gerar_conteudo(instrucao)
 
 
-def get_anounce_ai_description(product_context):
-    prompt = f"""
+def gerar_descricao_anuncio_ia(contexto_produto):
+    instrucao = f"""
 Crie uma descricao comercial para um anuncio de residuo industrial.
-Contexto: {product_context}
+Contexto: {contexto_produto}
 Regras:
 - Portugues do Brasil.
 - No maximo 300 caracteres.
@@ -120,4 +127,4 @@ Regras:
 - Nao invente certificacoes, origem, limpeza ou qualidade se nao estiver no contexto.
 - Retorne apenas a descricao.
 """
-    return _generate_content(prompt)
+    return _gerar_conteudo(instrucao)

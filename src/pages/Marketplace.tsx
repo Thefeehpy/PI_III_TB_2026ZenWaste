@@ -4,12 +4,13 @@ import { Search } from "lucide-react";
 import { FilterSidebar, emptyFilters, type Filters } from "@/components/FilterSidebar";
 import { Input } from "@/components/ui/input";
 import { WasteCard } from "@/components/WasteCard";
-import { useMarketplace } from "@/contexts/MarketplaceContext";
+import { EstadoConsulta } from "@/components/EstadoConsulta";
+import { useAnuncios } from "@/contexts/MarketplaceContext";
 
 export default function Marketplace() {
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Filters>(emptyFilters);
-  const { items } = useMarketplace();
+  const { anuncios: items, carregando, erro, atualizarAnuncios } = useAnuncios();
 
   const filtered = useMemo(() => {
     return items.filter((item) => {
@@ -40,6 +41,7 @@ export default function Marketplace() {
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
+          aria-label="Buscar resíduos por nome ou tipo"
           placeholder="Buscar resíduos por nome ou tipo..."
           className="w-full max-w-xl pl-10"
           value={search}
@@ -50,18 +52,19 @@ export default function Marketplace() {
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <FilterSidebar filters={filters} onChange={setFilters} onClear={() => setFilters(emptyFilters)} />
         <div className="flex-1">
-          {filtered.length === 0 ? (
+          <EstadoConsulta carregando={carregando} erro={erro} tentarNovamente={() => void atualizarAnuncios()} />
+          {filtered.length === 0 && !carregando && !erro ? (
             <div className="py-16 text-center text-muted-foreground">
               <p className="text-lg">Nenhum resultado encontrado</p>
               <p className="text-sm">Tente ajustar os filtros ou publique um novo anúncio</p>
             </div>
-          ) : (
+          ) : filtered.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {filtered.map((item) => (
                 <WasteCard key={item.id} item={item} />
               ))}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
