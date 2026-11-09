@@ -1,0 +1,11 @@
+{
+  "formato": "zenwaste.catalogo-ibama.v1",
+  "fonte": "fixture-ficticia-zenwaste",
+  "versao": "teste-1",
+  "referencia_fonte": "Fixture inventada exclusivamente para testes. SEM VALOR OFICIAL.",
+  "simulado": true,
+  "codigos": [
+    {"codigo": "000001", "descricao": "FICTICIO: material de teste sem classificacao oficial", "perigoso": null},
+    {"codigo": "000002(*)", "descricao": "FICTICIO: marcador de perigo para teste sem valor oficial", "perigoso": true}
+  ]
+}

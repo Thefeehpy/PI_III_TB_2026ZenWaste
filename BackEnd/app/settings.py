@@ -48,7 +48,11 @@ INSTALLED_APPS = [
     'mercado.apps.ConfiguracaoMercado',
     'pedidos',
     'fretes.apps.ConfiguracaoFretes',
+    'mtr.apps.ConfiguracaoMTR',
 ]
+
+# Apenas MOCK é implementado. A fábrica rejeita qualquer provedor real.
+MTR_PROVEDOR = os.getenv('ZENWASTE_MTR_PROVEDOR', 'MOCK')
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
