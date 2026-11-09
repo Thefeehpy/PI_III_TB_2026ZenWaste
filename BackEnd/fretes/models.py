@@ -66,48 +66,48 @@ class Frete(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_column="id_frete")
     pedido = models.ForeignKey(
         "pedidos.Pedido", on_delete=models.PROTECT, null=True, blank=True,
-        related_name="fretes", db_column="frete_pedido_id",
+        related_name="fretes", db_column="pedido_id",
     )
     empresa_vendedora = models.ForeignKey(
         "empresas.Empresa", on_delete=models.PROTECT, related_name="fretes_como_vendedora",
-        db_column="frete_empresa_vendedora_id",
+        db_column="empresa_vendedora_id",
     )
     empresa_compradora = models.ForeignKey(
         "empresas.Empresa", on_delete=models.PROTECT, related_name="fretes_como_compradora",
-        db_column="frete_empresa_compradora_id",
+        db_column="empresa_compradora_id",
     )
     transportadora = models.ForeignKey(
         "empresas.Empresa", on_delete=models.PROTECT, null=True, blank=True,
-        related_name="fretes_atribuidos", db_column="frete_transportadora_id",
+        related_name="fretes_atribuidos", db_column="transportadora_id",
     )
-    numero_pedido = models.CharField(max_length=60, db_column="frete_numero_referencia")
-    origem_cadastro = models.CharField(max_length=12, choices=OrigemCadastro.choices, db_column="frete_origem_cadastro")
-    material = models.CharField(max_length=256, db_column="frete_material")
-    unidade = models.CharField(max_length=12, db_column="frete_unidade")
-    quantidade = models.DecimalField(max_digits=12, decimal_places=3, db_column="frete_quantidade_remessa")
-    origem = models.CharField(max_length=255, db_column="frete_local_origem")
-    destino = models.CharField(max_length=255, db_column="frete_local_destino")
+    numero_pedido = models.CharField(max_length=60, db_column="numero_referencia")
+    origem_cadastro = models.CharField(max_length=12, choices=OrigemCadastro.choices, db_column="origem_cadastro")
+    material = models.CharField(max_length=256, db_column="material")
+    unidade = models.CharField(max_length=12, db_column="unidade")
+    quantidade = models.DecimalField(max_digits=12, decimal_places=3, db_column="quantidade_remessa")
+    origem = models.CharField(max_length=255, db_column="local_origem")
+    destino = models.CharField(max_length=255, db_column="local_destino")
     peso_toneladas = models.DecimalField(
-        max_digits=12, decimal_places=3, null=True, blank=True, db_column="frete_peso_toneladas",
+        max_digits=12, decimal_places=3, null=True, blank=True, db_column="peso_toneladas",
     )
-    cubagem_m3 = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True, db_column="frete_cubagem_m3")
-    quantidade_volumes = models.PositiveIntegerField(null=True, blank=True, db_column="frete_quantidade_volumes")
-    data_pedido = models.DateField(default=timezone.localdate, db_column="frete_data_referencia")
-    previsao_entrega = models.DateField(null=True, blank=True, db_column="frete_previsao_entrega")
+    cubagem_m3 = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True, db_column="cubagem_m3")
+    quantidade_volumes = models.PositiveIntegerField(null=True, blank=True, db_column="quantidade_volumes")
+    data_pedido = models.DateField(default=timezone.localdate, db_column="data_referencia")
+    previsao_entrega = models.DateField(null=True, blank=True, db_column="previsao_entrega")
     situacao = models.CharField(
         max_length=30, choices=Situacao.choices, default=Situacao.AGUARDANDO_CLASSIFICACAO,
-        db_index=True, db_column="frete_situacao_auditoria",
+        db_index=True, db_column="situacao_auditoria",
     )
-    modalidade = models.CharField(max_length=24, choices=Modalidade.choices, blank=True, default="", db_column="frete_modalidade")
+    modalidade = models.CharField(max_length=24, choices=Modalidade.choices, blank=True, default="", db_column="modalidade")
     valor_referencia = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True, db_column="frete_valor_referencia",
+        max_digits=12, decimal_places=2, null=True, blank=True, db_column="valor_referencia",
     )
-    retirado_em = models.DateTimeField(null=True, blank=True, db_column="frete_retirado_em")
-    nome_foto_retirada = models.CharField(max_length=255, blank=True, default="", db_column="frete_foto_retirada_nome")
-    cancelado_em = models.DateTimeField(null=True, blank=True, db_column="frete_cancelado_em")
-    justificativa_cancelamento = models.CharField(max_length=1000, blank=True, default="", db_column="frete_cancelamento_justificativa")
-    criado_em = models.DateTimeField(auto_now_add=True, db_column="frete_criado_em")
-    atualizado_em = models.DateTimeField(auto_now=True, db_column="frete_atualizado_em")
+    retirado_em = models.DateTimeField(null=True, blank=True, db_column="retirado_em")
+    nome_foto_retirada = models.CharField(max_length=255, blank=True, default="", db_column="nome_foto_retirada")
+    cancelado_em = models.DateTimeField(null=True, blank=True, db_column="cancelado_em")
+    justificativa_cancelamento = models.CharField(max_length=1000, blank=True, default="", db_column="justificativa_cancelamento")
+    criado_em = models.DateTimeField(auto_now_add=True, db_column="criado_em")
+    atualizado_em = models.DateTimeField(auto_now=True, db_column="atualizado_em")
 
     class Meta:
         ordering = ["-criado_em", "-id"]
@@ -217,13 +217,13 @@ class Frete(models.Model):
 
 class CotacaoFrete(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_column="id_cotacao_frete")
-    frete = models.ForeignKey(Frete, on_delete=models.PROTECT, related_name="cotacoes", db_column="cotacao_frete_id")
-    transportadora = models.ForeignKey("empresas.Empresa", on_delete=models.PROTECT, related_name="cotacoes_frete", db_column="cotacao_transportadora_id")
-    valor = models.DecimalField(max_digits=12, decimal_places=2, db_column="cotacao_valor")
-    prazo_dias = models.PositiveIntegerField(db_column="cotacao_prazo_dias")
-    observacao = models.CharField(max_length=1000, blank=True, default="", db_column="cotacao_observacao")
-    aprovada = models.BooleanField(default=False, db_column="cotacao_aprovada")
-    criada_em = models.DateTimeField(auto_now_add=True, db_column="cotacao_criada_em")
+    frete = models.ForeignKey(Frete, on_delete=models.PROTECT, related_name="cotacoes", db_column="frete_id")
+    transportadora = models.ForeignKey("empresas.Empresa", on_delete=models.PROTECT, related_name="cotacoes_frete", db_column="transportadora_id")
+    valor = models.DecimalField(max_digits=12, decimal_places=2, db_column="valor")
+    prazo_dias = models.PositiveIntegerField(db_column="prazo_dias")
+    observacao = models.CharField(max_length=1000, blank=True, default="", db_column="observacao")
+    aprovada = models.BooleanField(default=False, db_column="aprovada")
+    criada_em = models.DateTimeField(auto_now_add=True, db_column="criada_em")
 
     class Meta:
         ordering = ["criada_em", "id"]
@@ -236,13 +236,13 @@ class CotacaoFrete(models.Model):
 
 class DocumentoCTe(RegistroImutavel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_column="id_documento_cte")
-    frete = models.ForeignKey(Frete, on_delete=models.PROTECT, related_name="documentos", db_column="cte_frete_id")
-    versao = models.PositiveIntegerField(default=1, db_column="cte_versao")
-    numero = models.CharField(max_length=60, db_column="cte_numero")
-    valor = models.DecimalField(max_digits=12, decimal_places=2, db_column="cte_valor")
-    nome_arquivo = models.CharField(max_length=255, blank=True, default="", db_column="cte_arquivo_nome")
-    arquivo_nfe = models.CharField(max_length=255, blank=True, default="", db_column="cte_nfe_nome")
-    criado_em = models.DateTimeField(auto_now_add=True, db_column="cte_registrado_em")
+    frete = models.ForeignKey(Frete, on_delete=models.PROTECT, related_name="documentos", db_column="frete_id")
+    versao = models.PositiveIntegerField(default=1, db_column="versao")
+    numero = models.CharField(max_length=60, db_column="numero")
+    valor = models.DecimalField(max_digits=12, decimal_places=2, db_column="valor")
+    nome_arquivo = models.CharField(max_length=255, blank=True, default="", db_column="nome_arquivo")
+    arquivo_nfe = models.CharField(max_length=255, blank=True, default="", db_column="nome_arquivo_nfe")
+    criado_em = models.DateTimeField(auto_now_add=True, db_column="registrado_em")
 
     class Meta:
         ordering = ["versao", "id"]
@@ -257,26 +257,26 @@ class DivergenciaFrete(models.Model):
     TipoResolucao = TipoResolucaoDivergencia
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_column="id_divergencia_frete")
-    frete = models.ForeignKey(Frete, on_delete=models.PROTECT, related_name="divergencias", db_column="divergencia_frete_id")
-    documento = models.OneToOneField(DocumentoCTe, on_delete=models.PROTECT, related_name="divergencia", db_column="divergencia_cte_id")
-    valor_referencia = models.DecimalField(max_digits=12, decimal_places=2, db_column="divergencia_referencia")
-    valor_cobrado = models.DecimalField(max_digits=12, decimal_places=2, db_column="divergencia_cobrado")
-    diferenca = models.DecimalField(max_digits=13, decimal_places=2, db_column="divergencia_diferenca")
-    justificativa = models.CharField(max_length=1000, blank=True, default="", db_column="divergencia_resolucao_justificativa")
+    frete = models.ForeignKey(Frete, on_delete=models.PROTECT, related_name="divergencias", db_column="frete_id")
+    documento = models.OneToOneField(DocumentoCTe, on_delete=models.PROTECT, related_name="divergencia", db_column="documento_id")
+    valor_referencia = models.DecimalField(max_digits=12, decimal_places=2, db_column="valor_referencia")
+    valor_cobrado = models.DecimalField(max_digits=12, decimal_places=2, db_column="valor_cobrado")
+    diferenca = models.DecimalField(max_digits=13, decimal_places=2, db_column="diferenca")
+    justificativa = models.CharField(max_length=1000, blank=True, default="", db_column="justificativa_resolucao")
     tipo_resolucao = models.CharField(
         max_length=20, choices=TipoResolucao.choices, blank=True, default="",
-        db_column="divergencia_tipo_resolucao",
+        db_column="tipo_resolucao",
     )
     documento_correcao = models.ForeignKey(
         DocumentoCTe, on_delete=models.PROTECT, null=True, blank=True,
-        related_name="divergencias_corrigidas", db_column="divergencia_cte_correcao_id",
+        related_name="divergencias_corrigidas", db_column="documento_correcao_id",
     )
     empresa_resolvedora = models.ForeignKey(
         "empresas.Empresa", on_delete=models.PROTECT, null=True, blank=True,
-        related_name="divergencias_resolvidas", db_column="divergencia_empresa_resolvedora_id",
+        related_name="divergencias_resolvidas", db_column="empresa_resolvedora_id",
     )
-    criada_em = models.DateTimeField(auto_now_add=True, db_column="divergencia_criada_em")
-    resolvida_em = models.DateTimeField(null=True, blank=True, db_column="divergencia_resolvida_em")
+    criada_em = models.DateTimeField(auto_now_add=True, db_column="criada_em")
+    resolvida_em = models.DateTimeField(null=True, blank=True, db_column="resolvida_em")
 
     class Meta:
         ordering = ["criada_em", "id"]
@@ -388,13 +388,13 @@ class DivergenciaFrete(models.Model):
 
 class ConfirmacaoEntrega(RegistroImutavel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_column="id_confirmacao_entrega")
-    frete = models.OneToOneField(Frete, on_delete=models.PROTECT, related_name="entrega", db_column="entrega_frete_id")
-    empresa_confirmadora = models.ForeignKey("empresas.Empresa", on_delete=models.PROTECT, related_name="entregas_confirmadas", db_column="entrega_empresa_confirmadora_id")
-    nome_recebedor = models.CharField(max_length=120, db_column="entrega_recebedor_nome")
-    dados_assinatura = models.TextField(db_column="entrega_assinatura_imagem")
-    tipo_recebimento = models.CharField(max_length=16, choices=(("completo", "Completo"), ("com_ressalva", "Com ressalva")), db_column="entrega_tipo_recebimento")
-    ressalva = models.CharField(max_length=1000, blank=True, default="", db_column="entrega_ressalva")
-    confirmado_em = models.DateTimeField(auto_now_add=True, db_column="entrega_confirmada_em")
+    frete = models.OneToOneField(Frete, on_delete=models.PROTECT, related_name="entrega", db_column="frete_id")
+    empresa_confirmadora = models.ForeignKey("empresas.Empresa", on_delete=models.PROTECT, related_name="entregas_confirmadas", db_column="empresa_confirmadora_id")
+    nome_recebedor = models.CharField(max_length=120, db_column="nome_recebedor")
+    dados_assinatura = models.TextField(db_column="imagem_assinatura")
+    tipo_recebimento = models.CharField(max_length=16, choices=(("completo", "Completo"), ("com_ressalva", "Com ressalva")), db_column="tipo_recebimento")
+    ressalva = models.CharField(max_length=1000, blank=True, default="", db_column="ressalva")
+    confirmado_em = models.DateTimeField(auto_now_add=True, db_column="confirmada_em")
 
     class Meta:
         constraints = [
@@ -405,15 +405,15 @@ class ConfirmacaoEntrega(RegistroImutavel):
 
 class HistoricoFrete(RegistroImutavel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_column="id_historico_frete")
-    frete = models.ForeignKey(Frete, on_delete=models.PROTECT, related_name="historico", db_column="historico_frete_id")
-    autora = models.ForeignKey("empresas.Empresa", on_delete=models.PROTECT, related_name="eventos_frete", db_column="historico_empresa_autora_id")
-    acao = models.CharField(max_length=40, db_column="historico_acao")
-    situacao_anterior = models.CharField(max_length=30, blank=True, default="", db_column="historico_situacao_anterior")
-    situacao_nova = models.CharField(max_length=30, db_column="historico_situacao_nova")
-    chave_idempotencia = models.CharField(max_length=128, db_column="historico_chave_idempotencia")
-    resumo_dados = models.CharField(max_length=64, db_column="historico_resumo_dados")
-    detalhes = models.JSONField(default=dict, db_column="historico_detalhes")
-    criado_em = models.DateTimeField(auto_now_add=True, db_column="historico_criado_em")
+    frete = models.ForeignKey(Frete, on_delete=models.PROTECT, related_name="historico", db_column="frete_id")
+    autora = models.ForeignKey("empresas.Empresa", on_delete=models.PROTECT, related_name="eventos_frete", db_column="autora_id")
+    acao = models.CharField(max_length=40, db_column="acao")
+    situacao_anterior = models.CharField(max_length=30, blank=True, default="", db_column="situacao_anterior")
+    situacao_nova = models.CharField(max_length=30, db_column="situacao_nova")
+    chave_idempotencia = models.CharField(max_length=128, db_column="chave_idempotencia")
+    resumo_dados = models.CharField(max_length=64, db_column="resumo_dados")
+    detalhes = models.JSONField(default=dict, db_column="detalhes")
+    criado_em = models.DateTimeField(auto_now_add=True, db_column="criado_em")
 
     class Meta:
         ordering = ["criado_em", "id"]
@@ -424,12 +424,12 @@ class HistoricoFrete(RegistroImutavel):
 
 class DemandaTransporte(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_column="id_demanda_transporte")
-    frete = models.ForeignKey(Frete, on_delete=models.PROTECT, related_name="demandas", db_column="demanda_frete_id")
-    valor_sugerido = models.DecimalField(max_digits=12, decimal_places=2, db_column="demanda_valor_sugerido")
-    janela_coleta = models.CharField(max_length=120, db_column="demanda_janela_coleta")
-    tipo_veiculo = models.CharField(max_length=120, db_column="demanda_tipo_veiculo")
-    observacoes = models.CharField(max_length=1000, blank=True, default="", db_column="demanda_observacoes")
-    publicada_em = models.DateTimeField(auto_now_add=True, db_column="demanda_publicada_em")
+    frete = models.ForeignKey(Frete, on_delete=models.PROTECT, related_name="demandas", db_column="frete_id")
+    valor_sugerido = models.DecimalField(max_digits=12, decimal_places=2, db_column="valor_sugerido")
+    janela_coleta = models.CharField(max_length=120, db_column="janela_coleta")
+    tipo_veiculo = models.CharField(max_length=120, db_column="tipo_veiculo")
+    observacoes = models.CharField(max_length=1000, blank=True, default="", db_column="observacoes")
+    publicada_em = models.DateTimeField(auto_now_add=True, db_column="publicada_em")
 
     class Meta:
         ordering = ["-publicada_em", "-id"]

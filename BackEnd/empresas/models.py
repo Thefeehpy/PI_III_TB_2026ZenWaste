@@ -13,14 +13,14 @@ def senha_ja_criptografada(valor):
 
 class Empresa(models.Model):
     id_empresa = models.AutoField(primary_key=True)
-    cnpj = BRCNPJField(unique=True, verbose_name="CNPJ", db_column="empresa_cnpj")
-    razao_social = models.CharField(max_length=100, db_column="empresa_razao_social")
-    telefone_whatsapp = models.CharField(unique=True, max_length=20, db_column="empresa_telefone_whatsapp")
-    data_cadastro = models.DateField(auto_now_add=True, db_column="empresa_cadastrada_em")
-    descricao_segmento = models.CharField(max_length=60, blank=True, db_column="empresa_segmento_descricao")
-    email = models.CharField(unique=True, max_length=256, db_column="empresa_email")
-    senha = models.CharField(max_length=128, db_column="empresa_senha_hash")
-    ativo = models.BooleanField(default=True, db_column="empresa_ativa")
+    cnpj = BRCNPJField(unique=True, verbose_name="CNPJ", db_column="cnpj")
+    razao_social = models.CharField(max_length=100, db_column="razao_social")
+    telefone_whatsapp = models.CharField(unique=True, max_length=20, db_column="telefone_whatsapp")
+    data_cadastro = models.DateField(auto_now_add=True, db_column="cadastrada_em")
+    descricao_segmento = models.CharField(max_length=60, blank=True, db_column="descricao_segmento")
+    email = models.CharField(unique=True, max_length=256, db_column="email")
+    senha = models.CharField(max_length=128, db_column="senha_hash")
+    ativo = models.BooleanField(default=True, db_column="ativa")
     papeis = models.ManyToManyField("PapelEmpresa", through="EmpresaPapel", related_name="empresas")
 
     class Meta:
@@ -52,9 +52,9 @@ class PapelEmpresa(models.Model):
         max_length=20,
         choices=Codigo.choices,
         unique=True,
-        db_column="papel_empresa_codigo",
+        db_column="codigo",
     )
-    descricao = models.CharField(max_length=100, db_column="papel_empresa_descricao")
+    descricao = models.CharField(max_length=100, db_column="descricao")
 
     class Meta:
         ordering = ["codigo"]
@@ -69,13 +69,13 @@ class EmpresaPapel(models.Model):
         Empresa,
         on_delete=models.PROTECT,
         related_name="vinculos_papeis",
-        db_column="empresa_papel_empresa_id",
+        db_column="empresa_id",
     )
     papel = models.ForeignKey(
         PapelEmpresa,
         on_delete=models.PROTECT,
         related_name="vinculos_empresas",
-        db_column="empresa_papel_papel_id",
+        db_column="papel_id",
     )
 
     class Meta:

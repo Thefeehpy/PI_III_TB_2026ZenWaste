@@ -65,7 +65,7 @@ def executar():
             from django.test.runner import DiscoverRunner
             connections["default"].settings_dict["TEST"]["NAME"] = nome
             assert settings.DATABASES["default"]["NAME"] == nome
-            rotulos = sys.argv[1:] or ["fretes", "pedidos", "produtos", "anuncios", "comercializacao", "empresas", "acesso", "mercado"]
+            rotulos = sys.argv[1:] or ["fretes", "pedidos", "produtos", "anuncios", "comercializacao", "empresas", "acesso", "mercado", "app.test_padronizacao_colunas"]
             resultado = DiscoverRunner(keepdb=True, interactive=False, verbosity=2).run_tests(rotulos)
             connections.close_all()
             print("Conexões bloqueadas fora do escopo:", contagens["bloqueadas"])

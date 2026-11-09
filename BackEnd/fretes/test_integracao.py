@@ -534,7 +534,7 @@ class TestesMigracoesFretes(CenarioFretes, TransactionTestCase):
             )
             MigrationExecutor(connection).migrate(destinos)
             self.assertEqual(Frete.objects.get(pk=frete.pk).numero_pedido, "MIGRACAO-TESTE")
-            self.assertIn("divergencia_tipo_resolucao", {coluna.name for coluna in connection.introspection.get_table_description(connection.cursor(), DivergenciaFrete._meta.db_table)})
+            self.assertIn("tipo_resolucao", {coluna.name for coluna in connection.introspection.get_table_description(connection.cursor(), DivergenciaFrete._meta.db_table)})
             MigrationExecutor(connection).migrate([("fretes", "0001_initial")])
             self.assertNotIn("divergencia_tipo_resolucao", {coluna.name for coluna in connection.introspection.get_table_description(connection.cursor(), DivergenciaFrete._meta.db_table)})
         finally:
