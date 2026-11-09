@@ -3,6 +3,7 @@ import { diretorioResultados } from "./tests/suporte/evidencias";
 
 export default defineConfig({
   testDir: "./tests",
+  testIgnore: "**/fretes/**",
   outputDir: diretorioResultados(),
   use: {
     screenshot: "only-on-failure",

@@ -3,7 +3,7 @@
 Documentos, diagramas, decisões e evidências: [00_INDICE.md](../../documentacao_zenwaste/00_INDICE.md).
 Destino: D:\SI\6_SEMESTRE_FHO\documentacao_zenwaste.
 
-O backend utiliza exclusivamente PostgreSQL. O banco atual não deve receber migrations sem autorização; a migration de fretes permanece pendente e esse módulo está adiado. O conteúdo anterior abaixo foi preservado como referência histórica; consulte o índice externo antes de executar instruções antigas.
+O backend utiliza exclusivamente PostgreSQL. A tela de auditoria de fretes agora utiliza a API persistente, com CT-e versionado, divergências, retirada e recebimento independentes da conclusão da auditoria. A inspeção atual encontrou `fretes.0001_initial` e `0002_resolucao_divergencia_cancelamento` já aplicadas no banco principal; esta tarefa não executou migrations nesse banco. Os testes usam PostgreSQL descartável. Arquitetura e contratos estão em [Auditoria de Fretes](BackEnd/fretes/README.md); implementação, validações e limitações estão no [relatório de finalização](RELATORIO_FINAL_FRETES.md). O conteúdo anterior abaixo foi preservado como referência histórica; consulte os registros atuais antes de executar instruções antigas.
 
 ---
 

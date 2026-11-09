@@ -18,6 +18,7 @@ export interface EmpresaFreteDTO {
 export interface PermissoesFreteDTO {
   gerenciar: boolean;
   confirmar_entrega: boolean;
+  registrar_retirada: boolean;
 }
 
 export interface PaginacaoFretesDTO {
@@ -49,9 +50,9 @@ export interface FreteDTO {
   empresa_vendedora: EmpresaFreteDTO;
   empresa_compradora: EmpresaFreteDTO;
   transportadora: EmpresaFreteDTO | null;
-  peso_toneladas: string;
-  cubagem_m3: string;
-  quantidade_volumes: number;
+  peso_toneladas: string | null;
+  cubagem_m3: string | null;
+  quantidade_volumes: number | null;
   data_pedido: string;
   previsao_entrega: string | null;
   situacao: SituacaoAuditoriaFrete;
@@ -62,6 +63,7 @@ export interface FreteDTO {
   divergente: boolean;
   divergencia_aberta: boolean;
   permissoes: PermissoesFreteDTO;
+  recebimento_confirmado: boolean;
 }
 
 export interface CotacaoFreteDTO {
@@ -80,6 +82,20 @@ export interface DocumentoFreteDTO {
   nome_arquivo: string;
   arquivo_nfe: string;
   recebido_em: string;
+  versao: number;
+}
+
+export interface DivergenciaFreteDTO {
+  id: string;
+  documento_id: string;
+  valor_referencia: string;
+  valor_cobrado: string;
+  diferenca: string;
+  tipo_resolucao: "" | "aceite_justificado" | "cte_corrigido";
+  documento_correcao_id: string | null;
+  justificativa: string;
+  empresa_resolvedora: EmpresaFreteDTO | null;
+  resolvida_em: string | null;
 }
 
 export interface TratativaFreteDTO {
@@ -102,6 +118,8 @@ export interface EventoHistoricoFreteDTO {
 export interface FreteDetalheDTO extends FreteDTO {
   cotacoes: CotacaoFreteDTO[];
   documento: DocumentoFreteDTO | null;
+  documentos: DocumentoFreteDTO[];
+  divergencias: DivergenciaFreteDTO[];
   tratativas: TratativaFreteDTO[];
   historico: EventoHistoricoFreteDTO[];
   demandas: DemandaFreteDTO[];
@@ -122,8 +140,8 @@ export interface DemandaFreteDTO {
   material: string;
   origem: string;
   destino: string;
-  peso_toneladas: string;
-  cubagem_m3: string;
+  peso_toneladas: string | null;
+  cubagem_m3: string | null;
   valor_sugerido: string;
   janela_coleta: string;
   tipo_veiculo: string;
@@ -134,6 +152,11 @@ export interface DemandaFreteDTO {
 
 export interface ListaDemandasFreteDTO {
   resultados: DemandaFreteDTO[];
+  paginacao: PaginacaoFretesDTO;
+}
+
+export interface ListaEmpresasFreteDTO {
+  resultados: EmpresaFreteDTO[];
   paginacao: PaginacaoFretesDTO;
 }
 
