@@ -16,6 +16,9 @@ dist-ssr
 .env
 
 # Python / Django
+# Ambientes virtuais Python
+.venv/
+.venv-local/
 __pycache__/
 *.py[cod]
 BackEnd/**/__pycache__/
