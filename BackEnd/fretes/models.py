@@ -1,10 +1,19 @@
 import uuid
-from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
 from django.utils import timezone
+
+from app.excecoes import ErroRegraNegocio
+from fretes.dominio import (
+    ConferenciaFrete,
+    SituacaoFrete,
+    TipoResolucaoDivergencia,
+    pode_cancelar_frete,
+    pode_confirmar_recebimento,
+    pode_registrar_retirada,
+)
 
 
 class ConsultaRegistrosImutaveis(models.QuerySet):
@@ -43,14 +52,7 @@ class RegistroImutavel(models.Model):
 
 
 class Frete(models.Model):
-    class Situacao(models.TextChoices):
-        AGUARDANDO_CLASSIFICACAO = "aguardando_classificacao", "Aguardando classificação"
-        EM_COTACAO = "em_cotacao", "Em cotação"
-        AGUARDANDO_CONFERENCIA = "aguardando_conferencia", "Aguardando conferência"
-        COM_DIVERGENCIA = "com_divergencia", "Com divergência"
-        AGUARDANDO_ENTREGA = "aguardando_entrega", "Aguardando entrega"
-        CONCLUIDO = "concluido", "Concluído"
-        CANCELADO = "cancelado", "Cancelado"
+    Situacao = SituacaoFrete
 
     class Modalidade(models.TextChoices):
         COTAR = "cotar", "Cotar o frete"
@@ -124,7 +126,62 @@ class Frete(models.Model):
                 name="frete_situacao_valida",
             ),
             models.CheckConstraint(condition=Q(modalidade__in=("", "cotar", "contratado", "retirada_cliente")), name="frete_modalidade_valida"),
+            models.CheckConstraint(
+                condition=(
+                    Q(situacao="cancelado", retirado_em__isnull=True, cancelado_em__isnull=False)
+                    & ~Q(justificativa_cancelamento="")
+                ) | (
+                    ~Q(situacao="cancelado") & Q(cancelado_em__isnull=True, justificativa_cancelamento="")
+                ),
+                name="frete_cancelamento_consistente",
+            ),
         ]
+
+    def clean(self):
+        super().clean()
+        erros = {}
+        if self.situacao == self.Situacao.CANCELADO:
+            if self.retirado_em is not None:
+                erros["retirado_em"] = "Um frete retirado não pode ser cancelado."
+            if self.recebimento_confirmado:
+                erros["situacao"] = "Um frete recebido não pode ser cancelado."
+            if self.cancelado_em is None:
+                erros["cancelado_em"] = "Registre o instante do cancelamento."
+            if not (self.justificativa_cancelamento or "").strip():
+                erros["justificativa_cancelamento"] = "Justifique o cancelamento do frete."
+        elif self.cancelado_em is not None or self.justificativa_cancelamento:
+            erros["situacao"] = "Dados de cancelamento exigem a situação cancelado."
+        if erros:
+            raise ValidationError(erros)
+
+    @property
+    def pode_cancelar(self):
+        return pode_cancelar_frete(
+            self.situacao, self.retirado_em, recebimento_confirmado=self.recebimento_confirmado,
+        )
+
+    @property
+    def recebimento_confirmado(self):
+        # Uma instância ainda não salva não possui entrega no banco. Uma relação
+        # já carregada (inclusive por select_related) dispensa nova consulta.
+        if self._state.adding and "entrega" not in self._state.fields_cache:
+            return False
+        try:
+            return self.entrega.confirmado_em is not None
+        except ConfirmacaoEntrega.DoesNotExist:
+            return False
+
+    @property
+    def pode_registrar_retirada(self):
+        return pode_registrar_retirada(
+            self.situacao, self.retirado_em, recebimento_confirmado=self.recebimento_confirmado,
+        )
+
+    @property
+    def pode_confirmar_entrega(self):
+        return pode_confirmar_recebimento(
+            self.situacao, recebimento_confirmado=self.recebimento_confirmado,
+        )
 
     @property
     def documento_atual(self):
@@ -139,7 +196,9 @@ class Frete(models.Model):
     @property
     def diferenca(self):
         cobrado = self.valor_cte
-        return None if cobrado is None or self.valor_referencia is None else cobrado - self.valor_referencia
+        if cobrado is None or self.valor_referencia is None:
+            return None
+        return ConferenciaFrete(self.valor_referencia, cobrado).diferenca
 
     @property
     def divergencia_aberta(self):
@@ -147,8 +206,10 @@ class Frete(models.Model):
 
     @property
     def divergente(self):
-        diferenca = self.diferenca
-        return diferenca is not None and abs(diferenca) > Decimal("5.00")
+        cobrado = self.valor_cte
+        if cobrado is None or self.valor_referencia is None:
+            return False
+        return ConferenciaFrete(self.valor_referencia, cobrado).divergente
 
     def __str__(self):
         return f"Frete {self.id} — {self.numero_pedido}"
@@ -193,6 +254,8 @@ class DocumentoCTe(RegistroImutavel):
 
 
 class DivergenciaFrete(models.Model):
+    TipoResolucao = TipoResolucaoDivergencia
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_column="id_divergencia_frete")
     frete = models.ForeignKey(Frete, on_delete=models.PROTECT, related_name="divergencias", db_column="divergencia_frete_id")
     documento = models.OneToOneField(DocumentoCTe, on_delete=models.PROTECT, related_name="divergencia", db_column="divergencia_cte_id")
@@ -200,6 +263,14 @@ class DivergenciaFrete(models.Model):
     valor_cobrado = models.DecimalField(max_digits=12, decimal_places=2, db_column="divergencia_cobrado")
     diferenca = models.DecimalField(max_digits=13, decimal_places=2, db_column="divergencia_diferenca")
     justificativa = models.CharField(max_length=1000, blank=True, default="", db_column="divergencia_resolucao_justificativa")
+    tipo_resolucao = models.CharField(
+        max_length=20, choices=TipoResolucao.choices, blank=True, default="",
+        db_column="divergencia_tipo_resolucao",
+    )
+    documento_correcao = models.ForeignKey(
+        DocumentoCTe, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="divergencias_corrigidas", db_column="divergencia_cte_correcao_id",
+    )
     empresa_resolvedora = models.ForeignKey(
         "empresas.Empresa", on_delete=models.PROTECT, null=True, blank=True,
         related_name="divergencias_resolvidas", db_column="divergencia_empresa_resolvedora_id",
@@ -217,7 +288,102 @@ class DivergenciaFrete(models.Model):
                 condition=Q(resolvida_em__isnull=True, empresa_resolvedora__isnull=True) | Q(resolvida_em__isnull=False, empresa_resolvedora__isnull=False),
                 name="divergencia_autoria_resolucao",
             ),
+            models.CheckConstraint(
+                condition=Q(diferenca__gt=5) | Q(diferenca__lt=-5),
+                name="divergencia_fora_tolerancia",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(resolvida_em__isnull=True, tipo_resolucao="", justificativa="", documento_correcao__isnull=True)
+                ) | (
+                    Q(resolvida_em__isnull=False, tipo_resolucao="aceite_justificado", documento_correcao__isnull=True)
+                    & ~Q(justificativa="")
+                ) | (
+                    Q(resolvida_em__isnull=False, tipo_resolucao="cte_corrigido", documento_correcao__isnull=False)
+                ),
+                name="divergencia_resolucao_consistente",
+            ),
+            models.CheckConstraint(
+                condition=Q(documento_correcao__isnull=True) | ~Q(documento_correcao=F("documento")),
+                name="divergencia_correcao_distinta",
+            ),
         ]
+
+    def clean(self):
+        super().clean()
+        erros = {}
+        if self.valor_referencia is not None and self.valor_cobrado is not None:
+            try:
+                conferencia = ConferenciaFrete(self.valor_referencia, self.valor_cobrado)
+            except ErroRegraNegocio as erro:
+                erros.update(erro.detalhes)
+            else:
+                if not conferencia.divergente:
+                    erros["valor_cobrado"] = "Uma divergência exige diferença absoluta superior a R$ 5,00."
+                if self.diferenca != conferencia.diferenca:
+                    erros["diferenca"] = "A diferença deve preservar a cobrança menos a referência."
+
+        if self.resolvida_em is None:
+            if self.empresa_resolvedora_id is not None or self.tipo_resolucao or self.justificativa or self.documento_correcao_id:
+                erros["tipo_resolucao"] = "Uma divergência aberta não pode conter dados de resolução."
+        else:
+            if self.empresa_resolvedora_id is None:
+                erros["empresa_resolvedora"] = "Identifique a empresa que resolveu a divergência."
+            if self.tipo_resolucao == self.TipoResolucao.ACEITE_JUSTIFICADO:
+                if not (self.justificativa or "").strip():
+                    erros["justificativa"] = "Justifique o aceite da diferença."
+                if self.documento_correcao_id is not None:
+                    erros["documento_correcao"] = "Um aceite preserva o CT-e original sem indicar correção."
+            elif self.tipo_resolucao == self.TipoResolucao.CTE_CORRIGIDO:
+                if self.documento_correcao_id is None:
+                    erros["documento_correcao"] = "Informe a nova versão do CT-e que substitui a cobrança."
+            else:
+                erros["tipo_resolucao"] = "Informe aceite justificado ou CT-e corrigido."
+
+        if self.documento_id:
+            try:
+                documento = self.documento
+            except DocumentoCTe.DoesNotExist:
+                erros["documento"] = "CT-e não encontrado."
+            else:
+                if documento.frete_id != self.frete_id:
+                    erros["documento"] = "O CT-e deve pertencer ao mesmo frete da divergência."
+                if documento.valor != self.valor_cobrado:
+                    erros["valor_cobrado"] = "A cobrança deve preservar o valor do CT-e original."
+                if self.documento_correcao_id:
+                    try:
+                        correcao = self.documento_correcao
+                    except DocumentoCTe.DoesNotExist:
+                        erros["documento_correcao"] = "CT-e corrigido não encontrado."
+                    else:
+                        if (
+                            correcao.pk == documento.pk
+                            or correcao.frete_id != self.frete_id
+                            or correcao.versao <= documento.versao
+                        ):
+                            erros["documento_correcao"] = "A correção deve ser uma versão posterior do CT-e do mesmo frete."
+        if erros:
+            raise ValidationError(erros)
+
+    def preparar_divergencia_da_correcao(self):
+        """Prepara o novo snapshot sem gravar ou alterar o CT-e anterior.
+
+        O serviço deverá persistir substituição, documento, eventual nova
+        divergência e histórico na mesma transação. A referência é a original.
+        """
+        self.clean()
+        if self.tipo_resolucao != self.TipoResolucao.CTE_CORRIGIDO:
+            raise ValidationError({"tipo_resolucao": "Esta operação exige resolução por CT-e corrigido."})
+        conferencia = ConferenciaFrete(self.valor_referencia, self.documento_correcao.valor)
+        if not conferencia.divergente:
+            return None
+        return DivergenciaFrete(
+            frete_id=self.frete_id,
+            documento=self.documento_correcao,
+            valor_referencia=conferencia.valor_referencia,
+            valor_cobrado=conferencia.valor_cobrado,
+            diferenca=conferencia.diferenca,
+        )
 
 
 class ConfirmacaoEntrega(RegistroImutavel):

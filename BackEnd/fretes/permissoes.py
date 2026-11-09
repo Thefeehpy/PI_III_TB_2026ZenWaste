@@ -15,7 +15,8 @@ def permissoes_frete(empresa, frete):
     ativa = bool(empresa and empresa.ativo)
     return {
         "gerenciar": ativa and frete.empresa_vendedora_id == empresa.pk,
-        "confirmar_entrega": ativa and frete.empresa_compradora_id == empresa.pk and frete.situacao == frete.Situacao.AGUARDANDO_ENTREGA,
+        "registrar_retirada": ativa and frete.empresa_vendedora_id == empresa.pk and frete.pode_registrar_retirada,
+        "confirmar_entrega": ativa and frete.empresa_compradora_id == empresa.pk and frete.pode_confirmar_entrega,
     }
 
 

@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
+from corsheaders.defaults import default_headers
 
 # Diretorio de referencia para os caminhos locais do projeto.
 DIRETORIO_BASE = Path(__file__).resolve().parent.parent
@@ -174,6 +175,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = (*default_headers, 'idempotency-key')
 
 URL_FRONTEND = os.getenv('FRONTEND_URL')
 if URL_FRONTEND and URL_FRONTEND not in CORS_ALLOWED_ORIGINS:
