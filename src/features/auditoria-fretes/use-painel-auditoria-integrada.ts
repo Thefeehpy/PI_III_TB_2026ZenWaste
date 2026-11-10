@@ -19,20 +19,15 @@ import type {
   SituacaoFrete,
 } from "./tipos";
 
-const formularioCadastroInicial = {
-  tipo: "pedido" as "pedido" | "avulso",
-  pedidoId: "",
-  compradoraId: "",
-  quantidade: "",
-  material: "",
-  unidade: "kg",
-  origem: "",
-  destino: "",
-  pesoToneladas: "",
-  metrosCubicos: "",
-  quantidadeVolumes: "",
-  previsaoEntrega: "",
-};
+import { useFormularioFrete } from "./use-formulario-frete";
+import { cadastroInicial, classificacaoInicial, decimalFrete, inteiroFrete, identificadorEmpresa,
+  textoFrete, validarCamposFrete, validarCadastroFrete, validarClassificacaoFrete, errosCamposApi,
+  type ErrosFrete } from "./validacoes";
+import type { PedidoDisponivelFreteDTO } from "./tipos-api";
+
+const cotacaoInicial: FormularioCotacao = { transportadora: "", valor: "", prazoDias: "2", observacao: "" };
+const documentoInicial: FormularioDocumento = { arquivoNfe: "", nomeArquivo: "", numeroCte: "", valorCte: "" };
+const publicacaoInicial: FormularioPublicacaoTransporte = { valorSugerido: "", janelaColeta: "", tipoVeiculo: "", observacoes: "" };
 const filtrosApi: Partial<Record<SituacaoFrete, SituacaoAuditoriaFrete>> = {
   awaiting_classification: "aguardando_classificacao",
   awaiting_quote: "em_cotacao",
@@ -48,12 +43,13 @@ const filtrosApi: Partial<Record<SituacaoFrete, SituacaoAuditoriaFrete>> = {
 export function usePainelAuditoriaIntegrada(
   servico?: ServicoHttpAuditoriaFretes,
 ) {
-  const { user: empresa } = useAuth();
+  const { user: empresa, retrySession } = useAuth();
   const podeCadastrar = empresa?.roles.includes("vendedora") ?? false;
   const dados = useConsultaAuditoriaApi(
     empresa?.id ?? null,
     podeCadastrar,
     servico,
+    retrySession,
   );
   const processos = useMemo(
     () => dados.fretes?.resultados.map(apresentarFreteApi) ?? [],
@@ -67,44 +63,50 @@ export function usePainelAuditoriaIntegrada(
     [dados.detalhe, dados.idSelecionado, processos],
   );
   const [detalhesAbertos, definirDetalhesAbertos] = useState(false);
-  const [cadastroAberto, definirCadastroAberto] = useState(false);
-  const [classificacaoAberta, definirClassificacaoAberta] = useState(false);
-  const [cotacaoAberta, definirCotacaoAberta] = useState(false);
-  const [publicacaoAberta, definirPublicacaoAberta] = useState(false);
   const [tratativaAberta, definirTratativaAberta] = useState(false);
   const [entregaAberta, definirEntregaAberta] = useState(false);
   const [resolucaoAberta, definirResolucaoAberta] = useState(false);
   const [cancelamentoAberto, definirCancelamentoAberto] = useState(false);
   const [termoBusca, definirTermoBusca] = useState("");
-  const [formularioCadastro, definirFormularioCadastro] = useState(
-    formularioCadastroInicial,
-  );
-  const [formularioClassificacao, definirFormularioClassificacao] = useState({
-    modalidade: "cotar" as ModalidadeAuditoriaFrete,
-    transportadoraId: "",
-    valorReferencia: "",
-  });
-  const [formularioCotacao, definirFormularioCotacao] =
-    useState<FormularioCotacao>({
-      transportadora: "",
-      valor: "",
-      prazoDias: "2",
-      observacao: "",
-    });
-  const [formularioDocumento, definirFormularioDocumento] =
-    useState<FormularioDocumento>({
-      arquivoNfe: "",
-      nomeArquivo: "",
-      numeroCte: "",
-      valorCte: "",
-    });
-  const [formularioPublicacao, definirFormularioPublicacao] =
-    useState<FormularioPublicacaoTransporte>({
-      valorSugerido: "",
-      janelaColeta: "",
-      tipoVeiculo: "",
-      observacoes: "",
-    });
+  const [descarte, definirDescarte] = useState<{
+    sessao: object; descricao: string; continuar: () => void;
+  } | null>(null);
+  const pedirDescarte = (descricao: string, continuar: () => void) =>
+    definirDescarte({ sessao: dados.sessao, descricao, continuar });
+  const contextoFrete = useMemo(() => ({ sessao: dados.sessao, id: dados.idSelecionado }), [dados.sessao, dados.idSelecionado]);
+  const cadastro = useFormularioFrete(dados.sessao, cadastroInicial, pedirDescarte);
+  const classificacao = useFormularioFrete(contextoFrete, classificacaoInicial, pedirDescarte);
+  const cotacao = useFormularioFrete(contextoFrete, cotacaoInicial, pedirDescarte);
+  const documento = useFormularioFrete(contextoFrete, documentoInicial, pedirDescarte);
+  const publicacao = useFormularioFrete(contextoFrete, publicacaoInicial, pedirDescarte);
+  const formularioCadastro = cadastro.formulario;
+  const formularioClassificacao = classificacao.formulario;
+  const formularioCotacao = cotacao.formulario;
+  const formularioDocumento = documento.formulario;
+  const formularioPublicacao = publicacao.formulario;
+  const definirFormularioCadastro = cadastro.definir;
+  const definirFormularioClassificacao = classificacao.definir;
+  const definirFormularioCotacao = cotacao.definir;
+  const definirFormularioDocumento = documento.definir;
+  const definirFormularioPublicacao = publicacao.definir;
+  const cadastroAberto = cadastro.aberto;
+  const classificacaoAberta = classificacao.aberto;
+  const cotacaoAberta = cotacao.aberto;
+  const publicacaoAberta = publicacao.aberto;
+  const aoAbrirFormulario = (abrir: (valor: boolean) => void) => (valor: boolean) => {
+    if (dados.executando) return;
+    dados.informarErroComando(null);
+    abrir(valor);
+  };
+  const definirCadastroAberto = aoAbrirFormulario(cadastro.abrir);
+  const definirClassificacaoAberta = aoAbrirFormulario(classificacao.abrir);
+  const definirCotacaoAberta = aoAbrirFormulario(cotacao.abrir);
+  const definirPublicacaoAberta = aoAbrirFormulario(publicacao.abrir);
+  const falhaCampos = (definir: (erros: ErrosFrete) => void, campos: Record<string, string>) => (erro: unknown) => {
+    const erros = errosCamposApi(erro, campos);
+    definir(erros);
+    return Object.keys(erros).length > 0;
+  };
   const [textoTratativa, definirTextoTratativa] = useState("");
   const [justificativaResolucao, definirJustificativaResolucao] = useState("");
   const [justificativaCancelamento, definirJustificativaCancelamento] =
@@ -135,102 +137,80 @@ export function usePainelAuditoriaIntegrada(
       situacao: proximo === "all" ? undefined : filtrosApi[proximo],
     });
   };
-  const abrirDetalhes = async (id: string) => {
-    definirFormularioDocumento({
-      arquivoNfe: "",
-      nomeArquivo: "",
-      numeroCte: "",
-      valorCte: "",
-    });
-    definirDadosAssinatura("");
-    definirNomeRecebedor("");
-    definirTextoRessalva("");
-    definirTipoRecebimento("complete");
-    definirNomeFotoRetirada("");
-    definirJustificativaResolucao("");
-    definirJustificativaCancelamento("");
-    definirDetalhesAbertos(true);
-    await dados.abrirDetalhe(id);
+  const limparDetalhes = () => {
+    documento.limpar(); classificacao.limpar(); cotacao.limpar(); publicacao.limpar();
+    definirDadosAssinatura(""); definirNomeRecebedor(""); definirTextoRessalva("");
+    definirTipoRecebimento("complete"); definirNomeFotoRetirada("");
+    definirJustificativaResolucao(""); definirJustificativaCancelamento(""); definirTextoTratativa("");
+    definirTratativaAberta(false); definirEntregaAberta(false); definirResolucaoAberta(false); definirCancelamentoAberto(false);
   };
-  const selecionarPedido = (id: string) => {
-    const pedido = dados.pedidos?.resultados.find(
-      (registro) => registro.id === id,
-    );
-    definirFormularioCadastro((anterior) => ({
-      ...anterior,
-      pedidoId: id,
-      ...(pedido
-        ? {
-            quantidade: pedido.quantidade_restante,
-            material: pedido.material,
-            unidade: pedido.unidade,
-            origem: pedido.origem,
-          }
-        : {}),
-    }));
+  const temRascunhoDetalhe = documento.sujo || classificacao.sujo || cotacao.sujo || publicacao.sujo ||
+    Boolean(textoTratativa || dadosAssinatura || nomeRecebedor || textoRessalva || nomeFotoRetirada || justificativaResolucao || justificativaCancelamento);
+  const abrirDetalhes = async (id: string) => {
+    if (dados.executando) return;
+    const continuar = async () => {
+      limparDetalhes(); definirDetalhesAbertos(true); await dados.abrirDetalhe(id);
+    };
+    if (temRascunhoDetalhe) pedirDescarte("Os rascunhos do frete atual serão descartados ao abrir outro detalhe.", () => { void continuar(); });
+    else await continuar();
+  };
+  const fecharDetalhes = (aberto: boolean) => {
+    if (dados.executando) return;
+    if (aberto) definirDetalhesAbertos(true);
+    else {
+      const continuar = () => { limparDetalhes(); definirDetalhesAbertos(false); };
+      if (temRascunhoDetalhe) pedirDescarte("Fechar os detalhes descartará os rascunhos ainda não enviados.", continuar);
+      else continuar();
+    }
+  };
+  const selecionarPedido = (pedido: PedidoDisponivelFreteDTO | null) => {
+    if (pedido?.id === formularioCadastro.pedidoId) return;
+    cadastro.trocar(() => definirFormularioCadastro({ ...cadastroInicial, pedidoId: pedido?.id ?? "", pedido,
+      ...(pedido ? { quantidade: pedido.quantidade_restante, material: pedido.material, unidade: pedido.unidade, origem: pedido.origem } : {}) }));
+  };
+  const trocarTipoCadastro = (tipo: typeof formularioCadastro.tipo) => {
+    if (tipo !== formularioCadastro.tipo) cadastro.trocar(() => definirFormularioCadastro({ ...cadastroInicial, tipo }));
   };
   const cadastrarFrete = async () => {
-    const entrada = {
-      quantidade: formularioCadastro.quantidade,
-      origem: formularioCadastro.origem,
-      destino: formularioCadastro.destino,
-      peso_toneladas: formularioCadastro.pesoToneladas || "0",
-      cubagem_m3: formularioCadastro.metrosCubicos || "0",
-      quantidade_volumes: Number(formularioCadastro.quantidadeVolumes || "0"),
-      previsao_entrega: formularioCadastro.previsaoEntrega,
-      ...(formularioCadastro.tipo === "pedido"
-        ? { pedido_id: formularioCadastro.pedidoId }
-        : {
-            empresa_compradora_id: Number(formularioCadastro.compradoraId),
-            material: formularioCadastro.material,
-            unidade: formularioCadastro.unidade,
-          }),
-    };
-    const resultado = await dados.executar((integracao) =>
-      integracao.cadastrar(entrada),
-    );
+    const pedido = dados.pedidos?.resultados.find(p => p.id === formularioCadastro.pedidoId) ?? formularioCadastro.pedido;
+    const { entrada, erros } = validarCadastroFrete({ ...formularioCadastro, pedido });
+    cadastro.definirErros(erros);
+    if (!entrada) return;
+    const resultado = await dados.executar(integracao => integracao.cadastrar(entrada),
+      falhaCampos(cadastro.definirErros, { pedido_id: "pedidoId", empresa_compradora_id: "compradoraId", quantidade: "quantidade", material: "material", unidade: "unidade", origem: "origem", destino: "destino", peso_toneladas: "pesoToneladas", cubagem_m3: "metrosCubicos", quantidade_volumes: "quantidadeVolumes", previsao_entrega: "previsaoEntrega" }));
     if (resultado) {
-      definirCadastroAberto(false);
-      definirFormularioCadastro(formularioCadastroInicial);
-      await abrirDetalhes(resultado.id);
+      cadastro.limpar(); limparDetalhes();
+      dados.adotarDetalhe(resultado);
+      definirDetalhesAbertos(true);
     }
+  };
+  const trocarModalidadeClassificacao = (modalidade: ModalidadeAuditoriaFrete) => {
+    if (modalidade !== formularioClassificacao.modalidade)
+      classificacao.trocar(() => definirFormularioClassificacao({ ...classificacaoInicial, modalidade }));
   };
   const classificarFrete = async () => {
     if (!processoSelecionado) return;
-    const resultado = await dados.executar((integracao) =>
-      integracao.classificar(processoSelecionado.id, {
-        modalidade: formularioClassificacao.modalidade,
-        ...(formularioClassificacao.modalidade === "contratado"
-          ? {
-              transportadora_id: Number(
-                formularioClassificacao.transportadoraId,
-              ),
-              valor_referencia: formularioClassificacao.valorReferencia,
-            }
-          : {}),
-      }),
-    );
-    if (resultado) definirClassificacaoAberta(false);
+    const { entrada, erros } = validarClassificacaoFrete(formularioClassificacao);
+    classificacao.definirErros(erros);
+    if (!entrada) return;
+    const resultado = await dados.executar(integracao => integracao.classificar(processoSelecionado.id, entrada),
+      falhaCampos(classificacao.definirErros, { transportadora_id: "transportadoraId", valor_referencia: "valorReferencia", modalidade: "modalidade" }));
+    if (resultado) classificacao.limpar();
   };
   const cadastrarCotacao = async () => {
     if (!processoSelecionado) return;
-    const resultado = await dados.executar((integracao) =>
-      integracao.registrarCotacao(processoSelecionado.id, {
-        transportadora_id: Number(formularioCotacao.transportadora),
-        valor: formularioCotacao.valor,
-        prazo_dias: Number(formularioCotacao.prazoDias),
-        observacao: formularioCotacao.observacao,
-      }),
-    );
-    if (resultado) {
-      definirCotacaoAberta(false);
-      definirFormularioCotacao({
-        transportadora: "",
-        valor: "",
-        prazoDias: "2",
-        observacao: "",
-      });
-    }
+    const { valores, erros } = validarCamposFrete({
+      transportadora: () => identificadorEmpresa(formularioCotacao.transportadora),
+      valor: () => decimalFrete(formularioCotacao.valor, 2),
+      prazoDias: () => inteiroFrete(formularioCotacao.prazoDias, 1),
+      observacao: () => textoFrete(formularioCotacao.observacao, 1000, false),
+    });
+    cotacao.definirErros(erros);
+    if (Object.keys(erros).length) return;
+    const resultado = await dados.executar(integracao => integracao.registrarCotacao(processoSelecionado.id, {
+      transportadora_id: valores.transportadora, valor: valores.valor, prazo_dias: valores.prazoDias, observacao: valores.observacao,
+    }), falhaCampos(cotacao.definirErros, { transportadora_id: "transportadora", valor: "valor", prazo_dias: "prazoDias", observacao: "observacao" }));
+    if (resultado) cotacao.limpar();
   };
   const aprovarCotacao = async (id: string) => {
     if (processoSelecionado)
@@ -239,23 +219,18 @@ export function usePainelAuditoriaIntegrada(
       );
   };
   const registrarDocumentos = async () => {
-    if (
-      processoSelecionado &&
-      (await dados.executar((integracao) =>
-        integracao.registrarCTe(processoSelecionado.id, {
-          numero: formularioDocumento.numeroCte,
-          valor: formularioDocumento.valorCte,
-          nome_arquivo: formularioDocumento.nomeArquivo,
-          arquivo_nfe: formularioDocumento.arquivoNfe,
-        }),
-      ))
-    )
-      definirFormularioDocumento({
-        arquivoNfe: "",
-        nomeArquivo: "",
-        numeroCte: "",
-        valorCte: "",
-      });
+    if (!processoSelecionado) return;
+    const { valores, erros } = validarCamposFrete({
+      numeroCte: () => textoFrete(formularioDocumento.numeroCte, 60),
+      valorCte: () => decimalFrete(formularioDocumento.valorCte, 2),
+      nomeArquivo: () => textoFrete(formularioDocumento.nomeArquivo, 255, false),
+      arquivoNfe: () => textoFrete(formularioDocumento.arquivoNfe, 255, false),
+    });
+    documento.definirErros(erros);
+    if (Object.keys(erros).length) return;
+    if (await dados.executar(integracao => integracao.registrarCTe(processoSelecionado.id, {
+      numero: valores.numeroCte, valor: valores.valorCte, nome_arquivo: valores.nomeArquivo, arquivo_nfe: valores.arquivoNfe,
+    }), falhaCampos(documento.definirErros, { numero: "numeroCte", valor: "valorCte", nome_arquivo: "nomeArquivo", arquivo_nfe: "arquivoNfe" }))) documento.limpar();
   };
   const registrarTratativa = async () => {
     if (
@@ -340,25 +315,18 @@ export function usePainelAuditoriaIntegrada(
     definirPublicacaoAberta(true);
   };
   const publicarTransporte = async () => {
-    if (
-      processoSelecionado &&
-      (await dados.executar((integracao) =>
-        integracao.publicarDemanda(processoSelecionado.id, {
-          valor_sugerido: formularioPublicacao.valorSugerido,
-          janela_coleta: formularioPublicacao.janelaColeta,
-          tipo_veiculo: formularioPublicacao.tipoVeiculo,
-          observacoes: formularioPublicacao.observacoes,
-        }),
-      ))
-    ) {
-      definirPublicacaoAberta(false);
-      definirFormularioPublicacao({
-        valorSugerido: "",
-        janelaColeta: "",
-        tipoVeiculo: "",
-        observacoes: "",
-      });
-    }
+    if (!processoSelecionado) return;
+    const { valores, erros } = validarCamposFrete({
+      valorSugerido: () => decimalFrete(formularioPublicacao.valorSugerido, 2),
+      janelaColeta: () => textoFrete(formularioPublicacao.janelaColeta, 120),
+      tipoVeiculo: () => textoFrete(formularioPublicacao.tipoVeiculo, 120),
+      observacoes: () => textoFrete(formularioPublicacao.observacoes, 1000, false),
+    });
+    publicacao.definirErros(erros);
+    if (Object.keys(erros).length) return;
+    if (await dados.executar(integracao => integracao.publicarDemanda(processoSelecionado.id, {
+      valor_sugerido: valores.valorSugerido, janela_coleta: valores.janelaColeta, tipo_veiculo: valores.tipoVeiculo, observacoes: valores.observacoes,
+    }), falhaCampos(publicacao.definirErros, { valor_sugerido: "valorSugerido", janela_coleta: "janelaColeta", tipo_veiculo: "tipoVeiculo", observacoes: "observacoes" }))) publicacao.limpar();
   };
   const montarTextoSolicitacao = (processo: ProcessoFrete) =>
     [
@@ -406,19 +374,32 @@ export function usePainelAuditoriaIntegrada(
     filtroAtivo,
     definirFiltroAtivo,
     detalhesAbertos,
-    definirDetalhesAbertos,
+    definirDetalhesAbertos: fecharDetalhes,
     abrirDetalhes,
     cadastroAberto,
     definirCadastroAberto,
     formularioCadastro,
     definirFormularioCadastro,
     selecionarPedido,
+    trocarTipoCadastro,
+    errosCadastro: cadastro.erros,
+    errosClassificacao: classificacao.erros,
+    errosCotacao: cotacao.erros,
+    errosDocumento: documento.erros,
+    errosPublicacao: publicacao.erros,
+    descarte: descarte?.sessao === dados.sessao ? descarte : null,
+    cancelarDescarte: () => definirDescarte(null),
+    confirmarDescarte: () => {
+      definirDescarte(null);
+      if (descarte?.sessao === dados.sessao) descarte.continuar();
+    },
     cadastrarFrete,
     classificacaoAberta,
     definirClassificacaoAberta,
     formularioClassificacao,
     definirFormularioClassificacao,
     classificarFrete,
+    trocarModalidadeClassificacao,
     cotacaoAberta,
     definirCotacaoAberta,
     formularioCotacao,

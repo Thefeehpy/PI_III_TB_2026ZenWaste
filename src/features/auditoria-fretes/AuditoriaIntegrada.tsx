@@ -1,3 +1,5 @@
+import { useLayoutEffect, useRef } from "react";
+import { CampoAuditoria } from "./components/CampoAuditoria";
 import { ClipboardCheck, Plus, Search, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,12 +27,12 @@ import {
 } from "./apresentacao-api";
 import { IndicadoresFretes } from "./components/IndicadoresFretes";
 import {
-  CampoAuditoria,
   DialogosAuditoriaIntegrada,
 } from "./components/DialogosAuditoriaIntegrada";
 import {
   classeCampo,
   PaginacaoAuditoria,
+  SeletorEmpresaFrete,
 } from "./components/ControlesAuditoriaIntegrada";
 import type { ServicoHttpAuditoriaFretes } from "./servico-http-auditoria-fretes";
 import type { SituacaoAuditoriaFrete } from "./tipos-api";
@@ -57,6 +59,11 @@ export function AuditoriaIntegrada({
       "aguardando_entrega",
     ].includes(frete?.situacao);
   const documento = painel.formularioDocumento;
+  const formularioCTe = useRef<HTMLFormElement>(null);
+  useLayoutEffect(() => {
+    if (Object.keys(painel.errosDocumento).length)
+      formularioCTe.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [painel.errosDocumento]);
   return (
     <div className="space-y-6">
       <Card className="relative overflow-hidden rounded-[34px] border-primary/20 bg-[radial-gradient(circle_at_12%_18%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(135deg,#071b18_0%,#0f766e_54%,#35d399_100%)] text-white shadow-[0_26px_76px_rgba(6,95,70,0.24)]">
@@ -96,7 +103,7 @@ export function AuditoriaIntegrada({
           </Button>
         </div>
       )}
-      {dados.erroComando && (
+      {dados.erroComando && !painel.cadastroAberto && !painel.classificacaoAberta && !painel.cotacaoAberta && !painel.publicacaoAberta && !painel.detalhesAbertos && (
         <p role="alert" className="text-destructive">
           {dados.erroComando}
         </p>
@@ -176,22 +183,10 @@ export function AuditoriaIntegrada({
                     }
                   />
                 </label>
-                <label className="space-y-2">
-                  <span className="text-sm">ID da transportadora</span>
-                  <input
-                    type="number"
-                    min="1"
-                    className={classeCampo}
-                    value={dados.consulta.transportadora_id ?? ""}
-                    onChange={(evento) =>
-                      dados.alterarConsulta({
-                        transportadora_id: evento.target.value
-                          ? Number(evento.target.value)
-                          : undefined,
-                      })
-                    }
-                  />
-                </label>
+                <SeletorEmpresaFrete rotulo="Transportadora" obrigatorio={false}
+                  valor={String(dados.consulta.transportadora_id ?? "")}
+                  consultar={dados.consultarTransportadoras}
+                  aoAlterar={valor => dados.alterarConsulta({ transportadora_id: valor ? Number(valor) : undefined })} />
                 <label className="space-y-2">
                   <span className="text-sm">Registros por página</span>
                   <select
@@ -374,6 +369,7 @@ export function AuditoriaIntegrada({
                   )}
                 </div>
               )}
+              {frete.situacao === "aguardando_classificacao" && <p role="status" className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm">Cadastro confirmado. A classificação ainda está pendente. Use Classificar frete para continuar; o cadastro não será reenviado.</p>}
               <Tabs defaultValue="resumo">
                 <TabsList className="flex h-auto flex-wrap justify-start rounded-2xl">
                   {(
@@ -480,7 +476,7 @@ export function AuditoriaIntegrada({
                     </p>
                   )}
                   {podeConferir && (
-                    <form
+                    <form ref={formularioCTe} noValidate
                       onSubmit={(evento) => {
                         evento.preventDefault();
                         void painel.registrarDocumentos();
@@ -490,6 +486,7 @@ export function AuditoriaIntegrada({
                         disabled={dados.executando}
                         className="space-y-3 rounded-[24px] border p-4"
                       >
+                        {Object.keys(painel.errosDocumento).length > 0 && <p role="alert">Revise os campos indicados do CT-e.</p>}
                         <h3 className="font-semibold">
                           {frete.documentos.length
                             ? "Registrar correção do CT-e"
@@ -507,7 +504,9 @@ export function AuditoriaIntegrada({
                             key={campo}
                             rotulo={rotulo}
                             valor={documento[campo]}
-                            tipo={campo === "valorCte" ? "number" : "text"}
+                            formato={campo === "valorCte" ? "moeda" : undefined}
+                            limite={campo === "valorCte" ? undefined : campo === "numeroCte" ? 60 : 255}
+                            erro={painel.errosDocumento[campo]}
                             obrigatorio={
                               campo === "numeroCte" || campo === "valorCte"
                             }

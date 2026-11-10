@@ -1,45 +1,14 @@
-import { useId, type HTMLInputTypeAttribute } from "react";
+import { CampoAuditoria } from "./CampoAuditoria";
+import { FormularioCadastroFrete } from "./FormularioCadastroFrete";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { SignaturePad } from "@/components/SignaturePad";
 import type { usePainelAuditoriaIntegrada } from "../use-painel-auditoria-integrada";
 import {
   classeCampo,
   DialogoOperacaoFrete,
-  PaginacaoAuditoria,
   SeletorEmpresaFrete,
 } from "./ControlesAuditoriaIntegrada";
-
-export function CampoAuditoria({
-  rotulo,
-  valor,
-  aoAlterar,
-  tipo = "text",
-  obrigatorio = true,
-}: {
-  rotulo: string;
-  valor: string;
-  aoAlterar: (valor: string) => void;
-  tipo?: HTMLInputTypeAttribute;
-  obrigatorio?: boolean;
-}) {
-  const identificador = useId();
-  return (
-    <div className="space-y-2">
-      <label htmlFor={identificador} className="text-sm font-medium">
-        {rotulo}
-      </label>
-      <input
-        id={identificador}
-        className={classeCampo}
-        type={tipo}
-        value={valor}
-        required={obrigatorio}
-        min={tipo === "number" ? "0" : undefined}
-        step={tipo === "number" ? "0.001" : undefined}
-        onChange={(evento) => aoAlterar(evento.target.value)}
-      />
-    </div>
-  );
-}
 
 export function DialogosAuditoriaIntegrada({
   painel,
@@ -47,143 +16,43 @@ export function DialogosAuditoriaIntegrada({
   painel: ReturnType<typeof usePainelAuditoriaIntegrada>;
 }) {
   const { dados } = painel;
-  const comum = { executando: dados.executando, erro: dados.erroComando };
+  const comum = { executando: dados.executando, erro: dados.erroComando, aoAtualizar: () => {
+    void dados.recarregar();
+    if (!painel.cadastroAberto && dados.idSelecionado) void dados.abrirDetalhe(dados.idSelecionado);
+  } };
   const cadastro = painel.formularioCadastro;
   const cotacao = painel.formularioCotacao;
   const classificacao = painel.formularioClassificacao;
   const publicacao = painel.formularioPublicacao;
   return (
     <>
-      <DialogoOperacaoFrete
-        {...comum}
-        aberto={painel.cadastroAberto}
-        aoAbrir={painel.definirCadastroAberto}
-        titulo="Cadastrar frete"
-        descricao="Crie uma remessa de um pedido existente ou um frete avulso entre empresas cadastradas."
-        aoConfirmar={painel.cadastrarFrete}
-        filhos={
-          <>
-            <label className="block space-y-2">
-              <span>Origem do frete</span>
-              <select
-                className={classeCampo}
-                value={cadastro.tipo}
-                onChange={(evento) =>
-                  painel.definirFormularioCadastro({
-                    ...cadastro,
-                    tipo: evento.target.value as "pedido" | "avulso",
-                  })
-                }
-              >
-                <option value="pedido">Pedido existente</option>
-                <option value="avulso">Frete avulso</option>
-              </select>
-            </label>
-            {cadastro.tipo === "pedido" ? (
-              <section aria-label="Pedidos disponíveis" className="space-y-3">
-                <label className="block space-y-2">
-                  <span>Pedido</span>
-                  <select
-                    className={classeCampo}
-                    required
-                    value={cadastro.pedidoId}
-                    onChange={(evento) =>
-                      painel.selecionarPedido(evento.target.value)
-                    }
-                  >
-                    <option value="">Selecione o pedido</option>
-                    {cadastro.pedidoId &&
-                      !dados.pedidos?.resultados.some(
-                        (pedido) => pedido.id === cadastro.pedidoId,
-                      ) && (
-                        <option value={cadastro.pedidoId}>
-                          Pedido selecionado
-                        </option>
-                      )}
-                    {dados.pedidos?.resultados.map((pedido) => (
-                      <option key={pedido.id} value={pedido.id}>
-                        {pedido.numero} — {pedido.material} ·{" "}
-                        {pedido.quantidade_restante} {pedido.unidade}{" "}
-                        disponíveis
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <PaginacaoAuditoria
-                  dados={dados.pedidos?.paginacao}
-                  aoMudar={dados.alterarPaginaPedidos}
-                  desabilitada={dados.carregando}
-                />
-              </section>
-            ) : (
-              <>
-                <SeletorEmpresaFrete
-                  rotulo="Compradora"
-                  valor={cadastro.compradoraId}
-                  aoAlterar={(valor) =>
-                    painel.definirFormularioCadastro({
-                      ...cadastro,
-                      compradoraId: valor,
-                    })
-                  }
-                  consultar={dados.consultarCompradoras}
-                />
-                <CampoAuditoria
-                  rotulo="Material"
-                  valor={cadastro.material}
-                  aoAlterar={(valor) =>
-                    painel.definirFormularioCadastro({
-                      ...cadastro,
-                      material: valor,
-                    })
-                  }
-                />
-                <CampoAuditoria
-                  rotulo="Unidade"
-                  valor={cadastro.unidade}
-                  aoAlterar={(valor) =>
-                    painel.definirFormularioCadastro({
-                      ...cadastro,
-                      unidade: valor,
-                    })
-                  }
-                />
-              </>
-            )}
-            {(
-              [
-                ["quantidade", "Quantidade da remessa", "number"],
-                ["origem", "Origem", "text"],
-                ["destino", "Destino", "text"],
-                ["pesoToneladas", "Peso (t)", "number"],
-                ["metrosCubicos", "Cubagem (m³)", "number"],
-                ["quantidadeVolumes", "Volumes", "number"],
-                ["previsaoEntrega", "Previsão de entrega", "date"],
-              ] as const
-            ).map(([campo, rotulo, tipo]) => (
-              <CampoAuditoria
-                key={campo}
-                rotulo={rotulo}
-                tipo={tipo}
-                obrigatorio={tipo !== "date"}
-                valor={cadastro[campo]}
-                aoAlterar={(valor) =>
-                  painel.definirFormularioCadastro({
-                    ...cadastro,
-                    [campo]: valor,
-                  })
-                }
-              />
-            ))}
-          </>
-        }
+      <AlertDialog open={Boolean(painel.descarte)} onOpenChange={aberto => { if (!aberto) painel.cancelarDescarte(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Descartar dados preenchidos?</AlertDialogTitle>
+            <AlertDialogDescription>{painel.descarte?.descricao}</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Continuar preenchendo</AlertDialogCancel>
+            <AlertDialogAction onClick={painel.confirmarDescarte}>Descartar e continuar</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <DialogoOperacaoFrete {...comum} validarLocalmente amplo
+        aberto={painel.cadastroAberto} aoAbrir={painel.definirCadastroAberto}
+        titulo="Cadastrar frete" descricao="Organize a remessa, confira os dados e confirme o cadastro."
+        rotuloConfirmar="Criar frete" erros={painel.errosCadastro} aoConfirmar={painel.cadastrarFrete}
+        filhos={<FormularioCadastroFrete formulario={cadastro} alterar={painel.definirFormularioCadastro}
+          trocarTipo={painel.trocarTipoCadastro} selecionarPedido={painel.selecionarPedido}
+          pedidos={dados.pedidos} carregando={dados.carregando} erroConsulta={dados.erroPedidos}
+          aoRecarregar={() => { void dados.recarregar(); }} aoPaginar={dados.alterarPaginaPedidos}
+          consultarCompradoras={dados.consultarCompradoras} erros={painel.errosCadastro} />}
       />
       <DialogoOperacaoFrete
         {...comum}
         aberto={painel.classificacaoAberta}
         aoAbrir={painel.definirClassificacaoAberta}
         titulo="Classificar frete"
-        descricao="Defina a modalidade. Retirada pelo cliente dispensa cotação e CT-e."
+        validarLocalmente
+        erros={painel.errosClassificacao}
+        rotuloConfirmar="Salvar classificação"
+        descricao="Frete cadastrado; classificação pendente. Defina a modalidade em uma operação separada. Retirada pelo cliente dispensa cotação e CT-e neste fluxo."
         aoConfirmar={painel.classificarFrete}
         filhos={
           <>
@@ -192,24 +61,22 @@ export function DialogosAuditoriaIntegrada({
               <select
                 className={classeCampo}
                 value={classificacao.modalidade}
-                onChange={(evento) =>
-                  painel.definirFormularioClassificacao({
-                    ...classificacao,
-                    modalidade: evento.target
-                      .value as typeof classificacao.modalidade,
-                  })
-                }
+                onChange={evento => painel.trocarModalidadeClassificacao(evento.target.value as typeof classificacao.modalidade)}
+                aria-invalid={Boolean(painel.errosClassificacao.modalidade)}
+                aria-describedby={painel.errosClassificacao.modalidade ? "erro-modalidade" : undefined}
               >
                 <option value="cotar">Cotar frete</option>
                 <option value="contratado">Frete já contratado</option>
                 <option value="retirada_cliente">Retirada pelo cliente</option>
               </select>
             </label>
+            {painel.errosClassificacao.modalidade && <p id="erro-modalidade" className="text-sm text-destructive">{painel.errosClassificacao.modalidade}</p>}
             {classificacao.modalidade === "contratado" && (
               <>
                 <SeletorEmpresaFrete
                   rotulo="Transportadora"
                   valor={classificacao.transportadoraId}
+                  erroCampo={painel.errosClassificacao.transportadoraId}
                   aoAlterar={(valor) =>
                     painel.definirFormularioClassificacao({
                       ...classificacao,
@@ -220,7 +87,8 @@ export function DialogosAuditoriaIntegrada({
                 />
                 <CampoAuditoria
                   rotulo="Valor de referência"
-                  tipo="number"
+                  formato="moeda"
+                  erro={painel.errosClassificacao.valorReferencia}
                   valor={classificacao.valorReferencia}
                   aoAlterar={(valor) =>
                     painel.definirFormularioClassificacao({
@@ -239,6 +107,8 @@ export function DialogosAuditoriaIntegrada({
         aberto={painel.cotacaoAberta}
         aoAbrir={painel.definirCotacaoAberta}
         titulo="Registrar cotação"
+        validarLocalmente
+        erros={painel.errosCotacao}
         descricao="Selecione uma transportadora cadastrada e registre sua proposta."
         aoConfirmar={painel.cadastrarCotacao}
         filhos={
@@ -246,6 +116,7 @@ export function DialogosAuditoriaIntegrada({
             <SeletorEmpresaFrete
               rotulo="Transportadora"
               valor={cotacao.transportadora}
+              erroCampo={painel.errosCotacao.transportadora}
               aoAlterar={(valor) =>
                 painel.definirFormularioCotacao({
                   ...cotacao,
@@ -265,7 +136,9 @@ export function DialogosAuditoriaIntegrada({
                 key={campo}
                 rotulo={rotulo}
                 valor={cotacao[campo]}
-                tipo={campo === "observacao" ? "text" : "number"}
+                formato={campo === "observacao" ? undefined : campo === "prazoDias" ? "inteiro" : "moeda"}
+                limite={campo === "observacao" ? 1000 : undefined}
+                erro={painel.errosCotacao[campo]}
                 obrigatorio={campo !== "observacao"}
                 aoAlterar={(valor) =>
                   painel.definirFormularioCotacao({
@@ -374,6 +247,8 @@ export function DialogosAuditoriaIntegrada({
         aberto={painel.publicacaoAberta}
         aoAbrir={painel.definirPublicacaoAberta}
         titulo="Registrar demanda interna"
+        validarLocalmente
+        erros={painel.errosPublicacao}
         descricao="A demanda ficará vinculada a este frete, sem envio automático a transportadoras."
         aoConfirmar={painel.publicarTransporte}
         filhos={
@@ -390,7 +265,9 @@ export function DialogosAuditoriaIntegrada({
                 key={campo}
                 rotulo={rotulo}
                 valor={publicacao[campo]}
-                tipo={campo === "valorSugerido" ? "number" : "text"}
+                formato={campo === "valorSugerido" ? "moeda" : undefined}
+                limite={campo === "valorSugerido" ? undefined : campo === "observacoes" ? 1000 : 120}
+                erro={painel.errosPublicacao[campo]}
                 obrigatorio={campo !== "observacoes"}
                 aoAlterar={(valor) =>
                   painel.definirFormularioPublicacao({

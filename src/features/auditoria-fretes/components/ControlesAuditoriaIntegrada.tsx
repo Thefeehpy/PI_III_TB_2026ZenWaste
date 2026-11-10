@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,7 +25,7 @@ export function PaginacaoAuditoria({
   return (
     <nav
       aria-label="Paginação"
-      className="mt-4 flex items-center justify-between gap-3 text-sm"
+      className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm"
     >
       <Button
         type="button"
@@ -56,10 +56,14 @@ export function SeletorEmpresaFrete({
   valor,
   aoAlterar,
   consultar,
+  obrigatorio = true,
+  erroCampo,
 }: {
   rotulo: string;
+  obrigatorio?: boolean;
+  erroCampo?: string;
   valor: string;
-  aoAlterar: (valor: string) => void;
+  aoAlterar: (valor: string, nome?: string) => void;
   consultar: (
     busca?: string,
     sinal?: AbortSignal,
@@ -73,14 +77,19 @@ export function SeletorEmpresaFrete({
   const [erro, definirErro] = useState<string | null>(null);
   const [carregando, definirCarregando] = useState(true);
   const [tentativa, definirTentativa] = useState(0);
+  const [nomes, definirNomes] = useState<Record<string, string>>({});
+  useEffect(() => { definirNomes({}); }, [consultar]);
   useEffect(() => {
     const controle = new AbortController();
     definirCarregando(true);
+    definirDados(null);
+    definirErro(null);
     const temporizador = setTimeout(() => {
       consultar(busca, controle.signal, pagina)
         .then((resposta) => {
           if (!controle.signal.aborted) {
             definirDados(resposta);
+            definirNomes(anteriores => ({ ...anteriores, ...Object.fromEntries(resposta.resultados.map(empresa => [String(empresa.id), empresa.razao_social])) }));
             definirErro(null);
           }
         })
@@ -122,21 +131,25 @@ export function SeletorEmpresaFrete({
         id={identificador}
         className={classeCampo}
         value={valor}
-        required
+        required={obrigatorio}
+        aria-invalid={Boolean(erroCampo)}
+        aria-describedby={erroCampo ? `${identificador}-erro` : undefined}
         disabled={carregando || Boolean(erro)}
-        onChange={(evento) => aoAlterar(evento.target.value)}
+        onChange={(evento) => aoAlterar(evento.target.value, nomes[evento.target.value])}
       >
-        <option value="">Selecione uma empresa cadastrada</option>
+        <option value="">{obrigatorio ? "Selecione uma empresa cadastrada" : "Todas as transportadoras"}</option>
         {valor &&
           !dados?.resultados.some(
             (empresa) => String(empresa.id) === valor,
-          ) && <option value={valor}>Empresa selecionada (ID {valor})</option>}
+          ) && <option value={valor}>{nomes[valor] ?? "Empresa selecionada — atualize a consulta para conferir"}</option>}
         {dados?.resultados.map((empresa) => (
           <option key={empresa.id} value={empresa.id}>
             {empresa.razao_social}
           </option>
         ))}
       </select>
+      {erroCampo && <p id={`${identificador}-erro`} className="text-sm text-destructive">{erroCampo}</p>}
+      {!carregando && !erro && dados?.resultados.length === 0 && <p role="status" className="text-sm text-muted-foreground">Nenhuma empresa encontrada nesta consulta.</p>}
       {carregando && (
         <p role="status" className="text-xs">
           Consultando empresas…
@@ -172,6 +185,11 @@ export function DialogoOperacaoFrete({
   erro,
   aoConfirmar,
   filhos,
+  erros = {},
+  rotuloConfirmar = "Confirmar",
+  amplo = false,
+  validarLocalmente = false,
+  aoAtualizar,
 }: {
   aberto: boolean;
   aoAbrir: (aberto: boolean) => void;
@@ -181,7 +199,22 @@ export function DialogoOperacaoFrete({
   erro: string | null;
   aoConfirmar: () => Promise<unknown>;
   filhos: ReactNode;
+  erros?: Record<string, string>;
+  rotuloConfirmar?: string;
+  amplo?: boolean;
+  validarLocalmente?: boolean;
+  aoAtualizar?: () => void;
 }) {
+  const formulario = useRef<HTMLFormElement>(null);
+  const mensagemErro = useRef<HTMLParagraphElement>(null);
+  const enviando = useRef(false);
+  useLayoutEffect(() => {
+    if (aberto && Object.keys(erros).length)
+      formulario.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [erros, aberto]);
+  useLayoutEffect(() => {
+    if (aberto && erro) mensagemErro.current?.focus();
+  }, [aberto, erro]);
   return (
     <Dialog
       open={aberto}
@@ -189,28 +222,36 @@ export function DialogoOperacaoFrete({
         if (!executando) aoAbrir(valor);
       }}
     >
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-[30px] sm:max-w-xl">
+      <DialogContent className={`flex max-h-[90dvh] flex-col overflow-hidden rounded-[30px] ${amplo ? "sm:max-w-3xl" : "sm:max-w-xl"}`}>
         <DialogHeader>
           <DialogTitle>{titulo}</DialogTitle>
           <DialogDescription>{descricao}</DialogDescription>
         </DialogHeader>
-        <form
-          onSubmit={(evento) => {
+        <form ref={formulario} noValidate={validarLocalmente} className="flex min-h-0 flex-1 flex-col" aria-busy={executando}
+          onSubmit={async (evento) => {
             evento.preventDefault();
-            void aoConfirmar();
-          }}
-        >
-          <fieldset disabled={executando} className="space-y-4">
+            if (executando || enviando.current) return;
+            enviando.current = true;
+            try { await aoConfirmar(); } finally { enviando.current = false; }
+          }}>
+          <div className="min-h-0 flex-1 overflow-y-auto px-1">
+          <fieldset disabled={executando} className="min-w-0 space-y-4 pb-4">
+            {Object.keys(erros).length > 0 && <p role="alert" className="rounded-xl border border-destructive/30 p-3 text-sm">Revise os {Object.keys(erros).length} campo(s) indicados antes de confirmar.</p>}
+
             {filhos}
             {erro && (
-              <p role="alert" className="text-sm text-destructive">
+              <p ref={mensagemErro} tabIndex={-1} role="alert" className="text-sm text-destructive">
                 {erro}
               </p>
             )}
-            <Button type="submit" className="w-full rounded-2xl">
-              {executando ? "Salvando…" : "Confirmar"}
-            </Button>
           </fieldset>
+          </div>
+          <div className="shrink-0 space-y-2 border-t bg-background pt-3">
+            {erro && aoAtualizar && <Button type="button" variant="outline" disabled={executando} onClick={aoAtualizar}>Atualizar dados do servidor</Button>}
+            <Button disabled={executando} type="submit" className="w-full rounded-2xl">
+              {executando ? "Salvando…" : rotuloConfirmar}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

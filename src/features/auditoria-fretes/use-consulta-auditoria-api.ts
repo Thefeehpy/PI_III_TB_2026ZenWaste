@@ -10,7 +10,7 @@ import {
   criarServicoHttpAuditoriaFretes,
   type ServicoHttpAuditoriaFretes,
 } from "./servico-http-auditoria-fretes";
-import { obterTokenAutenticacao } from "@/services/cliente-http";
+import { ErroApi, obterTokenAutenticacao } from "@/services/cliente-http";
 import type {
   ConsultaFretes,
   FreteDetalheDTO,
@@ -18,6 +18,8 @@ import type {
   ListaFretesDTO,
   ListaPedidosFreteDTO,
 } from "./tipos-api";
+
+import { mensagemErroFrete } from "./validacoes";
 
 const consultaInicial: ConsultaFretes = { pagina: 1, tamanho_pagina: 10 };
 type Sessao = { empresaId: string | null; servico: ServicoHttpAuditoriaFretes };
@@ -37,6 +39,7 @@ type Estado = {
   erro: string | null;
   erroDetalhe: string | null;
   erroComando: string | null;
+  erroPedidos: string | null;
 };
 function iniciarEstado(sessao: Sessao): Estado {
   return {
@@ -55,6 +58,7 @@ function iniciarEstado(sessao: Sessao): Estado {
     erro: null,
     erroDetalhe: null,
     erroComando: null,
+    erroPedidos: null,
   };
 }
 function mensagemFalha(erro: unknown, alternativa: string) {
@@ -66,7 +70,10 @@ export function useConsultaAuditoriaApi(
   empresaId: string | null,
   podeCadastrar: boolean,
   servicoFornecido?: ServicoHttpAuditoriaFretes,
+  aoSessaoInvalida?: () => void,
 ) {
+  const sessaoInvalida = useRef(aoSessaoInvalida);
+  useLayoutEffect(() => { sessaoInvalida.current = aoSessaoInvalida; }, [aoSessaoInvalida]);
   const tokenSessao = obterTokenAutenticacao();
   const sessao = useMemo(
     () => ({
@@ -126,6 +133,12 @@ export function useConsultaAuditoriaApi(
         ativa.current !== sessao
       )
         return;
+      for (const resultado of [fretes, pedidos, demandas]) {
+        if (resultado.status === "rejected" && resultado.reason instanceof ErroApi && resultado.reason.status === 401) {
+          sessaoInvalida.current?.();
+          break;
+        }
+      }
       const falha = [fretes, pedidos, demandas].find(
         (resultado) => resultado.status === "rejected",
       );
@@ -143,6 +156,7 @@ export function useConsultaAuditoriaApi(
                 demandas.status === "fulfilled"
                   ? demandas.value
                   : anterior.demandas,
+              erroPedidos: pedidos.status === "rejected" ? mensagemFalha(pedidos.reason, "Não foi possível consultar os pedidos.") : null,
               carregando: false,
               erro:
                 falha?.status === "rejected"
@@ -193,6 +207,7 @@ export function useConsultaAuditoriaApi(
             carregandoDetalhe: false,
           }));
       } catch (falha) {
+        if (sequencia === sequenciaDetalhe.current && ativa.current === sessao && falha instanceof ErroApi && falha.status === 401) sessaoInvalida.current?.();
         if (sequencia === sequenciaDetalhe.current)
           aplicar((anterior) => ({
             ...anterior,
@@ -204,7 +219,7 @@ export function useConsultaAuditoriaApi(
           }));
       }
     },
-    [aplicar, servico],
+    [aplicar, servico, sessao],
   );
 
   const executar = useCallback(
@@ -212,6 +227,7 @@ export function useConsultaAuditoriaApi(
       comando: (
         integracao: ServicoHttpAuditoriaFretes,
       ) => Promise<FreteDetalheDTO>,
+      aoFalhar?: (erro: unknown) => boolean | void,
     ) => {
       if (
         !sessao.empresaId ||
@@ -252,13 +268,10 @@ export function useConsultaAuditoriaApi(
         } else void carregar();
         return resultado;
       } catch (falha) {
-        aplicar((anterior) => ({
-          ...anterior,
-          erroComando: mensagemFalha(
-            falha,
-            "Não foi possível concluir a operação.",
-          ),
-        }));
+        if (ativa.current !== sessao) return null;
+        const porCampo = aoFalhar?.(falha);
+        if (falha instanceof ErroApi && falha.status === 401) sessaoInvalida.current?.();
+        aplicar((anterior) => ({ ...anterior, erroComando: porCampo ? null : mensagemErroFrete(falha) }));
         return null;
       } finally {
         if (comandoEmAndamento.current === sessao)
@@ -285,14 +298,35 @@ export function useConsultaAuditoriaApi(
       })),
     [aplicar],
   );
+  const consultarEmpresas = useCallback(async (
+    tipo: "listarCompradoras" | "listarTransportadoras",
+    busca?: string, sinal?: AbortSignal, pagina?: number,
+  ) => {
+    try { return await servico[tipo](busca, sinal, pagina); }
+    catch (erro) {
+      if (!sinal?.aborted && ativa.current === sessao && erro instanceof ErroApi && erro.status === 401)
+        sessaoInvalida.current?.();
+      throw erro;
+    }
+  }, [servico, sessao]);
+  const consultarCompradoras = useCallback((busca?: string, sinal?: AbortSignal, pagina?: number) =>
+    consultarEmpresas("listarCompradoras", busca, sinal, pagina), [consultarEmpresas]);
+  const consultarTransportadoras = useCallback((busca?: string, sinal?: AbortSignal, pagina?: number) =>
+    consultarEmpresas("listarTransportadoras", busca, sinal, pagina), [consultarEmpresas]);
   return {
     ...dados,
     abrirDetalhe,
+    adotarDetalhe: (detalhe: FreteDetalheDTO) => {
+      if (ativa.current !== sessao) return;
+      ++sequenciaDetalhe.current;
+      selecaoAtual.current = detalhe.id;
+      aplicar(anterior => ({ ...anterior, detalhe, idSelecionado: detalhe.id, carregandoDetalhe: false, erroDetalhe: null }));
+    },
     executar,
     recarregar: () => carregar(),
     alterarConsulta,
-    consultarCompradoras: servico.listarCompradoras,
-    consultarTransportadoras: servico.listarTransportadoras,
+    consultarCompradoras,
+    consultarTransportadoras,
     alterarPaginaPedidos: (pagina: number) =>
       aplicar((anterior) => ({ ...anterior, paginaPedidos: pagina })),
     alterarPaginaDemandas: (pagina: number) =>
