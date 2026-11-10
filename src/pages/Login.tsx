@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Building2,
   Leaf,
+  Loader2,
   Lock,
   Mail,
   Truck,
@@ -17,6 +18,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
+import { AvisoDemonstracao } from "@/components/AvisoDemonstracao";
+import { RecuperacaoSessao } from "@/components/RecuperacaoSessao";
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario";
 import { useToast } from "@/hooks/use-toast";
 import iconLogo from "@/assets/icone-logo.png";
 import logo from "@/assets/logo-zenwaste.png";
@@ -38,13 +42,13 @@ const accessProfiles: Array<{
   {
     id: "driver",
     title: "Entregador / Transportador",
-    description: "Entregas e fretes",
+    description: "Demonstração de fretes",
     icon: Truck,
   },
   {
     id: "client",
     title: "Cliente",
-    description: "Assinar entrega",
+    description: "Demonstração de canhoto",
     icon: UserCheck,
   },
 ];
@@ -56,8 +60,8 @@ const profileRoutes: Record<Exclude<AccessProfile, "company">, string> = {
 
 const profileButtonLabel: Record<AccessProfile, string> = {
   company: "Entrar no painel",
-  driver: "Entrar como transportador",
-  client: "Abrir canhoto digital",
+  driver: "Abrir demonstração da transportadora",
+  client: "Abrir demonstração do canhoto",
 };
 
 export default function Login() {
@@ -67,7 +71,9 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const { login } = useAuth();
+  const { login, isLoading, sessionError, retrySession, logout } = useAuth();
+  const { pendente, executar } = useEnvioFormulario(profile);
+  const [erroFormulario, definirErroFormulario] = useState("");
 
   const redirectTo = (location.state as { from?: string } | null)?.from || "/dashboard";
 
@@ -76,18 +82,18 @@ export default function Login() {
 
     if (profile !== "company") {
       toast({
-        title: "Acesso liberado",
-        description:
-          profile === "driver"
-            ? "Abrindo a dashboard da transportadora."
-            : "Abrindo a assinatura digital da entrega.",
+        title: "Demonstração",
+        description: "Abrindo dados fictícios, sem autenticação ou operação real.",
       });
       navigate(profileRoutes[profile]);
       return;
     }
 
-    const result = await login(email, password);
+    definirErroFormulario("");
+    const result = await executar((signal) => login(email, password, signal));
+    if (!result || result.cancelled) return;
     if (!result.success) {
+      definirErroFormulario(result.message || "Não foi possível entrar. Tente novamente.");
       toast({
         title: "Nao foi possivel entrar",
         description: result.message,
@@ -139,7 +145,9 @@ export default function Login() {
           </CardHeader>
 
           <CardContent className="relative z-10">
+            {sessionError && <RecuperacaoSessao mensagem={sessionError} tentarNovamente={() => void retrySession()} sair={logout} />}
             <form onSubmit={handleSubmit} className="space-y-5">
+              <fieldset disabled={pendente || isLoading} className="space-y-5" aria-busy={pendente}>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {accessProfiles.map((accessProfile) => {
                   const Icon = accessProfile.icon;
@@ -151,7 +159,7 @@ export default function Login() {
                       type="button"
                       aria-pressed={isSelected}
                       data-selected={isSelected}
-                      onClick={() => setProfile(accessProfile.id)}
+                      onClick={() => { setProfile(accessProfile.id); setPassword(""); definirErroFormulario(""); }}
                       className="auth-profile-option rounded-2xl p-3 text-left"
                     >
                       <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -166,6 +174,7 @@ export default function Login() {
                 })}
               </div>
 
+              {profile === "company" ? <>
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
                 <div className="relative">
@@ -198,13 +207,17 @@ export default function Login() {
                 </div>
               </div>
 
+              </> : <AvisoDemonstracao />}
+              {erroFormulario && <p role="alert" className="text-sm text-destructive">{erroFormulario}</p>}
               <Button
                 type="submit"
+                disabled={pendente || isLoading}
                 className="auth-shimmer h-12 w-full rounded-2xl bg-gradient-to-r from-emerald-500 via-primary to-cyan-500 font-semibold text-white shadow-[0_18px_44px_rgba(16,185,129,0.26)] transition-transform hover:scale-[1.01]"
               >
-                {profileButtonLabel[profile]}
-                <ArrowRight className="ml-2 h-4 w-4" />
+                {pendente ? "Entrando…" : profileButtonLabel[profile]}
+                {pendente ? <Loader2 className="ml-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="ml-2 h-4 w-4" />}
               </Button>
+              </fieldset>
             </form>
 
             <p className="mt-6 text-center text-sm text-muted-foreground">

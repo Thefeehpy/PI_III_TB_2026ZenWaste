@@ -10,9 +10,9 @@ export function usePayments() {
   const service = useMemo(
     () =>
       import.meta.env.VITE_PAYMENT_MODE === "backend"
-        ? createApiPaymentService()
+        ? createApiPaymentService(user)
         : createDemoPaymentService(scope),
-    [scope],
+    [scope, user],
   );
   return { service, scope };
 }

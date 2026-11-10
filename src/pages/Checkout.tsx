@@ -1,5 +1,5 @@
-import { useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowRight,
   Building2,
@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { useAnuncios } from "@/contexts/MarketplaceContext";
 import { EstadoConsulta } from "@/components/EstadoConsulta";
+import { RecuperacaoSessao } from "@/components/RecuperacaoSessao";
+import { ErroApi } from "@/services/cliente-http";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePayments } from "@/hooks/use-payments";
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,8 @@ import {
   formatMoney,
   formatQuantity,
   validateBuyer,
+  validarCompradorEmpresarial,
+  formatarTelefoneEmpresarial,
 } from "@/lib/payment";
 import type { BuyerDetails } from "@/types/payment";
 import type { Anuncio } from "@/types/anuncio";
@@ -39,8 +43,13 @@ import { formatPhone } from "@/utils/input-masks";
 
 export default function Checkout() {
   const { itemId } = useParams();
+  const { user, isAuthenticated, isLoading, sessionError, retrySession, logout, sessionVersion } = useAuth();
+  const integrado = import.meta.env.VITE_PAYMENT_MODE === "backend";
   const { anuncios, carregando, erro, atualizarAnuncios } = useAnuncios();
   const item = anuncios.find((candidate) => candidate.id === itemId);
+  if (integrado && isLoading) return <PaymentLoading />;
+  if (integrado && sessionError) return <RecuperacaoSessao mensagem={sessionError} tentarNovamente={() => void retrySession()} sair={logout} />;
+  if (integrado && (!isAuthenticated || !user)) return <Navigate to="/login" replace state={{ from: `/checkout/${itemId}` }} />;
   if (carregando) return <PaymentLoading />;
   if (erro) return <div className="container py-8"><EstadoConsulta carregando={false} erro={erro} tentarNovamente={() => void atualizarAnuncios()} /></div>;
   if (!item || item.quantity <= 0)
@@ -50,11 +59,12 @@ export default function Checkout() {
         message="Este anúncio não está disponível para compra. Explore outros materiais no marketplace."
       />
     );
-  return <CheckoutForm key={item.id} item={item} />;
+  return <CheckoutForm key={`${item.id}:${user?.id ?? "guest"}:${sessionVersion ?? 0}`} item={item} />;
 }
 
 function CheckoutForm({ item }: { item: Anuncio }) {
   const { user } = useAuth();
+  const integrado = import.meta.env.VITE_PAYMENT_MODE === "backend";
   const { service } = usePayments();
   const navigate = useNavigate();
   const [quantity, setQuantity] = useState(String(item.quantity));
@@ -62,7 +72,7 @@ function CheckoutForm({ item }: { item: Anuncio }) {
     name: user?.razaoSocial ?? "",
     email: user?.email ?? "",
     document: formatDocument(user?.cnpj ?? ""),
-    phone: formatPhone(user?.telefone ?? ""),
+    phone: (integrado ? formatarTelefoneEmpresarial : formatPhone)(user?.telefone ?? ""),
   }));
   const [errors, setErrors] = useState<
     Partial<Record<keyof BuyerDetails, string>>
@@ -71,6 +81,8 @@ function CheckoutForm({ item }: { item: Anuncio }) {
   const [busy, setBusy] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const locked = useRef(false);
+  const montado = useRef(true);
+  useEffect(() => { montado.current = true; return () => { montado.current = false; }; }, []);
   const requestKey = useRef(crypto.randomUUID());
   const amount = Number(quantity);
   const validQuantity =
@@ -80,6 +92,7 @@ function CheckoutForm({ item }: { item: Anuncio }) {
     Math.abs(amount * 1000 - Math.round(amount * 1000)) < 0.000001 &&
     calculateTotal(item.price, amount) > 0;
   const updateBuyer = (key: keyof BuyerDetails, value: string) => {
+    if (integrado && key === "document") return;
     setBuyer((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined }));
     requestKey.current = crypto.randomUUID();
@@ -91,7 +104,7 @@ function CheckoutForm({ item }: { item: Anuncio }) {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (locked.current) return;
-    const next = validateBuyer(buyer);
+    const next = integrado ? validarCompradorEmpresarial(buyer, user) : validateBuyer(buyer);
     setErrors(next);
     if (!validQuantity) {
       setError(
@@ -127,15 +140,26 @@ function CheckoutForm({ item }: { item: Anuncio }) {
         },
         idempotencyKey: requestKey.current,
       });
-      navigate(`/checkout/payment/${order.id}`);
+      if (montado.current) navigate(`/checkout/payment/${order.id}`);
     } catch (cause) {
+      if (!montado.current) return;
+      if (cause instanceof ErroApi) {
+        const porCampo: Partial<Record<keyof BuyerDetails, string>> = {};
+        for (const campo of ["name", "email", "document", "phone"] as const) {
+          const mensagem = cause.mensagemCampo("buyer", campo);
+          if (mensagem) porCampo[campo] = mensagem;
+        }
+        setErrors(porCampo);
+        const primeiro = Object.keys(porCampo)[0];
+        if (primeiro) document.getElementById(`buyer-${primeiro}`)?.focus();
+      }
       setError(
         cause instanceof Error
           ? cause.message
           : "Não foi possível continuar. Tente novamente.",
       );
     } finally {
-      setBusy(false);
+      if (montado.current) setBusy(false);
       locked.current = false;
     }
   };
@@ -147,7 +171,7 @@ function CheckoutForm({ item }: { item: Anuncio }) {
       description="Revise o material, informe seus dados e continue para o pagamento."
     >
       <div className="mb-6">
-        <DemoNotice />
+        <DemoNotice>{integrado ? "Esta compra será registrada para a empresa autenticada. Use somente dados de teste no ambiente de demonstração; nenhum pagamento é realizado nesta etapa." : undefined}</DemoNotice>
       </div>
       <form
         onSubmit={submit}
@@ -259,10 +283,11 @@ function CheckoutForm({ item }: { item: Anuncio }) {
             </p>
           </PaymentPanel>
           <PaymentPanel
-            title="Dados do comprador"
-            description="Estas informações identificam a compra e aparecem no seu pedido."
+            title={integrado ? "Compra empresarial — pessoa jurídica" : "Dados do comprador"}
+            description={integrado ? "O CNPJ identifica a empresa autenticada. Nome, e-mail e telefone abaixo são os dados de contato do pedido." : "Estas informações identificam a compra e aparecem no seu pedido."}
             icon={<UserRound className="h-5 w-5" />}
           >
+            {integrado && <p className="mb-5 rounded-xl bg-muted/60 p-3 text-sm">Compra realizada por <strong>{user?.razaoSocial}</strong>. Para comprar por outra empresa, entre com a conta correspondente.</p>}
             {!user ? (
               <p className="mb-5 rounded-xl bg-muted/60 p-3 text-xs leading-relaxed text-muted-foreground">
                 Você pode experimentar sem uma conta. Já é cliente?{" "}
@@ -280,15 +305,15 @@ function CheckoutForm({ item }: { item: Anuncio }) {
                 [
                   {
                     key: "name",
-                    label: "Nome completo ou razão social",
+                    label: integrado ? "Nome do contato ou razão social" : "Nome completo ou razão social",
                     placeholder: "Nome do comprador ou empresa",
                     autoComplete: "organization",
                     full: true,
                   },
                   {
                     key: "document",
-                    label: "CPF ou CNPJ",
-                    placeholder: "000.000.000-00",
+                    label: integrado ? "CNPJ da empresa autenticada" : "CPF ou CNPJ",
+                    placeholder: integrado ? "00.000.000/0000-00" : "000.000.000-00",
                     autoComplete: "off",
                   },
                   {
@@ -323,13 +348,14 @@ function CheckoutForm({ item }: { item: Anuncio }) {
                     inputMode={field.key === "document" ? "numeric" : undefined}
                     autoComplete={field.autoComplete}
                     value={buyer[field.key]}
+                    readOnly={integrado && field.key === "document"}
                     placeholder={field.placeholder}
                     maxLength={
                       field.key === "document"
                         ? 18
                         : field.key === "phone"
                           ? 15
-                          : 150
+                          : integrado ? (field.key === "name" ? 120 : 256) : 150
                     }
                     className="payment-input mt-2"
                     aria-invalid={!!errors[field.key]}
@@ -340,7 +366,7 @@ function CheckoutForm({ item }: { item: Anuncio }) {
                       field.key === "document"
                         ? formatDocument
                         : field.key === "phone"
-                          ? formatPhone
+                          ? (integrado ? formatarTelefoneEmpresarial : formatPhone)
                           : undefined
                     }
                     onValueChange={(value) => updateBuyer(field.key, value)}

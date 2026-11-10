@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Building2,
   Leaf,
+  Loader2,
   Lock,
   Mail,
   Phone,
@@ -21,8 +22,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario";
+import { AvisoDemonstracao } from "@/components/AvisoDemonstracao";
 import { formatCNPJ, validateCNPJ } from "@/utils/cnpj";
-import { formatCarrierDocument, formatPhone } from "@/utils/input-masks";
+import { formatPhone } from "@/utils/input-masks";
 import iconLogo from "@/assets/icone-logo.png";
 import logo from "@/assets/logo-zenwaste.png";
 
@@ -56,13 +59,13 @@ const accessProfiles: Array<{
   {
     id: "driver",
     title: "Entregador / Transportador",
-    description: "Acesso as entregas",
+    description: "Demonstração de entregas",
     icon: Truck,
   },
   {
     id: "client",
     title: "Cliente",
-    description: "Canhoto digital",
+    description: "Demonstração de canhoto",
     icon: UserCheck,
   },
 ];
@@ -74,16 +77,9 @@ const profileRoutes: Record<Exclude<AccessProfile, "company">, string> = {
 
 const profileButtonLabel: Record<AccessProfile, string> = {
   company: "Criar conta",
-  driver: "Continuar como transportador",
-  client: "Continuar como cliente",
+  driver: "Abrir demonstração da transportadora",
+  client: "Abrir demonstração do canhoto",
 };
-
-const materialCostFields = [
-  { key: "paperCostKm", label: "Papel e papelao" },
-  { key: "plasticCostKm", label: "Plastico" },
-  { key: "metalCostKm", label: "Metal" },
-  { key: "glassCostKm", label: "Vidro" },
-] as const;
 
 export default function Register() {
   const navigate = useNavigate();
@@ -99,18 +95,9 @@ export default function Register() {
     password: "",
     confirmPassword: "",
   });
-  const [carrierForm, setCarrierForm] = useState({
-    companyName: "",
-    document: "",
-    transportType: "",
-    coverage: "",
-    fleetSize: "",
-    paperCostKm: "",
-    plasticCostKm: "",
-    metalCostKm: "",
-    glassCostKm: "",
-  });
   const [cnpjError, setCnpjError] = useState("");
+  const [erroFormulario, definirErroFormulario] = useState("");
+  const { pendente, executar } = useEnvioFormulario(profile);
 
   const handleCnpjChange = (value: string) => {
     const formatted = formatCNPJ(value);
@@ -127,31 +114,7 @@ export default function Register() {
     e.preventDefault();
 
     if (profile !== "company") {
-      if (profile === "driver" && !carrierForm.companyName.trim()) {
-        toast({
-          title: "Dados da transportadora",
-          description: "Informe o nome da empresa transportadora para continuar.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (form.password !== form.confirmPassword) {
-        toast({
-          title: "Senhas diferentes",
-          description: "Confirme a mesma senha nos dois campos.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Cadastro preparado",
-        description:
-          profile === "driver"
-            ? "Abrindo a dashboard da transportadora com propostas de frete."
-            : "Abrindo a experiencia de assinatura do canhoto digital.",
-      });
+      toast({ title: "Demonstração", description: "Abrindo dados fictícios. Nenhuma conta foi criada." });
       navigate(profileRoutes[profile]);
       return;
     }
@@ -170,16 +133,20 @@ export default function Register() {
       return;
     }
 
-    const result = await register({
+    definirErroFormulario("");
+    const result = await executar((signal) => register({
       razaoSocial: form.razaoSocial,
       cnpj: form.cnpj,
       segmento: form.segmento,
       email: form.email,
       telefone: form.telefone.replace(/\D/g, ""),
       password: form.password,
-    });
+    }, signal));
+
+    if (!result || result.cancelled) return;
 
     if (!result.success) {
+      definirErroFormulario(result.message || "Cadastro não concluído. Tente novamente.");
       toast({
         title: "Cadastro nao concluido",
         description: result.message,
@@ -224,18 +191,19 @@ export default function Register() {
             </div>
             <div>
               <CardTitle className="font-display text-3xl">
-                {profile === "company" ? "Cadastro empresarial" : "Criar acesso"}
+                {profile === "company" ? "Cadastro empresarial" : "Explorar demonstração"}
               </CardTitle>
               <CardDescription className="mt-2 text-sm">
                 {profile === "company"
                   ? "Informe os dados da empresa para liberar o painel."
-                  : "Escolha seu perfil para abrir o fluxo correto."}
+                  : "Explore dados fictícios sem criar conta ou informar credenciais."}
               </CardDescription>
             </div>
           </CardHeader>
 
           <CardContent className="relative z-10">
             <form onSubmit={handleSubmit} className="space-y-5">
+              <fieldset disabled={pendente} className="space-y-5" aria-busy={pendente}>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {accessProfiles.map((accessProfile) => {
                   const Icon = accessProfile.icon;
@@ -250,6 +218,8 @@ export default function Register() {
                       onClick={() => {
                         setProfile(accessProfile.id);
                         setCnpjError("");
+                        definirErroFormulario("");
+                        setForm((atual) => ({ ...atual, password: "", confirmPassword: "" }));
                       }}
                       className="auth-profile-option rounded-2xl p-3 text-left"
                     >
@@ -317,123 +287,9 @@ export default function Register() {
                     </Select>
                   </div>
                 </div>
-              ) : profile === "driver" ? (
-                <div className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="carrier-company">Nome da empresa transportadora</Label>
-                      <div className="relative">
-                        <Truck className="auth-field-icon absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
-                        <Input
-                          id="carrier-company"
-                          placeholder="Ex.: Rota Verde Transportes"
-                          className="h-12 rounded-2xl border-border/70 bg-background/70 pl-11 shadow-inner shadow-black/5 backdrop-blur focus-visible:ring-primary/40"
-                          value={carrierForm.companyName}
-                          onChange={(event) => setCarrierForm((current) => ({ ...current, companyName: event.target.value }))}
-                          required
-                        />
-                      </div>
-                    </div>
+              ) : <AvisoDemonstracao />}
 
-                    <div className="space-y-2">
-                      <Label htmlFor="carrier-document">CNPJ / Registro ANTT</Label>
-                      <MaskedInput
-                        id="carrier-document"
-                        placeholder="00.000.000/0000-00 ou registro"
-                        className="h-12 rounded-2xl border-border/70 bg-background/70 shadow-inner shadow-black/5 backdrop-blur focus-visible:ring-primary/40"
-                        value={carrierForm.document}
-                        formatValue={formatCarrierDocument}
-                        onValueChange={(value) => setCarrierForm((current) => ({ ...current, document: value }))}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="space-y-2 sm:col-span-1">
-                      <Label>Tipo de transporte</Label>
-                      <Select
-                        value={carrierForm.transportType}
-                        onValueChange={(value) => setCarrierForm((current) => ({ ...current, transportType: value }))}
-                      >
-                        <SelectTrigger className="h-12 rounded-2xl border-border/70 bg-background/70 shadow-inner shadow-black/5 backdrop-blur focus:ring-primary/40">
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="fracionado">Fracionado</SelectItem>
-                          <SelectItem value="carga-fechada">Carga fechada</SelectItem>
-                          <SelectItem value="roll-on">Roll-on / cacamba</SelectItem>
-                          <SelectItem value="dedicado">Dedicado</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2 sm:col-span-1">
-                      <Label htmlFor="carrier-coverage">Regiao atendida</Label>
-                      <Input
-                        id="carrier-coverage"
-                        placeholder="Ex.: SP, PR e MG"
-                        className="h-12 rounded-2xl border-border/70 bg-background/70 shadow-inner shadow-black/5 backdrop-blur focus-visible:ring-primary/40"
-                        value={carrierForm.coverage}
-                        onChange={(event) => setCarrierForm((current) => ({ ...current, coverage: event.target.value }))}
-                      />
-                    </div>
-
-                    <div className="space-y-2 sm:col-span-1">
-                      <Label htmlFor="carrier-fleet">Tamanho da frota</Label>
-                      <Input
-                        id="carrier-fleet"
-                        type="number"
-                        placeholder="Ex.: 12"
-                        className="h-12 rounded-2xl border-border/70 bg-background/70 shadow-inner shadow-black/5 backdrop-blur focus-visible:ring-primary/40"
-                        value={carrierForm.fleetSize}
-                        onChange={(event) => setCarrierForm((current) => ({ ...current, fleetSize: event.target.value }))}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="rounded-[24px] border border-primary/20 bg-primary/5 p-4">
-                    <p className="text-sm font-semibold text-foreground">Custo por KM por material transportado</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Esses valores ajudam o sistema a sugerir oportunidades compatíveis com a transportadora.
-                    </p>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      {materialCostFields.map((field) => (
-                        <div key={field.key} className="space-y-2">
-                          <Label htmlFor={field.key}>{field.label}</Label>
-                          <Input
-                            id={field.key}
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="R$ por KM"
-                            className="h-12 rounded-2xl border-border/70 bg-background/70 shadow-inner shadow-black/5 backdrop-blur focus-visible:ring-primary/40"
-                            value={carrierForm[field.key]}
-                            onChange={(event) =>
-                              setCarrierForm((current) => ({ ...current, [field.key]: event.target.value }))
-                            }
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="razao">Nome completo</Label>
-                  <div className="relative">
-                    <UserCheck className="auth-field-icon absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
-                    <Input
-                      id="razao"
-                      placeholder="Nome do responsavel"
-                      className="h-12 rounded-2xl border-border/70 bg-background/70 pl-11 shadow-inner shadow-black/5 backdrop-blur focus-visible:ring-primary/40"
-                      value={form.razaoSocial}
-                      onChange={(e) => setForm({ ...form, razaoSocial: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-              )}
-
+              {profile === "company" && <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="email">E-mail</Label>
@@ -505,13 +361,17 @@ export default function Register() {
                 </div>
               </div>
 
+              </>}
+              {erroFormulario && <p role="alert" className="text-sm text-destructive">{erroFormulario}</p>}
               <Button
                 type="submit"
+                disabled={pendente}
                 className="auth-shimmer h-12 w-full rounded-2xl bg-gradient-to-r from-emerald-500 via-primary to-cyan-500 font-semibold text-white shadow-[0_18px_44px_rgba(16,185,129,0.26)] transition-transform hover:scale-[1.01]"
               >
-                {profileButtonLabel[profile]}
-                <ArrowRight className="ml-2 h-4 w-4" />
+                {pendente ? "Criando conta…" : profileButtonLabel[profile]}
+                {pendente ? <Loader2 className="ml-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="ml-2 h-4 w-4" />}
               </Button>
+              </fieldset>
             </form>
 
             <p className="mt-6 text-center text-sm text-muted-foreground">

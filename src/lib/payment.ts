@@ -1,5 +1,7 @@
 import { validateCNPJ } from "@/utils/cnpj";
 import type { BuyerDetails, OrderStatus, PaymentMethod } from "@/types/payment";
+import type { EmpresaAutenticada } from "@/types/empresa";
+import { formatPhone } from "@/utils/input-masks";
 
 const brl = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -63,6 +65,24 @@ export function validateBuyer(
       ? { phone: "Informe o telefone com DDD." }
       : {}),
   };
+}
+
+/** Contrato B2B; o validador demonstrativo permanece independente. */
+export function validarCompradorEmpresarial(buyer: BuyerDetails, empresa: EmpresaAutenticada | null | undefined): Partial<Record<keyof BuyerDetails, string>> {
+  const erros: Partial<Record<keyof BuyerDetails, string>> = {};
+  if (!buyer.name.trim() || buyer.name.trim().length > 120) erros.name = "Informe o nome do contato ou razão social com até 120 caracteres.";
+  if (!buyer.email.trim() || buyer.email.trim().length > 256 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyer.email.trim())) erros.email = "Informe um e-mail válido com até 256 caracteres.";
+  const documento = buyer.document.replace(/\D/g, "");
+  if (!empresa?.ativo) erros.document = "Confirme a sessão da empresa para realizar a compra.";
+  else if (documento.length !== 14 || !validateCNPJ(documento)) erros.document = "A compra empresarial exige um CNPJ válido, não CPF.";
+  else if (documento !== empresa.cnpj.replace(/\D/g, "")) erros.document = "O CNPJ da compra deve corresponder à empresa autenticada.";
+  if (!/^\d{10,13}$/.test(buyer.phone.replace(/\D/g, ""))) erros.phone = "Informe um telefone de contato com 10 a 13 dígitos.";
+  return erros;
+}
+
+export function formatarTelefoneEmpresarial(valor: string): string {
+  const digitos = valor.replace(/\D/g, "").slice(0, 13);
+  return digitos.length > 11 ? "+" + digitos : formatPhone(digitos);
 }
 
 export interface CardDraft {

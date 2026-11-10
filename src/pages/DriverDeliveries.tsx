@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AvisoDemonstracao } from "@/components/AvisoDemonstracao";
 import { Link } from "react-router-dom";
 import {
   CalendarClock,
@@ -130,6 +131,7 @@ export default function DriverDeliveries() {
 
   return (
     <main className="min-h-screen bg-background">
+      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8"><AvisoDemonstracao /></div>
       <section className="relative overflow-hidden border-b border-border/70 bg-[radial-gradient(circle_at_12%_18%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(135deg,#071b18_0%,#0f766e_54%,#35d399_100%)] text-white">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
@@ -140,7 +142,7 @@ export default function DriverDeliveries() {
               </Badge>
               <h1 className="mt-4 text-3xl font-semibold sm:text-4xl">Entregas do dia</h1>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-white/78">
-                Consulte pedidos em rota, confirme a entrega e colete o canhoto digital no celular.
+                Explore entregas fictícias e a simulação de canhoto digital, sem alterar pedidos reais.
               </p>
             </div>
 
@@ -249,8 +251,7 @@ export default function DriverDeliveries() {
                       <div>
                         <p className="font-semibold text-foreground">Canhoto por QR Code</p>
                         <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                          Mostre este código para o recebedor. A assinatura só será liberada se nome e CPF baterem com
-                          o cadastro do pedido.
+                          Nesta demonstração, nome e CPF são comparados apenas com os dados fictícios do exemplo. Este QR Code não autoriza entregas reais.
                         </p>
                       </div>
                     </div>
@@ -283,8 +284,7 @@ export default function DriverDeliveries() {
                   <div>
                     <p className="text-sm font-semibold text-foreground">Fluxo previsto</p>
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      Depois da assinatura, o back-end atualizará o status para entregue e anexará o canhoto ao processo
-                      do pedido.
+                      A assinatura desta demonstração fica apenas na tela. O backend não atualiza pedidos nem registra canhotos por este fluxo.
                     </p>
                   </div>
                 </div>
@@ -292,13 +292,13 @@ export default function DriverDeliveries() {
             )}
 
             <div className="grid gap-3 md:grid-cols-2">
-              <Button variant="outline" className="h-12 rounded-2xl">
+              <Button variant="outline" className="h-12 rounded-2xl" disabled>
                 <Navigation className="mr-2 h-4 w-4" />
-                Abrir rota
+                Rota de exemplo (demonstração)
               </Button>
-              <Button variant="outline" className="h-12 rounded-2xl">
+              <Button variant="outline" className="h-12 rounded-2xl" disabled>
                 <Route className="mr-2 h-4 w-4" />
-                Registrar ocorrência
+                Ocorrência (demonstração)
               </Button>
             </div>
           </CardContent>

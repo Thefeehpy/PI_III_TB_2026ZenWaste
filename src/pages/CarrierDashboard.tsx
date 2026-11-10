@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AvisoDemonstracao } from "@/components/AvisoDemonstracao";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -117,7 +118,7 @@ const statusMeta: Record<OpportunityStatus, { label: string; className: string }
     className: "border-info/25 bg-info/10 text-info",
   },
   sent: {
-    label: "Proposta enviada",
+    label: "Proposta simulada",
     className: "border-primary/25 bg-primary/10 text-primary",
   },
   recommended: {
@@ -177,10 +178,9 @@ export default function CarrierDashboard() {
                 <Truck className="mr-2 h-4 w-4" />
                 Dashboard da transportadora
               </Badge>
-              <h1 className="mt-5 text-3xl font-semibold sm:text-5xl">Propostas de transporte disponiveis</h1>
+              <h1 className="mt-5 text-3xl font-semibold sm:text-5xl">Demonstração de propostas de transporte</h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-white/78 sm:text-base">
-                Veja fretes publicados pelas empresas vendedoras, compare rotas, materiais, peso, janela de coleta e
-                envie sua proposta de transporte em poucos cliques.
+                Explore exemplos fictícios de rotas, materiais e valores. Simular uma proposta não envia cotações a empresas.
               </p>
             </div>
 
@@ -194,6 +194,7 @@ export default function CarrierDashboard() {
       </section>
 
       <section className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        <AvisoDemonstracao />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {dashboardMetrics.map((metric) => (
             <Card key={metric.label} className="rounded-[28px] border-border/70 bg-card/95 shadow-sm">
@@ -214,7 +215,7 @@ export default function CarrierDashboard() {
           <Card className="rounded-[34px] border-border/70 bg-card/95 shadow-[0_18px_52px_rgba(15,23,42,0.06)]">
             <CardHeader>
               <CardTitle className="text-2xl">Oportunidades em aberto</CardTitle>
-              <CardDescription>Fretes publicados pela empresa vendedora para transportadoras parceiras.</CardDescription>
+              <CardDescription>Exemplos fictícios de fretes e oportunidades, sem integração operacional.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {opportunities.map((opportunity) => (
@@ -282,7 +283,7 @@ export default function CarrierDashboard() {
                 <div>
                   <p className="text-lg font-semibold text-foreground">Entregas confirmadas</p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Apos uma proposta aprovada, o transporte aparece na tela operacional para coleta de canhoto digital.
+                    Explore também a demonstração de entregas e canhoto. Nenhuma proposta desta tela cria transporte real.
                   </p>
                 </div>
                 <Button asChild variant="outline" className="h-11 w-full rounded-2xl">
@@ -306,7 +307,7 @@ export default function CarrierDashboard() {
                 <DialogHeader>
                   <DialogTitle className="text-2xl">Pedido #{selectedOpportunity.orderNumber}</DialogTitle>
                   <DialogDescription className="text-white/76">
-                    Informações completas para avaliar a proposta antes do envio.
+                    Dados fictícios para explorar a simulação de proposta, sem envio ao sistema.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -375,7 +376,7 @@ export default function CarrierDashboard() {
                 onClick={() => sendProposal(selectedOpportunity.id)}
               >
                 {selectedProposalSent ? <CheckCircle2 className="mr-2 h-4 w-4" /> : <Send className="mr-2 h-4 w-4" />}
-                {selectedProposalSent ? "Proposta enviada" : "Enviar proposta"}
+                {selectedProposalSent ? "Proposta simulada" : "Simular proposta"}
               </Button>
             </DialogFooter>
           </DialogContent>

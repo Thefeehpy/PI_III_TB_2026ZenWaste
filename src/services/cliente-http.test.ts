@@ -2,6 +2,37 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { armazenarTokenAutenticacao, ErroApi, removerTokenAutenticacao, requisitar } from "./cliente-http";
 
 describe("cliente HTTP compartilhado", () => {
+  it.each([400, 401, 403, 409, 503])("preserva detalhes e código do erro HTTP %s", async (status) => {
+    const detalhes = { code: "regra_exemplo", buyer: { document: ["CNPJ diferente da empresa."] }, non_field_errors: ["Revise a operação."] };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(detalhes), { status })));
+    const erro = await requisitar("/orders/").catch((causa: unknown) => causa);
+    expect(erro).toBeInstanceOf(ErroApi);
+    expect(erro).toMatchObject({ status, codigo: "regra_exemplo", tipo: "http", detalhes });
+    expect((erro as ErroApi).mensagemCampo("buyer", "document")).toBe("CNPJ diferente da empresa.");
+    expect((erro as ErroApi).mensagemCampo("buyer", "phone")).toBeUndefined();
+  });
+
+  it("não envia uma requisição cujo sinal já foi cancelado", async () => {
+    const executar = vi.fn();
+    vi.stubGlobal("fetch", executar);
+    const controle = new AbortController();
+    controle.abort();
+    await expect(requisitar("/auth/me/", { signal: controle.signal })).rejects.toMatchObject({ name: "AbortError" });
+    expect(executar).not.toHaveBeenCalled();
+  });
+
+  it("identifica falha de transporte sem perder sua causa", async () => {
+    const causa = new TypeError("Conexão indisponível");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(causa));
+    await expect(requisitar("/auth/me/")).rejects.toMatchObject({ status: 0, tipo: "transporte", causa });
+  });
+
+  it("mantém o cancelamento durante a leitura do corpo", async () => {
+    const causa = new DOMException("Cancelado", "AbortError");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 200, ok: true, text: vi.fn().mockRejectedValue(causa) }));
+    await expect(requisitar("/auth/me/")).rejects.toBe(causa);
+  });
+
   afterEach(() => {
     removerTokenAutenticacao();
     vi.unstubAllGlobals();

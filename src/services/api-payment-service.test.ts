@@ -3,6 +3,7 @@ import { marketplaceItems } from "@/test/fixtures/anuncios";
 import { removerTokenAutenticacao, armazenarTokenAutenticacao } from "@/services/cliente-http";
 import { createApiPaymentService } from "@/services/api-payment-service";
 import type { PaymentOrder } from "@/types/payment";
+import { empresaR1, promessaControlada } from "@/test/fixtures/acesso";
 
 const order: PaymentOrder = {
   id: "order-id",
@@ -23,6 +24,17 @@ const order: PaymentOrder = {
 };
 
 describe("Django payment adapter", () => {
+  it("não entrega resultado de criação à sessão que substituiu a autora", async () => {
+    armazenarTokenAutenticacao("sessao-a");
+    const resposta = promessaControlada<Response>();
+    vi.stubGlobal("fetch", vi.fn().mockReturnValue(resposta.promessa));
+    const operacao = createApiPaymentService(empresaR1).createOrder({
+      listing: marketplaceItems[0], quantity: 1, buyer: order.buyer, idempotencyKey: "teste-tardio",
+    });
+    armazenarTokenAutenticacao("sessao-b");
+    resposta.resolver(new Response(JSON.stringify(order), { status: 201 }));
+    await expect(operacao).rejects.toMatchObject({ status: 409 });
+  });
   afterEach(() => {
     removerTokenAutenticacao();
     vi.unstubAllGlobals();
@@ -34,7 +46,7 @@ describe("Django payment adapter", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     armazenarTokenAutenticacao("signed-company-token");
-    const service = createApiPaymentService();
+    const service = createApiPaymentService(empresaR1);
 
     await service.createOrder({
       listing: marketplaceItems[0],
@@ -84,5 +96,27 @@ describe("Django payment adapter", () => {
     expect(body).not.toHaveProperty("number");
     expect(body).not.toHaveProperty("cvv");
     expect(new Headers(options.headers).get("Idempotency-Key")).toBe("card-key");
+  });
+
+  it.each(["52998224725", "11444777000161"])("recusa documento empresarial incompatível sem enviar pedido: %s", async (document) => {
+    armazenarTokenAutenticacao("sessao-r1");
+    const executar = vi.fn();
+    vi.stubGlobal("fetch", executar);
+    await expect(createApiPaymentService(empresaR1).createOrder({
+      listing: marketplaceItems[0], quantity: 1, buyer: { ...order.buyer, document }, idempotencyKey: "teste-r1",
+    })).rejects.toMatchObject({ status: 400 });
+    expect(executar).not.toHaveBeenCalled();
+  });
+
+  it("não cria pedido sem empresa confirmada nem reutiliza instância de outra sessão", async () => {
+    armazenarTokenAutenticacao("sessao-a");
+    const antigo = createApiPaymentService(empresaR1);
+    const executar = vi.fn();
+    vi.stubGlobal("fetch", executar);
+    const entrada = { listing: marketplaceItems[0], quantity: 1, buyer: order.buyer, idempotencyKey: "teste-r1" };
+    await expect(createApiPaymentService().createOrder(entrada)).rejects.toMatchObject({ status: 409 });
+    armazenarTokenAutenticacao("sessao-b");
+    await expect(antigo.createOrder(entrada)).rejects.toMatchObject({ status: 409 });
+    expect(executar).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AvisoDemonstracao } from "@/components/AvisoDemonstracao";
 import { useParams, useSearchParams } from "react-router-dom";
 import {
   CheckCircle2,
@@ -127,7 +128,7 @@ export default function ClientDeliverySignature() {
 
     if (!tokenIsValid) {
       setIdentityReleased(false);
-      setIdentityError("Este QR Code não pertence ao pedido selecionado.");
+      setIdentityError("Este QR Code não corresponde ao exemplo selecionado.");
       return;
     }
 
@@ -137,7 +138,7 @@ export default function ClientDeliverySignature() {
     if (!nameMatches || !cpfMatches) {
       setIdentityReleased(false);
       setSignatureData("");
-      setIdentityError("Nome ou CPF não conferem com o recebedor cadastrado para este pedido.");
+      setIdentityError("Nome ou CPF não conferem com os dados fictícios deste exemplo.");
       return;
     }
 
@@ -151,16 +152,17 @@ export default function ClientDeliverySignature() {
         <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
           <Badge className="rounded-full border border-white/20 bg-white/12 text-white hover:bg-white/12">
             <ShieldCheck className="mr-2 h-4 w-4" />
-            Canhoto digital seguro
+            Canhoto demonstrativo
           </Badge>
-          <h1 className="mt-5 text-3xl font-semibold sm:text-4xl">Confirmação de entrega</h1>
+          <h1 className="mt-5 text-3xl font-semibold sm:text-4xl">Simulação de confirmação de entrega</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-white/78">
-            Confira os dados do pedido e assine digitalmente para registrar o recebimento da mercadoria.
+            Use apenas dados fictícios para explorar a assinatura. Nenhum recebimento comercial ou ambiental será registrado.
           </p>
         </div>
       </section>
 
       <section className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mb-6"><AvisoDemonstracao /></div>
         <Card className="rounded-[32px] border-border/70 shadow-[0_18px_52px_rgba(15,23,42,0.06)]">
           <CardHeader className="gap-4 md:flex-row md:items-start md:justify-between">
             <div>
@@ -180,7 +182,7 @@ export default function ClientDeliverySignature() {
               <Info icon={Clock3} label="Previsão" value={delivery.forecast} />
               <Info icon={PackageCheck} label="Mercadoria" value={delivery.volume} />
               <Info icon={FileCheck2} label="Documento" value={delivery.invoice} />
-              <Info icon={ShieldCheck} label="Validação do QR Code" value={tokenIsValid ? "QR Code válido" : "QR Code inválido"} />
+              <Info icon={ShieldCheck} label="QR Code de demonstração" value={tokenIsValid ? "Corresponde ao exemplo fictício" : "Não corresponde ao exemplo fictício"} />
             </div>
 
             {confirmed ? (
@@ -188,17 +190,17 @@ export default function ClientDeliverySignature() {
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="mt-0.5 h-6 w-6 text-emerald-600" />
                   <div>
-                    <p className="text-lg font-semibold text-foreground">Entrega confirmada</p>
+                    <p className="text-lg font-semibold text-foreground">Recebimento simulado</p>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      Obrigado, {receiverName}. O canhoto digital foi registrado no processo do pedido com CPF{" "}
-                      {maskCpf(receiverCpf)}.
+                      Simulação local para {receiverName}, com CPF fictício{" "}
+                      {maskCpf(receiverCpf)}. Nenhum canhoto foi gravado no backend.
                     </p>
                     {receiptType === "with_reservation" && (
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        Ressalva registrada: {reservationNote || "sem observação detalhada"}.
+                        Ressalva simulada: {reservationNote || "sem observação detalhada"}.
                       </p>
                     )}
-                    <Badge className="mt-4 rounded-full">Assinatura registrada</Badge>
+                    <Badge className="mt-4 rounded-full">Assinatura de demonstração</Badge>
                   </div>
                 </div>
               </div>
@@ -324,7 +326,7 @@ export default function ClientDeliverySignature() {
                         disabled={!canConfirm}
                         onClick={() => setConfirmed(true)}
                       >
-                        Confirmar recebimento
+                        Simular recebimento
                       </Button>
                     </>
                   ) : (
