@@ -1,6 +1,9 @@
-import { useLayoutEffect, useRef } from "react";
-import { CampoAuditoria } from "./components/CampoAuditoria";
-import { ClipboardCheck, Plus, Search, Truck } from "lucide-react";
+import { EstadoOperacoesFrete } from "./components/EstadoOperacoesFrete";
+import { FinanceiroFrete, DivergenciasFrete } from "./components/FinanceiroFrete";
+import { DocumentosFrete } from "./components/DocumentosFrete";
+import { HistoricoFrete } from "./components/HistoricoFrete";
+import { CotacoesFrete } from "./components/CotacoesFrete";
+import { ClipboardCheck, Plus, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +27,7 @@ import {
   apresentarMoeda,
   apresentarTitulo,
   rotulosSituacao,
+  apresentarData,
 } from "./apresentacao-api";
 import { IndicadoresFretes } from "./components/IndicadoresFretes";
 import {
@@ -49,21 +53,9 @@ export function AuditoriaIntegrada({
   const encerrado =
     frete?.situacao === "concluido" || frete?.situacao === "cancelado";
   const gerenciar = frete?.permissoes.gerenciar ?? false;
-  const podeConferir =
-    gerenciar &&
-    !encerrado &&
-    frete?.modalidade !== "retirada_cliente" &&
-    [
-      "aguardando_conferencia",
-      "com_divergencia",
-      "aguardando_entrega",
-    ].includes(frete?.situacao);
-  const documento = painel.formularioDocumento;
-  const formularioCTe = useRef<HTMLFormElement>(null);
-  useLayoutEffect(() => {
-    if (Object.keys(painel.errosDocumento).length)
-      formularioCTe.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-  }, [painel.errosDocumento]);
+  const estadoOperacoes = <EstadoOperacoesFrete operacao={dados.operacao} erroConsulta={dados.erro}
+    pendentes={painel.intencoes.pendentes} erroProtecao={painel.intencoes.erro}
+    atualizar={() => { void dados.recarregar(); if (dados.idSelecionado) void dados.abrirDetalhe(dados.idSelecionado); }} />;
   return (
     <div className="space-y-6">
       <Card className="relative overflow-hidden rounded-[34px] border-primary/20 bg-[radial-gradient(circle_at_12%_18%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(135deg,#071b18_0%,#0f766e_54%,#35d399_100%)] text-white shadow-[0_26px_76px_rgba(6,95,70,0.24)]">
@@ -108,6 +100,7 @@ export function AuditoriaIntegrada({
           {dados.erroComando}
         </p>
       )}
+      {estadoOperacoes}
       {dados.carregando && <p role="status">Atualizando auditoria…</p>}
       {dados.fretes && (
         <>
@@ -361,7 +354,8 @@ export function AuditoriaIntegrada({
                   )}
                   {!encerrado && !frete.retirada && !frete.entrega && (
                     <Button
-                      variant="outline"
+                      variant="destructive"
+                      disabled={dados.executando}
                       onClick={() => painel.definirCancelamentoAberto(true)}
                     >
                       Cancelar frete
@@ -370,6 +364,8 @@ export function AuditoriaIntegrada({
                 </div>
               )}
               {frete.situacao === "aguardando_classificacao" && <p role="status" className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm">Cadastro confirmado. A classificação ainda está pendente. Use Classificar frete para continuar; o cadastro não será reenviado.</p>}
+              {estadoOperacoes}
+              {dados.erroComando && !painel.classificacaoAberta && !painel.cotacaoAberta && !painel.publicacaoAberta && !painel.operacoes.retirada.aberto && !painel.documentoAberto && !painel.tratativaAberta && !painel.entregaAberta && !painel.resolucaoAberta && !painel.cancelamentoAberto && <p role="alert" className="text-sm text-destructive">{dados.erroComando}</p>}
               <Tabs defaultValue="resumo">
                 <TabsList className="flex h-auto flex-wrap justify-start rounded-2xl">
                   {(
@@ -420,255 +416,54 @@ export function AuditoriaIntegrada({
                       </div>
                     ))}
                   </div>
+                  <FinanceiroFrete frete={frete} />
                   <p className="text-xs text-muted-foreground">
                     Os dados comerciais e o saldo de estoque não são alterados
                     por esta auditoria.
                   </p>
                 </TabsContent>
                 <TabsContent value="Cotações" className="space-y-4">
-                  {gerenciar && frete.situacao === "em_cotacao" && (
-                    <Button onClick={() => painel.definirCotacaoAberta(true)}>
-                      Registrar cotação
-                    </Button>
-                  )}
-                  {frete.cotacoes.length === 0 && (
-                    <p>Nenhuma cotação disponível para este participante.</p>
-                  )}
-                  {frete.cotacoes.map((cotacao) => (
-                    <article
-                      key={cotacao.id}
-                      className="flex flex-wrap items-center justify-between gap-4 rounded-[24px] border p-4"
-                    >
-                      <div>
-                        <p className="font-semibold">
-                          {cotacao.transportadora.razao_social}
-                        </p>
-                        <p>
-                          {apresentarMoeda(cotacao.valor)} ·{" "}
-                          {cotacao.prazo_dias} dia(s)
-                        </p>
-                        <p className="text-sm">{cotacao.observacao}</p>
-                      </div>
-                      {cotacao.aprovada ? (
-                        <Badge>Aprovada</Badge>
-                      ) : (
-                        gerenciar &&
-                        frete.situacao === "em_cotacao" && (
-                          <Button
-                            variant="outline"
-                            disabled={dados.executando}
-                            onClick={() =>
-                              void painel.aprovarCotacao(cotacao.id)
-                            }
-                          >
-                            Aprovar cotação
-                          </Button>
-                        )
-                      )}
-                    </article>
-                  ))}
+                  <CotacoesFrete key={frete.id} cotacoes={frete.cotacoes} podeGerenciar={painel.acoes.cotacao}
+                    executando={dados.executando} erro={dados.erroComando}
+                    registrar={() => painel.definirCotacaoAberta(true)} aprovar={painel.aprovarCotacao}
+                    aoRevisar={() => dados.informarErroComando(null)}
+                    atualizar={() => { void dados.abrirDetalhe(frete.id); }} />
                 </TabsContent>
                 <TabsContent value="Documentos" className="space-y-4">
-                  {frete.modalidade === "retirada_cliente" && (
-                    <p>
-                      Retirada pelo cliente: cotação e CT-e dispensados neste
-                      fluxo.
-                    </p>
-                  )}
-                  {podeConferir && (
-                    <form ref={formularioCTe} noValidate
-                      onSubmit={(evento) => {
-                        evento.preventDefault();
-                        void painel.registrarDocumentos();
-                      }}
-                    >
-                      <fieldset
-                        disabled={dados.executando}
-                        className="space-y-3 rounded-[24px] border p-4"
-                      >
-                        {Object.keys(painel.errosDocumento).length > 0 && <p role="alert">Revise os campos indicados do CT-e.</p>}
-                        <h3 className="font-semibold">
-                          {frete.documentos.length
-                            ? "Registrar correção do CT-e"
-                            : "Registrar CT-e"}
-                        </h3>
-                        {(
-                          [
-                            ["numeroCte", "Número do CT-e"],
-                            ["valorCte", "Valor do CT-e"],
-                            ["nomeArquivo", "Nome do arquivo CT-e"],
-                            ["arquivoNfe", "Nome do arquivo NF-e"],
-                          ] as const
-                        ).map(([campo, rotulo]) => (
-                          <CampoAuditoria
-                            key={campo}
-                            rotulo={rotulo}
-                            valor={documento[campo]}
-                            formato={campo === "valorCte" ? "moeda" : undefined}
-                            limite={campo === "valorCte" ? undefined : campo === "numeroCte" ? 60 : 255}
-                            erro={painel.errosDocumento[campo]}
-                            obrigatorio={
-                              campo === "numeroCte" || campo === "valorCte"
-                            }
-                            aoAlterar={(valor) =>
-                              painel.definirFormularioDocumento({
-                                ...documento,
-                                [campo]: valor,
-                              })
-                            }
-                          />
-                        ))}
-                        <p className="text-xs text-muted-foreground">
-                          Nomes de arquivos são metadados; não representam
-                          upload ou emissão fiscal.
-                        </p>
-                        {dados.erroComando && (
-                          <p role="alert" className="text-destructive">
-                            {dados.erroComando}
-                          </p>
-                        )}
-                        <Button type="submit">
-                          {dados.executando ? "Salvando…" : "Salvar CT-e"}
-                        </Button>
-                      </fieldset>
-                    </form>
-                  )}
-                  {frete.documentos.map((registro) => (
-                    <article
-                      key={registro.id}
-                      className="rounded-2xl border p-4"
-                    >
-                      <p className="font-semibold">
-                        Versão {registro.versao} · {registro.numero}
-                      </p>
-                      <p>
-                        {apresentarMoeda(registro.valor)} ·{" "}
-                        {registro.nome_arquivo || "Sem arquivo informado"}
-                      </p>
-                    </article>
-                  ))}
+                  {frete.modalidade === "retirada_cliente" && <p>Retirada pelo cliente: cotação e CT-e dispensados neste fluxo comercial. Isso não define obrigações ambientais.</p>}
+                  {painel.acoes.documento && <Button disabled={dados.executando} onClick={() => painel.definirDocumentoAberto(true)}>
+                    {frete.documentos.length ? "Registrar correção do CT-e" : "Registrar CT-e"}
+                  </Button>}
+                  <DocumentosFrete documentos={frete.documentos} documento={frete.documento} historico={frete.historico} />
                 </TabsContent>
                 <TabsContent value="Divergências" className="space-y-4">
-                  {gerenciar && frete.divergencia_aberta && !encerrado && (
-                    <Button onClick={() => painel.definirResolucaoAberta(true)}>
-                      Aceitar diferença
-                    </Button>
-                  )}
-                  {frete.divergencias.length === 0 && (
-                    <p>Nenhuma análise de divergência disponível.</p>
-                  )}
-                  {frete.divergencias.map((analise) => (
-                    <article
-                      key={analise.id}
-                      className="space-y-2 rounded-[24px] border p-4"
-                    >
-                      <p className="font-semibold">
-                        {analise.tipo_resolucao === "cte_corrigido"
-                          ? "Substituída por correção"
-                          : analise.tipo_resolucao === "aceite_justificado"
-                            ? "Aceita com justificativa"
-                            : "Divergência aberta"}
-                      </p>
-                      <p>
-                        Referência: {apresentarMoeda(analise.valor_referencia)}{" "}
-                        · Cobrança: {apresentarMoeda(analise.valor_cobrado)} ·
-                        Diferença: {apresentarMoeda(analise.diferenca)}
-                      </p>
-                      {analise.justificativa && <p>{analise.justificativa}</p>}
-                      {analise.empresa_resolvedora && (
-                        <p className="text-xs">
-                          Responsável:{" "}
-                          {analise.empresa_resolvedora.razao_social}
-                        </p>
-                      )}
-                    </article>
-                  ))}
+                  <DivergenciasFrete frete={frete} />
+                  {painel.acoes.aceitar && <div className="space-y-2 rounded-2xl border p-4 text-sm">
+                    <p>Trate a pendência por aceite justificado ou registre um CT-e corrigido. O aceite preserva a diferença factual; a correção cria outra versão e pode abrir nova divergência.</p>
+                    <div className="flex flex-wrap gap-2"><Button disabled={dados.executando} onClick={() => painel.definirResolucaoAberta(true)}>Aceitar diferença com justificativa</Button>
+                      {painel.acoes.documento && <Button disabled={dados.executando} variant="outline" onClick={() => painel.definirDocumentoAberto(true)}>Corrigir CT-e</Button>}</div>
+                  </div>}
                 </TabsContent>
                 <TabsContent value="Histórico" className="space-y-4">
-                  {gerenciar && (
-                    <Button
-                      variant="outline"
-                      onClick={() => painel.definirTratativaAberta(true)}
-                    >
-                      Registrar tratativa
-                    </Button>
-                  )}
-                  {frete.historico.map((evento) => (
-                    <article key={evento.id} className="rounded-2xl border p-4">
-                      <p className="font-medium">
-                        {evento.tipo.replace(/-/g, " ")} ·{" "}
-                        {evento.autor.razao_social}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {evento.registrado_em} ·{" "}
-                        {rotulosSituacao[evento.situacao_nova]}
-                      </p>
-                      {evento.detalhes.observacao && (
-                        <p>{String(evento.detalhes.observacao)}</p>
-                      )}
-                      {evento.detalhes.justificativa && (
-                        <p>{String(evento.detalhes.justificativa)}</p>
-                      )}
-                    </article>
-                  ))}
+                  {painel.acoes.tratativa && <Button variant="outline" disabled={dados.executando} onClick={() => painel.definirTratativaAberta(true)}>Registrar tratativa interna</Button>}
+                  <HistoricoFrete eventos={frete.historico} />
                 </TabsContent>
                 <TabsContent value="Entrega" className="space-y-4">
-                  <div className="rounded-[24px] border bg-muted/20 p-4">
-                    <Truck className="mb-2 h-5 w-5 text-primary" />
-                    <p>
-                      {frete.retirada
-                        ? `Retirada registrada · ${frete.retirada.nome_foto}`
-                        : "Retirada ainda não registrada"}
-                    </p>
-                    <p>
-                      {frete.entrega
-                        ? `Recebido por ${frete.entrega.nome_recebedor}`
-                        : "Recebimento ainda não confirmado"}
-                    </p>
-                    {frete.entrega?.ressalva && (
-                      <p>Ressalva: {frete.entrega.ressalva}</p>
-                    )}
-                    {frete.entrega && (
-                      <p>
-                        Assinatura{" "}
-                        {frete.entrega.assinatura_registrada
-                          ? "registrada"
-                          : "não registrada"}
-                      </p>
-                    )}
+                  <section aria-label="Retirada e recebimento comercial" className="space-y-3 rounded-2xl border p-4 text-sm">
+                    <h3 className="font-semibold">Situação logística</h3>
+                    <p>{frete.retirada ? `Retirada registrada em ${apresentarData(frete.retirada.registrada_em)}` : "Retirada ainda não registrada"}</p>
+                    {frete.retirada && <p>Nome da foto (metadado, sem arquivo anexado): {frete.retirada.nome_foto}</p>}
+                    <p>{frete.entrega ? `Recebimento comercial confirmado por ${frete.entrega.nome_recebedor}, em ${apresentarData(frete.entrega.confirmado_em)}` : "Recebimento comercial ainda não confirmado"}</p>
+                    {frete.entrega && <><p>Tipo: {frete.entrega.tipo_recebimento === "com_ressalva" ? "Com ressalva" : "Completo"}</p>
+                      {frete.entrega.ressalva && <p className="break-words">Ressalva: {frete.entrega.ressalva}</p>}
+                      <p>Assinatura manuscrita {frete.entrega.assinatura_registrada ? "registrada" : "não disponibilizada"}.</p></>}
+                    {frete.divergencia_aberta && <p className="font-medium">A pendência financeira não impede as ações logísticas autorizadas. Receber não resolve a auditoria.</p>}
+                    <p>Esta confirmação é comercial, distinta do aceite ambiental de MTR/SIGOR. Não é exigida retirada prévia para confirmar quando o servidor permite.</p>
+                  </section>
+                  <div className="flex flex-wrap gap-3">
+                    {painel.acoes.retirada && <Button disabled={dados.executando} onClick={() => painel.operacoes.abrirRetirada(true)}>Registrar retirada</Button>}
+                    {painel.acoes.recebimento && <Button disabled={dados.executando} onClick={() => painel.definirEntregaAberta(true)}><ClipboardCheck className="mr-2 h-4 w-4" />Confirmar recebimento comercial</Button>}
                   </div>
-                  {frete.permissoes.registrar_retirada && (
-                    <form
-                      onSubmit={(evento) => {
-                        evento.preventDefault();
-                        void painel.registrarRetirada();
-                      }}
-                    >
-                      <fieldset
-                        disabled={dados.executando}
-                        className="space-y-3"
-                      >
-                        <CampoAuditoria
-                          rotulo="Nome da foto de retirada"
-                          valor={painel.nomeFotoRetirada}
-                          aoAlterar={painel.definirNomeFotoRetirada}
-                        />
-                        <p className="text-xs">
-                          Registro de metadado, sem upload de foto.
-                        </p>
-                        <Button type="submit">Registrar retirada</Button>
-                      </fieldset>
-                    </form>
-                  )}
-                  {frete.permissoes.confirmar_entrega && (
-                    <Button
-                      disabled={dados.executando}
-                      onClick={() => painel.definirEntregaAberta(true)}
-                    >
-                      <ClipboardCheck className="mr-2 h-4 w-4" />
-                      Confirmar recebimento
-                    </Button>
-                  )}
                 </TabsContent>
               </Tabs>
             </>

@@ -2,12 +2,12 @@ import { useId, type HTMLInputTypeAttribute } from "react";
 import { classeCampo } from "./ControlesAuditoriaIntegrada";
 
 export function CampoAuditoria({ rotulo, valor, aoAlterar, tipo = "text", obrigatorio = true,
-  formato, limite, erro, instrucao, nome,
+  formato, limite, erro, instrucao, nome, linhas,
 }: {
   rotulo: string; valor: string; aoAlterar: (valor: string) => void;
   tipo?: HTMLInputTypeAttribute; obrigatorio?: boolean;
   formato?: "moeda" | "medida" | "inteiro";
-  limite?: number; erro?: string; instrucao?: string; nome?: string;
+  limite?: number; erro?: string; instrucao?: string; nome?: string; linhas?: number;
 }) {
   const id = useId();
   const ajuda = instrucao ?? (formato === "moeda" ? "R$ · até 2 casas decimais; use vírgula ou ponto, sem separador de milhar."
@@ -17,11 +17,14 @@ export function CampoAuditoria({ rotulo, valor, aoAlterar, tipo = "text", obriga
   const mensagem = erro ?? (excedido ? `Use até ${limite} caracteres.` : undefined);
   return <div className="min-w-0 space-y-2">
     <label htmlFor={id} className="text-sm font-medium">{rotulo}{obrigatorio ? " *" : " (opcional)"}</label>
-    <input id={id} name={nome} className={classeCampo} type={formato ? "text" : tipo}
+    {linhas ? <textarea id={id} name={nome} rows={linhas} className="w-full rounded-2xl border border-input bg-background p-3 text-sm"
+      value={valor} required={obrigatorio} aria-invalid={Boolean(mensagem)}
+      aria-describedby={[ajuda || limite ? `${id}-ajuda` : "", mensagem ? `${id}-erro` : ""].filter(Boolean).join(" ") || undefined}
+      onChange={evento => aoAlterar(evento.target.value)} /> : <input id={id} name={nome} className={classeCampo} type={formato ? "text" : tipo}
       inputMode={formato === "inteiro" ? "numeric" : formato ? "decimal" : undefined}
       value={valor} required={obrigatorio} aria-invalid={Boolean(mensagem)}
       aria-describedby={[ajuda || limite ? `${id}-ajuda` : "", mensagem ? `${id}-erro` : ""].filter(Boolean).join(" ") || undefined}
-      onChange={evento => aoAlterar(evento.target.value)} />
+      onChange={evento => aoAlterar(evento.target.value)} />}
     {(ajuda || limite) && <p id={`${id}-ajuda`} className="text-xs text-muted-foreground">
       {ajuda} {limite !== undefined && `${Array.from(valor.trim()).length}/${limite} caracteres`}
     </p>}

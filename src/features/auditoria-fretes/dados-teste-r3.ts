@@ -1,0 +1,2 @@
+// Traço PNG sintético exclusivo para validação automatizada; não representa autoria nem aceite real.
+export const assinaturaSinteticaR3 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAYCAYAAABKtPtEAAAAdklEQVR4nO3WsQ3AIAxEUTZIyQ7Zf7/LAFBYwQabuy9RY70C3EBeA3kCAHkCAHklAZ7+DscVwPOCiGbz/Z3ZDJAJxTqfZd4lgGooS2/ADSjuj2BFlPBfoBrKlm8wM8qxPSALSqpFiB5gFj1AdAIAeQIAeQIAeR+sWzfRFUrAXQAAAABJRU5ErkJggg==";

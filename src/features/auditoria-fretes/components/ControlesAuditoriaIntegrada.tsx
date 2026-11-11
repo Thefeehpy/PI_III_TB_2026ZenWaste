@@ -190,6 +190,7 @@ export function DialogoOperacaoFrete({
   amplo = false,
   validarLocalmente = false,
   aoAtualizar,
+  destrutiva = false,
 }: {
   aberto: boolean;
   aoAbrir: (aberto: boolean) => void;
@@ -204,6 +205,7 @@ export function DialogoOperacaoFrete({
   amplo?: boolean;
   validarLocalmente?: boolean;
   aoAtualizar?: () => void;
+  destrutiva?: boolean;
 }) {
   const formulario = useRef<HTMLFormElement>(null);
   const mensagemErro = useRef<HTMLParagraphElement>(null);
@@ -248,7 +250,7 @@ export function DialogoOperacaoFrete({
           </div>
           <div className="shrink-0 space-y-2 border-t bg-background pt-3">
             {erro && aoAtualizar && <Button type="button" variant="outline" disabled={executando} onClick={aoAtualizar}>Atualizar dados do servidor</Button>}
-            <Button disabled={executando} type="submit" className="w-full rounded-2xl">
+            <Button disabled={executando} variant={destrutiva ? "destructive" : "default"} type="submit" className="w-full rounded-2xl">
               {executando ? "Salvando…" : rotuloConfirmar}
             </Button>
           </div>

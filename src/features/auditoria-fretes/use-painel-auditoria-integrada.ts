@@ -1,3 +1,6 @@
+import { useOperacoesFrete } from "./use-operacoes-frete";
+import { useIntencoesFrete } from "./use-intencoes-frete";
+import { acoesFrete } from "./permissoes-interface";
 import { useEffect, useMemo, useState, type SetStateAction } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConsultaAuditoriaApi } from "./use-consulta-auditoria-api";
@@ -63,10 +66,6 @@ export function usePainelAuditoriaIntegrada(
     [dados.detalhe, dados.idSelecionado, processos],
   );
   const [detalhesAbertos, definirDetalhesAbertos] = useState(false);
-  const [tratativaAberta, definirTratativaAberta] = useState(false);
-  const [entregaAberta, definirEntregaAberta] = useState(false);
-  const [resolucaoAberta, definirResolucaoAberta] = useState(false);
-  const [cancelamentoAberto, definirCancelamentoAberto] = useState(false);
   const [termoBusca, definirTermoBusca] = useState("");
   const [descarte, definirDescarte] = useState<{
     sessao: object; descricao: string; continuar: () => void;
@@ -74,6 +73,14 @@ export function usePainelAuditoriaIntegrada(
   const pedirDescarte = (descricao: string, continuar: () => void) =>
     definirDescarte({ sessao: dados.sessao, descricao, continuar });
   const contextoFrete = useMemo(() => ({ sessao: dados.sessao, id: dados.idSelecionado }), [dados.sessao, dados.idSelecionado]);
+  const operacoes = useOperacoesFrete(contextoFrete, dados.detalhe, dados, pedirDescarte);
+  const intencoes = useIntencoesFrete(empresa?.id ?? null);
+  const acoes = acoesFrete(dados.detalhe);
+  const verificarAcao = (permitida: boolean) => {
+    if (permitida) return true;
+    dados.informarErroComando("A ação não está disponível nas permissões e situação atuais. Atualize o frete.");
+    return false;
+  };
   const cadastro = useFormularioFrete(dados.sessao, cadastroInicial, pedirDescarte);
   const classificacao = useFormularioFrete(contextoFrete, classificacaoInicial, pedirDescarte);
   const cotacao = useFormularioFrete(contextoFrete, cotacaoInicial, pedirDescarte);
@@ -107,17 +114,22 @@ export function usePainelAuditoriaIntegrada(
     definir(erros);
     return Object.keys(erros).length > 0;
   };
-  const [textoTratativa, definirTextoTratativa] = useState("");
-  const [justificativaResolucao, definirJustificativaResolucao] = useState("");
-  const [justificativaCancelamento, definirJustificativaCancelamento] =
-    useState("");
-  const [nomeFotoRetirada, definirNomeFotoRetirada] = useState("");
-  const [nomeRecebedor, definirNomeRecebedor] = useState("");
-  const [dadosAssinatura, definirDadosAssinatura] = useState("");
-  const [tipoRecebimento, definirTipoRecebimento] = useState<
-    "complete" | "with_reservation"
-  >("complete");
-  const [textoRessalva, definirTextoRessalva] = useState("");
+  const tratativaAberta = operacoes.tratativa.aberto;
+  const definirTratativaAberta = operacoes.abrirTratativa;
+  const entregaAberta = operacoes.recebimento.aberto;
+  const definirEntregaAberta = operacoes.abrirRecebimento;
+  const resolucaoAberta = operacoes.aceite.aberto;
+  const definirResolucaoAberta = operacoes.abrirAceite;
+  const cancelamentoAberto = operacoes.cancelamento.aberto;
+  const definirCancelamentoAberto = operacoes.abrirCancelamento;
+  const textoTratativa = operacoes.tratativa.formulario.texto;
+  const definirTextoTratativa = (texto: string) => operacoes.tratativa.definir({ texto });
+  const justificativaResolucao = operacoes.aceite.formulario.texto;
+  const definirJustificativaResolucao = (texto: string) => operacoes.aceite.definir({ texto });
+  const justificativaCancelamento = operacoes.cancelamento.formulario.texto;
+  const definirJustificativaCancelamento = (texto: string) => operacoes.cancelamento.definir({ texto });
+  const nomeFotoRetirada = operacoes.retirada.formulario.texto;
+  const definirNomeFotoRetirada = (texto: string) => operacoes.retirada.definir({ texto });
   const buscaAtual = dados.consulta.busca;
   const alterarConsulta = dados.alterarConsulta;
   useEffect(() => {
@@ -139,13 +151,9 @@ export function usePainelAuditoriaIntegrada(
   };
   const limparDetalhes = () => {
     documento.limpar(); classificacao.limpar(); cotacao.limpar(); publicacao.limpar();
-    definirDadosAssinatura(""); definirNomeRecebedor(""); definirTextoRessalva("");
-    definirTipoRecebimento("complete"); definirNomeFotoRetirada("");
-    definirJustificativaResolucao(""); definirJustificativaCancelamento(""); definirTextoTratativa("");
-    definirTratativaAberta(false); definirEntregaAberta(false); definirResolucaoAberta(false); definirCancelamentoAberto(false);
+    operacoes.limpar();
   };
-  const temRascunhoDetalhe = documento.sujo || classificacao.sujo || cotacao.sujo || publicacao.sujo ||
-    Boolean(textoTratativa || dadosAssinatura || nomeRecebedor || textoRessalva || nomeFotoRetirada || justificativaResolucao || justificativaCancelamento);
+  const temRascunhoDetalhe = documento.sujo || classificacao.sujo || cotacao.sujo || publicacao.sujo || operacoes.sujo;
   const abrirDetalhes = async (id: string) => {
     if (dados.executando) return;
     const continuar = async () => {
@@ -192,7 +200,7 @@ export function usePainelAuditoriaIntegrada(
     if (!processoSelecionado) return;
     const { entrada, erros } = validarClassificacaoFrete(formularioClassificacao);
     classificacao.definirErros(erros);
-    if (!entrada) return;
+    if (!entrada || !verificarAcao(acoes.classificar)) return;
     const resultado = await dados.executar(integracao => integracao.classificar(processoSelecionado.id, entrada),
       falhaCampos(classificacao.definirErros, { transportadora_id: "transportadoraId", valor_referencia: "valorReferencia", modalidade: "modalidade" }));
     if (resultado) classificacao.limpar();
@@ -206,17 +214,15 @@ export function usePainelAuditoriaIntegrada(
       observacao: () => textoFrete(formularioCotacao.observacao, 1000, false),
     });
     cotacao.definirErros(erros);
-    if (Object.keys(erros).length) return;
+    if (Object.keys(erros).length || !verificarAcao(acoes.cotacao)) return;
     const resultado = await dados.executar(integracao => integracao.registrarCotacao(processoSelecionado.id, {
       transportadora_id: valores.transportadora, valor: valores.valor, prazo_dias: valores.prazoDias, observacao: valores.observacao,
     }), falhaCampos(cotacao.definirErros, { transportadora_id: "transportadora", valor: "valor", prazo_dias: "prazoDias", observacao: "observacao" }));
     if (resultado) cotacao.limpar();
   };
   const aprovarCotacao = async (id: string) => {
-    if (processoSelecionado)
-      await dados.executar((integracao) =>
-        integracao.aprovarCotacao(processoSelecionado.id, id),
-      );
+    if (!processoSelecionado || !verificarAcao(acoes.cotacao)) return null;
+    return dados.executar(integracao => integracao.aprovarCotacao(processoSelecionado.id, id), undefined, "Aprovação de cotação");
   };
   const registrarDocumentos = async () => {
     if (!processoSelecionado) return;
@@ -227,81 +233,16 @@ export function usePainelAuditoriaIntegrada(
       arquivoNfe: () => textoFrete(formularioDocumento.arquivoNfe, 255, false),
     });
     documento.definirErros(erros);
-    if (Object.keys(erros).length) return;
+    if (Object.keys(erros).length || !verificarAcao(acoes.documento)) return;
     if (await dados.executar(integracao => integracao.registrarCTe(processoSelecionado.id, {
       numero: valores.numeroCte, valor: valores.valorCte, nome_arquivo: valores.nomeArquivo, arquivo_nfe: valores.arquivoNfe,
     }), falhaCampos(documento.definirErros, { numero: "numeroCte", valor: "valorCte", nome_arquivo: "nomeArquivo", arquivo_nfe: "arquivoNfe" }))) documento.limpar();
   };
-  const registrarTratativa = async () => {
-    if (
-      processoSelecionado &&
-      (await dados.executar((integracao) =>
-        integracao.registrarTratativa(processoSelecionado.id, textoTratativa),
-      ))
-    ) {
-      definirTextoTratativa("");
-      definirTratativaAberta(false);
-    }
-  };
-  const registrarRetirada = async () => {
-    if (
-      processoSelecionado &&
-      (await dados.executar((integracao) =>
-        integracao.registrarRetirada(processoSelecionado.id, nomeFotoRetirada),
-      ))
-    )
-      definirNomeFotoRetirada("");
-  };
-  const confirmarEntrega = async () => {
-    if (!processoSelecionado) return;
-    if (!dadosAssinatura) {
-      dados.informarErroComando("Registre a assinatura do recebedor.");
-      return;
-    }
-    if (
-      await dados.executar((integracao) =>
-        integracao.confirmarEntrega(processoSelecionado.id, {
-          nome_recebedor: nomeRecebedor,
-          dados_assinatura: dadosAssinatura,
-          tipo_recebimento:
-            tipoRecebimento === "with_reservation"
-              ? "com_ressalva"
-              : "completo",
-          ressalva: textoRessalva,
-        }),
-      )
-    ) {
-      definirEntregaAberta(false);
-      definirNomeRecebedor("");
-      definirDadosAssinatura("");
-      definirTextoRessalva("");
-    }
-  };
-  const resolverDivergencia = async () => {
-    if (
-      processoSelecionado &&
-      (await dados.executar((integracao) =>
-        integracao.resolverDivergencia(
-          processoSelecionado.id,
-          justificativaResolucao,
-        ),
-      ))
-    ) {
-      definirResolucaoAberta(false);
-      definirJustificativaResolucao("");
-    }
-  };
-  const cancelarFrete = async () => {
-    if (
-      processoSelecionado &&
-      (await dados.executar((integracao) =>
-        integracao.cancelar(processoSelecionado.id, justificativaCancelamento),
-      ))
-    ) {
-      definirCancelamentoAberto(false);
-      definirJustificativaCancelamento("");
-    }
-  };
+  const registrarTratativa = operacoes.registrarTratativa;
+  const registrarRetirada = operacoes.registrarRetirada;
+  const confirmarEntrega = operacoes.confirmarRecebimento;
+  const resolverDivergencia = operacoes.aceitarDiferenca;
+  const cancelarFrete = operacoes.cancelarFrete;
   const abrirPublicacaoTransporte = async (id?: string) => {
     const processo = id
       ? processos.find((registro) => registro.id === id)
@@ -323,7 +264,7 @@ export function usePainelAuditoriaIntegrada(
       observacoes: () => textoFrete(formularioPublicacao.observacoes, 1000, false),
     });
     publicacao.definirErros(erros);
-    if (Object.keys(erros).length) return;
+    if (Object.keys(erros).length || !verificarAcao(acoes.demanda)) return;
     if (await dados.executar(integracao => integracao.publicarDemanda(processoSelecionado.id, {
       valor_sugerido: valores.valorSugerido, janela_coleta: valores.janelaColeta, tipo_veiculo: valores.tipoVeiculo, observacoes: valores.observacoes,
     }), falhaCampos(publicacao.definirErros, { valor_sugerido: "valorSugerido", janela_coleta: "janelaColeta", tipo_veiculo: "tipoVeiculo", observacoes: "observacoes" }))) publicacao.limpar();
@@ -365,6 +306,9 @@ export function usePainelAuditoriaIntegrada(
   };
   return {
     dados,
+    operacoes,
+    intencoes,
+    acoes,
     podeCadastrar,
     processos,
     processoSelecionado,
@@ -408,6 +352,8 @@ export function usePainelAuditoriaIntegrada(
     aprovarCotacao,
     formularioDocumento,
     definirFormularioDocumento,
+    documentoAberto: documento.aberto,
+    definirDocumentoAberto: aoAbrirFormulario(documento.abrir),
     registrarDocumentos,
     tratativaAberta,
     definirTratativaAberta,
@@ -422,14 +368,6 @@ export function usePainelAuditoriaIntegrada(
     publicarTransporte,
     entregaAberta,
     definirEntregaAberta,
-    nomeRecebedor,
-    definirNomeRecebedor,
-    dadosAssinatura,
-    definirDadosAssinatura,
-    tipoRecebimento,
-    definirTipoRecebimento,
-    textoRessalva,
-    definirTextoRessalva,
     confirmarEntrega,
     nomeFotoRetirada,
     definirNomeFotoRetirada,

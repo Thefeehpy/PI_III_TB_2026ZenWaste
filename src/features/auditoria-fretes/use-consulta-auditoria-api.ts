@@ -19,10 +19,15 @@ import type {
   ListaPedidosFreteDTO,
 } from "./tipos-api";
 
+import { ErroProtecaoFrete } from "./intencoes-frete";
 import { mensagemErroFrete } from "./validacoes";
 
 const consultaInicial: ConsultaFretes = { pagina: 1, tamanho_pagina: 10 };
 type Sessao = { empresaId: string | null; servico: ServicoHttpAuditoriaFretes };
+export type ResultadoOperacaoFrete = {
+  estado: "nao_iniciada" | "em_andamento" | "confirmada" | "rejeitada" | "incerta" | "bloqueada";
+  descricao: string; freteId: string | null;
+};
 type Estado = {
   sessao: Sessao;
   consulta: ConsultaFretes;
@@ -40,6 +45,7 @@ type Estado = {
   erroDetalhe: string | null;
   erroComando: string | null;
   erroPedidos: string | null;
+  operacao: ResultadoOperacaoFrete;
 };
 function iniciarEstado(sessao: Sessao): Estado {
   return {
@@ -59,6 +65,7 @@ function iniciarEstado(sessao: Sessao): Estado {
     erroDetalhe: null,
     erroComando: null,
     erroPedidos: null,
+    operacao: { estado: "nao_iniciada", descricao: "", freteId: null },
   };
 }
 function mensagemFalha(erro: unknown, alternativa: string) {
@@ -78,7 +85,7 @@ export function useConsultaAuditoriaApi(
   const sessao = useMemo(
     () => ({
       empresaId,
-      servico: servicoFornecido ?? criarServicoHttpAuditoriaFretes(tokenSessao),
+      servico: servicoFornecido ?? criarServicoHttpAuditoriaFretes(tokenSessao, empresaId ? { empresaId } : undefined),
     }),
     [empresaId, servicoFornecido, tokenSessao],
   );
@@ -228,6 +235,7 @@ export function useConsultaAuditoriaApi(
         integracao: ServicoHttpAuditoriaFretes,
       ) => Promise<FreteDetalheDTO>,
       aoFalhar?: (erro: unknown) => boolean | void,
+      descricao = "Operação",
     ) => {
       if (
         !sessao.empresaId ||
@@ -240,10 +248,12 @@ export function useConsultaAuditoriaApi(
         ...anterior,
         executando: true,
         erroComando: null,
+        operacao: { estado: "em_andamento", descricao, freteId: selecaoAtual.current },
       }));
       try {
         const resultado = await comando(servico);
         if (ativa.current !== sessao) return null;
+        aplicar(anterior => ({ ...anterior, operacao: { estado: "confirmada", descricao, freteId: resultado.id } }));
         if (selecaoAtual.current === resultado.id) {
           ++sequenciaDetalhe.current;
           aplicar((anterior) => ({
@@ -271,7 +281,10 @@ export function useConsultaAuditoriaApi(
         if (ativa.current !== sessao) return null;
         const porCampo = aoFalhar?.(falha);
         if (falha instanceof ErroApi && falha.status === 401) sessaoInvalida.current?.();
-        aplicar((anterior) => ({ ...anterior, erroComando: porCampo ? null : mensagemErroFrete(falha) }));
+        aplicar((anterior) => ({ ...anterior, erroComando: porCampo ? null : mensagemErroFrete(falha),
+          operacao: { descricao, freteId: selecaoAtual.current,
+            estado: falha instanceof ErroProtecaoFrete ? "bloqueada" : falha instanceof ErroApi && falha.status >= 400 && falha.status < 500 ? "rejeitada" : "incerta" },
+        }));
         return null;
       } finally {
         if (comandoEmAndamento.current === sessao)

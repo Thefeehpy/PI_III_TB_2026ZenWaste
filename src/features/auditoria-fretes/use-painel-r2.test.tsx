@@ -185,6 +185,7 @@ it.each(["Pedido cancelado","Pedido expirado","Quantidade restante alterada"])("
 });
 it("corrige moeda de CT-e e impede terceira casa e textos excedidos", async () => {
   const { result, servico } = await iniciar();
+  vi.mocked(servico.obter).mockResolvedValueOnce(freteSintetico({ id: "frete-a", situacao: "aguardando_conferencia", modalidade: "contratado", valor_referencia: "12.34" }));
   await act(async () => result.current.abrirDetalhes("frete-a"));
   act(() => result.current.definirFormularioDocumento({ numeroCte: "X".repeat(61), valorCte: "12.345", nomeArquivo: "", arquivoNfe: "" }));
   await act(async () => result.current.registrarDocumentos());

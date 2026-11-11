@@ -1,3 +1,4 @@
+import { criarProtecaoIntencoes, exigirCriptografiaFrete, ErroProtecaoFrete } from "./intencoes-frete";
 import {
   ErroApi,
   obterTokenAutenticacao,
@@ -30,6 +31,16 @@ function parametrosConsulta(
   return texto ? `?${texto}` : "";
 }
 
+function exigirConfirmacaoFrete(resposta: FreteDetalheDTO) {
+  const situacoes = ["aguardando_classificacao", "em_cotacao", "aguardando_conferencia", "com_divergencia", "aguardando_entrega", "concluido", "cancelado"];
+  if (!resposta || typeof resposta.id !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(resposta.id) ||
+    !situacoes.includes(resposta.situacao) || !resposta.permissoes ||
+    ![resposta.permissoes.gerenciar, resposta.permissoes.registrar_retirada, resposta.permissoes.confirmar_entrega].every(v => typeof v === "boolean") ||
+    ![resposta.cotacoes, resposta.documentos, resposta.divergencias, resposta.historico, resposta.tratativas, resposta.demandas].every(Array.isArray))
+    throw new ErroApi("A resposta do comando não permite confirmar o resultado. Consulte o frete antes de reenviar.", 200, { tipo: "resposta_invalida" });
+  return resposta;
+}
+
 function serializarOrdenado(valor: unknown): string {
   if (Array.isArray(valor))
     return `[${valor.map(serializarOrdenado).join(",")}]`;
@@ -59,7 +70,9 @@ async function resumoOperacao(caminho: string, entrada: unknown) {
 /** Uma instância por sessão. Retém somente chaves de comandos incertos, sem registrar payloads. */
 export function criarServicoHttpAuditoriaFretes(
   tokenSessao = obterTokenAutenticacao(),
+  identidade?: { empresaId: string },
 ) {
+  const protecao = identidade ? criarProtecaoIntencoes(identidade.empresaId) : null;
   function exigirSessao() {
     if (obterTokenAutenticacao() !== tokenSessao)
       throw new ErroApi(
@@ -79,19 +92,29 @@ export function criarServicoHttpAuditoriaFretes(
     caminho: string,
     entrada: unknown,
   ): Promise<FreteDetalheDTO> {
-    const resumo = await resumoOperacao(caminho, entrada);
+    exigirSessao();
+    exigirCriptografiaFrete();
+    protecao?.verificarDisponibilidade();
+    let resumo: string;
+    try { resumo = await resumoOperacao(caminho, entrada); }
+    catch { throw new ErroProtecaoFrete("Não foi possível preparar a identificação segura do comando. Nenhuma operação foi enviada."); }
     exigirSessao();
     const pendente = comandosEmAndamento.get(resumo);
     if (pendente) return pendente;
-    const chave = chavesPendentes.get(resumo) ?? crypto.randomUUID();
+    let chave: string;
+    try { chave = chavesPendentes.get(resumo) ?? crypto.randomUUID(); }
+    catch { throw new ErroProtecaoFrete("Não foi possível gerar a chave segura do comando. Nenhuma operação foi enviada."); }
     chavesPendentes.set(resumo, chave);
     const operacao = (async () => {
       try {
-        const resposta = await requisitar<FreteDetalheDTO>(caminho, {
+        const enviar = async (chaveEfetiva: string) => exigirConfirmacaoFrete(await requisitar<FreteDetalheDTO>(caminho, {
           method: "POST",
-          headers: { "Idempotency-Key": chave },
+          headers: { "Idempotency-Key": chaveEfetiva },
           body: JSON.stringify(entrada),
-        });
+        }));
+        const resposta = protecao
+          ? await protecao.executar(caminho, resumo, chave, exigirSessao, enviar)
+          : await enviar(chave);
         chavesPendentes.delete(resumo);
         return resposta;
       } catch (erro) {
