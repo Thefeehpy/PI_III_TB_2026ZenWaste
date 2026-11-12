@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -7,7 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { ListaEmpresasFreteDTO, PaginacaoFretesDTO } from "../tipos-api";
+import type { PaginacaoFretesDTO } from "../tipos-api";
+export { SeletorEmpresaFrete } from "./SeletorEmpresaFrete";
 
 export const classeCampo =
   "h-11 w-full rounded-2xl border border-input bg-background px-3 text-sm";
@@ -51,131 +52,6 @@ export function PaginacaoAuditoria({
   );
 }
 
-export function SeletorEmpresaFrete({
-  rotulo,
-  valor,
-  aoAlterar,
-  consultar,
-  obrigatorio = true,
-  erroCampo,
-}: {
-  rotulo: string;
-  obrigatorio?: boolean;
-  erroCampo?: string;
-  valor: string;
-  aoAlterar: (valor: string, nome?: string) => void;
-  consultar: (
-    busca?: string,
-    sinal?: AbortSignal,
-    pagina?: number,
-  ) => Promise<ListaEmpresasFreteDTO>;
-}) {
-  const identificador = useId();
-  const [busca, definirBusca] = useState("");
-  const [pagina, definirPagina] = useState(1);
-  const [dados, definirDados] = useState<ListaEmpresasFreteDTO | null>(null);
-  const [erro, definirErro] = useState<string | null>(null);
-  const [carregando, definirCarregando] = useState(true);
-  const [tentativa, definirTentativa] = useState(0);
-  const [nomes, definirNomes] = useState<Record<string, string>>({});
-  useEffect(() => { definirNomes({}); }, [consultar]);
-  useEffect(() => {
-    const controle = new AbortController();
-    definirCarregando(true);
-    definirDados(null);
-    definirErro(null);
-    const temporizador = setTimeout(() => {
-      consultar(busca, controle.signal, pagina)
-        .then((resposta) => {
-          if (!controle.signal.aborted) {
-            definirDados(resposta);
-            definirNomes(anteriores => ({ ...anteriores, ...Object.fromEntries(resposta.resultados.map(empresa => [String(empresa.id), empresa.razao_social])) }));
-            definirErro(null);
-          }
-        })
-        .catch((falha) => {
-          if (!controle.signal.aborted)
-            definirErro(
-              falha instanceof Error
-                ? falha.message
-                : "Não foi possível consultar as empresas.",
-            );
-        })
-        .finally(() => {
-          if (!controle.signal.aborted) definirCarregando(false);
-        });
-    }, 200);
-    return () => {
-      controle.abort();
-      clearTimeout(temporizador);
-    };
-  }, [consultar, busca, pagina, tentativa]);
-  return (
-    <div className="space-y-2">
-      <label htmlFor={`${identificador}-busca`} className="text-sm">
-        Buscar {rotulo.toLowerCase()}
-      </label>
-      <input
-        id={`${identificador}-busca`}
-        className={classeCampo}
-        value={busca}
-        onChange={(evento) => {
-          definirBusca(evento.target.value);
-          definirPagina(1);
-        }}
-      />
-      <label htmlFor={identificador} className="block text-sm font-medium">
-        {rotulo}
-      </label>
-      <select
-        id={identificador}
-        className={classeCampo}
-        value={valor}
-        required={obrigatorio}
-        aria-invalid={Boolean(erroCampo)}
-        aria-describedby={erroCampo ? `${identificador}-erro` : undefined}
-        disabled={carregando || Boolean(erro)}
-        onChange={(evento) => aoAlterar(evento.target.value, nomes[evento.target.value])}
-      >
-        <option value="">{obrigatorio ? "Selecione uma empresa cadastrada" : "Todas as transportadoras"}</option>
-        {valor &&
-          !dados?.resultados.some(
-            (empresa) => String(empresa.id) === valor,
-          ) && <option value={valor}>{nomes[valor] ?? "Empresa selecionada — atualize a consulta para conferir"}</option>}
-        {dados?.resultados.map((empresa) => (
-          <option key={empresa.id} value={empresa.id}>
-            {empresa.razao_social}
-          </option>
-        ))}
-      </select>
-      {erroCampo && <p id={`${identificador}-erro`} className="text-sm text-destructive">{erroCampo}</p>}
-      {!carregando && !erro && dados?.resultados.length === 0 && <p role="status" className="text-sm text-muted-foreground">Nenhuma empresa encontrada nesta consulta.</p>}
-      {carregando && (
-        <p role="status" className="text-xs">
-          Consultando empresas…
-        </p>
-      )}
-      {erro && (
-        <div role="alert">
-          {erro}{" "}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => definirTentativa((anterior) => anterior + 1)}
-          >
-            Tentar consulta novamente
-          </Button>
-        </div>
-      )}
-      <PaginacaoAuditoria
-        dados={dados?.paginacao}
-        aoMudar={definirPagina}
-        desabilitada={carregando}
-      />
-    </div>
-  );
-}
-
 export function DialogoOperacaoFrete({
   aberto,
   aoAbrir,
@@ -209,6 +85,7 @@ export function DialogoOperacaoFrete({
 }) {
   const formulario = useRef<HTMLFormElement>(null);
   const mensagemErro = useRef<HTMLParagraphElement>(null);
+  const gatilho = useRef<HTMLElement | null>(null);
   const enviando = useRef(false);
   useLayoutEffect(() => {
     if (aberto && Object.keys(erros).length)
@@ -224,7 +101,22 @@ export function DialogoOperacaoFrete({
         if (!executando) aoAbrir(valor);
       }}
     >
-      <DialogContent className={`flex max-h-[90dvh] flex-col overflow-hidden rounded-[30px] ${amplo ? "sm:max-w-3xl" : "sm:max-w-xl"}`}>
+      <DialogContent className={`flex max-h-[90dvh] flex-col overflow-hidden rounded-[30px] ${amplo ? "sm:max-w-3xl" : "sm:max-w-xl"}`}
+        onOpenAutoFocus={() => {
+          gatilho.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        }}
+        onCloseAutoFocus={evento => {
+          if (gatilho.current?.isConnected && !gatilho.current.matches(":disabled")) {
+            evento.preventDefault();
+            gatilho.current.focus();
+          }
+        }}
+        onEscapeKeyDown={evento => {
+          // O primeiro Escape fecha a lista; o próximo mantém o fechamento
+          // normal do diálogo Radix, que escuta a tecla no document.
+          if (evento.target instanceof HTMLElement && evento.target.closest("[data-seletor-empresa-frete]")
+            ?.querySelector('[role="combobox"][aria-expanded="true"]')) evento.preventDefault();
+        }}>
         <DialogHeader>
           <DialogTitle>{titulo}</DialogTitle>
           <DialogDescription>{descricao}</DialogDescription>

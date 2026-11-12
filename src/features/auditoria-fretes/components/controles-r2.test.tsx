@@ -67,34 +67,40 @@ it("erro de conflito recebe foco para ficar visível em formulário extenso", as
   expect(campo).toHaveFocus();
   expect(campo).toHaveValue("Correção");
 });
-it("seletor preserva razão social ao paginar sem exibir ID manual", async () => {
-  const consultar = vi.fn().mockResolvedValueOnce(pagina(3,"Transportadora Alfa")).mockResolvedValueOnce(pagina(4,"Transportadora Beta",2));
+it("seletor preserva razão social ao carregar outra página sem exigir ID manual", async () => {
+  const consultar = vi.fn().mockImplementation((_busca, _sinal, numero) => Promise.resolve(numero === 2
+    ? pagina(4,"Transportadora Beta",2) : pagina(3,"Transportadora Alfa")));
   function Exemplo() { const [valor, alterar] = useState(""); return <SeletorEmpresaFrete rotulo="Transportadora" valor={valor} aoAlterar={alterar} consultar={consultar} />; }
   render(<Exemplo />);
-  await screen.findByRole("option",{name:"Transportadora Alfa"});
-  fireEvent.change(screen.getByLabelText("Transportadora"),{target:{value:"3"}});
-  fireEvent.click(screen.getByRole("button",{name:"Próxima"}));
-  await screen.findByRole("option",{name:"Transportadora Beta"});
-  expect(screen.getByLabelText("Transportadora")).toHaveDisplayValue("Transportadora Alfa");
+  fireEvent.focus(screen.getByRole("combobox", { name: "Transportadora" }));
+  await screen.findByRole("option",{name:/Transportadora Alfa/});
+  fireEvent.click(screen.getByRole("option",{name:/Transportadora Alfa/}));
+  fireEvent.focus(screen.getByRole("combobox", { name: "Transportadora" }));
+  await screen.findByRole("button",{name:"Carregar mais empresas"});
+  fireEvent.click(screen.getByRole("button",{name:"Carregar mais empresas"}));
+  await screen.findByRole("option",{name:/Transportadora Beta/});
+  expect(screen.getByRole("combobox", { name: "Transportadora" })).toHaveValue("Transportadora Alfa");
   expect(consultar).toHaveBeenLastCalledWith("",expect.any(AbortSignal),2);
 });
 it("seletor ignora consulta antiga após nova busca", async () => {
   let antiga: (v: ListaEmpresasFreteDTO) => void;
   const consultar = vi.fn().mockImplementationOnce(() => new Promise(r => { antiga = r; })).mockResolvedValue(pagina(4,"Resultado novo"));
   render(<SeletorEmpresaFrete rotulo="Compradora" valor="" aoAlterar={() => {}} consultar={consultar} />);
+  fireEvent.focus(screen.getByRole("combobox", { name: "Compradora" }));
   await waitFor(() => expect(consultar).toHaveBeenCalledTimes(1));
-  fireEvent.change(screen.getByLabelText("Buscar compradora"),{target:{value:"Nova"}});
-  await screen.findByRole("option",{name:"Resultado novo"});
+  fireEvent.change(screen.getByRole("combobox", { name: "Compradora" }),{target:{value:"Nova"}});
+  await screen.findByRole("option",{name:/Resultado novo/});
   await act(async () => antiga(pagina(3,"Resultado antigo")));
-  expect(screen.queryByRole("option",{name:"Resultado antigo"})).toBeNull();
+  expect(screen.queryByRole("option",{name:/Resultado antigo/})).toBeNull();
 });
 it("seletor mostra falha, recuperação e vazio", async () => {
   const consultar = vi.fn().mockRejectedValueOnce(new Error("Consulta indisponível")).mockResolvedValue({resultados:[],paginacao:{pagina:1,tamanho_pagina:10,total:0,total_paginas:1}});
   render(<SeletorEmpresaFrete rotulo="Transportadora" valor="" aoAlterar={() => {}} consultar={consultar} obrigatorio={false} />);
+  fireEvent.focus(screen.getByRole("combobox", { name: "Transportadora" }));
   await screen.findByText("Consulta indisponível");
   fireEvent.click(screen.getByRole("button",{name:"Tentar consulta novamente"}));
   await screen.findByText("Nenhuma empresa encontrada nesta consulta.");
-  expect(screen.getByRole("option",{name:"Todas as transportadoras"})).toBeInTheDocument();
+  expect(screen.getByRole("combobox",{name:"Transportadora"})).toHaveAttribute("placeholder", "Todas as transportadoras");
 });
 it("pedido mostra compradora, negociada e remessa em leitura", () => {
   const pedido = { id:"pedido-1",numero:"PED-1",cliente:"Compradora fictícia",material:"Material confirmado",unidade:"kg",quantidade:"20.000",quantidade_restante:"12.000",origem:"Coleta",data_pedido:"2026-11-10" };

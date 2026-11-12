@@ -59,7 +59,7 @@ export function FormularioCadastroFrete({ formulario: f, alterar, trocarTipo, se
         </dl>
         <p className="text-xs text-muted-foreground">Dados comerciais do pedido, somente leitura. O restante consultado não representa estoque físico e será validado novamente pelo servidor.</p>
       </div> : <p className="text-sm text-muted-foreground">Selecione um pedido para consultar seus dados comerciais.</p> : <>
-        <SeletorEmpresaFrete rotulo="Compradora" valor={f.compradoraId} erroCampo={erros.compradoraId} aoAlterar={(compradoraId, compradoraNome) => alterar({ ...f, compradoraId, compradoraNome })} consultar={consultarCompradoras} />
+        <SeletorEmpresaFrete rotulo="Compradora" valor={f.compradoraId} nomeSelecionado={f.compradoraNome} erroCampo={erros.compradoraId} aoAlterar={(compradoraId, compradoraNome) => alterar({ ...f, compradoraId, compradoraNome })} consultar={consultarCompradoras} />
         {campo("material", "Material", { limite: 256 })}
         {campo("unidade", "Unidade", { limite: 12, instrucao: "Unidade comercial da carga. Não há conversão automática." })}
       </>}
