@@ -179,7 +179,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = (*default_headers, 'idempotency-key')
+CORS_ALLOW_HEADERS = (*default_headers, 'idempotency-key', 'x-mtr-actor-token')
 
 URL_FRONTEND = os.getenv('FRONTEND_URL')
 if URL_FRONTEND and URL_FRONTEND not in CORS_ALLOWED_ORIGINS:

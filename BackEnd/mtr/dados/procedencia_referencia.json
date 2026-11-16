@@ -1,0 +1,9 @@
+{
+  "origem": "Resposta SIGOR homologacao fornecida pelo operador; sem chamada pelo Codex",
+  "arquivo_origem": "SIGOR_CATALOGO_RESIDUOS_HOMOLOGACAO.json",
+  "sha256": "bb2d364e39bc4f59b6ee3618a77ad457ce3550cfd3b2897840604c98cc3c1da4",
+  "registros": 895,
+  "data_incorporacao": "2026-11-15",
+  "classificacao_ambiental_aprovada": false,
+  "ambiente_fonte": "SIGOR_HOMOLOG"
+}

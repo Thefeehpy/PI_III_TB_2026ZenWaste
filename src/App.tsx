@@ -26,6 +26,7 @@ import DriverDeliveries from "./pages/DriverDeliveries";
 import CarrierDashboard from "./pages/CarrierDashboard";
 import ClientDeliverySignature from "./pages/ClientDeliverySignature";
 import NotFound from "./pages/NotFound";
+import PaginaMTR from "./features/mtr/PaginaMTR";
 import { PaymentLoading } from "@/components/payment/CheckoutUI";
 
 const Checkout = lazy(() => import("./pages/Checkout"));
@@ -83,6 +84,7 @@ const App = () => (
                       <Route path="reservations" element={<Reservations />} />
                       <Route path="ads" element={<MyAds />} />
                       <Route path="freight-audit" element={<FreightAudit />} />
+                      <Route path="mtr" element={<PaginaMTR />} />
                       <Route path="create-ad" element={<CreateAd />} />
                     </Route>
                   </Route>

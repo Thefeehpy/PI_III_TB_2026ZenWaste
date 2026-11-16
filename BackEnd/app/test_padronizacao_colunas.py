@@ -198,7 +198,9 @@ class TestesMigracaoPadronizacao(TransactionTestCase):
             self.assertTrue(all(antes.values()))
             estrutura = capturar_estrutura()
 
-            MigrationExecutor(connection).migrate(atuais)
+            # Compara apenas a padronizacao. Novas migrations dependentes (como
+            # o MVP MTR) criam tabelas e FKs legitimamente e nao sao parte desta ida/volta.
+            MigrationExecutor(connection).migrate(MIGRACOES_PADRONIZACAO)
             self.assertEqual(capturar_dados(apps), antes)
             self.assertEqual(capturar_estrutura(), estrutura)
             with connection.cursor() as cursor:
@@ -227,7 +229,9 @@ class TestesMigracaoPadronizacao(TransactionTestCase):
             with self.assertRaises(IntegrityError), transaction.atomic():
                 apps.get_model("empresas.PapelEmpresa").objects.create(codigo="vendedora", descricao="Duplicada")
 
-            empresa = apps.get_model("empresas.Empresa")
+            # Collector historico acompanha o schema em teste, sem consultar
+            # relacoes de apps adicionadas em migrations posteriores.
+            empresa = MigrationExecutor(connection).loader.project_state(MIGRACOES_PADRONIZACAO).apps.get_model("empresas.Empresa")
             maior_id = max(empresa.objects.values_list("pk", flat=True))
             adicional = empresa.objects.create(cnpj="99999999999999", razao_social="Empresa adicional", telefone_whatsapp="11999999999", email="adicional@example.test", senha="sem-login")
             self.assertGreater(adicional.pk, maior_id)
@@ -238,7 +242,7 @@ class TestesMigracaoPadronizacao(TransactionTestCase):
             estado_revertido = executor.loader.project_state(MIGRACOES_ANTERIORES)
             self.assertEqual(capturar_dados(estado_revertido.apps), antes)
             self.assertEqual(capturar_estrutura(), estrutura)
-            MigrationExecutor(connection).migrate(atuais)
+            MigrationExecutor(connection).migrate(MIGRACOES_PADRONIZACAO)
             self.assertEqual(capturar_dados(apps), antes)
             self.assertEqual(capturar_estrutura(), estrutura)
         finally:

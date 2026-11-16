@@ -53,5 +53,7 @@ class TestesMigracaoMTR(CenarioFretes, TransactionTestCase):
             self.assertNotIn("mtr_codigoresiduoibama", connection.introspection.table_names())
             self.assertEqual(snapshot_comercial(), antes)
         finally:
-            MigrationExecutor(connection).migrate([MIGRACAO])
+            # Mantém o teste da 0001 e restaura o schema atual para as suítes posteriores.
+            executor = MigrationExecutor(connection)
+            executor.migrate(executor.loader.graph.leaf_nodes("mtr"))
         self.assertEqual(snapshot_comercial(), antes)

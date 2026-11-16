@@ -22,6 +22,7 @@ const dashboardItems = [
   { title: "Estoque", url: "/dashboard/inventory", icon: Package },
   { title: "Reservas", url: "/dashboard/reservations", icon: ClipboardCheck },
   { title: "Auditoria de Fretes", url: "/dashboard/freight-audit", icon: Truck },
+  { title: "MTR Inteligente", url: "/dashboard/mtr", icon: ClipboardCheck },
   { title: "Meus Anúncios", url: "/dashboard/ads", icon: Megaphone },
   { title: "Criar Anúncio", url: "/dashboard/create-ad", icon: PlusCircle },
 ];
