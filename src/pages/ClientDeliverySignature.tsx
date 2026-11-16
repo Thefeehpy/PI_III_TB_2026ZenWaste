@@ -19,6 +19,8 @@ import { Input } from "@/components/ui/input";
 import { MaskedInput } from "@/components/ui/masked-input";
 import { Label } from "@/components/ui/label";
 import { formatCPF } from "@/utils/input-masks";
+import { useOrderReceiver } from "@/hooks/use-order-receiver";
+import { getDeliveryToken, receiverMatches, type OrderReceiver } from "@/lib/order-receiver";
 
 const deliveryLinks = [
   {
@@ -31,8 +33,6 @@ const deliveryLinks = [
     volume: "24 m³ / 6,5 ton",
     invoice: "NF-e 11892",
     token: "canhoto-5842-rota-segura",
-    authorizedReceiverName: "Maria Souza",
-    authorizedReceiverCpf: "123.456.789-01",
   },
   {
     orderNumber: "5846",
@@ -44,8 +44,6 @@ const deliveryLinks = [
     volume: "18 m³ / 4,1 ton",
     invoice: "NF-e 11904",
     token: "canhoto-5846-coleta-verde",
-    authorizedReceiverName: "Carlos Andrade",
-    authorizedReceiverCpf: "987.654.321-00",
   },
 ];
 
@@ -63,23 +61,26 @@ function maskCpf(value: string) {
   return `${digits.slice(0, 3)}.***.***-${digits.slice(9)}`;
 }
 
-function normalizeName(value: string) {
-  return value
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .toLowerCase();
+export default function ClientDeliverySignature() {
+  const { orderNumber = "pedido" } = useParams();
+  const [searchParams] = useSearchParams();
+  const receiver = useOrderReceiver(orderNumber);
+  return (
+    <DeliverySignatureForm
+      key={`${orderNumber}:${searchParams.get("token")}:${receiver?.name}:${receiver?.cpf}`}
+      orderNumber={orderNumber}
+      receiver={receiver}
+    />
+  );
 }
 
-export default function ClientDeliverySignature() {
-  const { orderNumber } = useParams();
+function DeliverySignatureForm({ orderNumber, receiver }: { orderNumber: string; receiver: OrderReceiver | null }) {
   const [searchParams] = useSearchParams();
   const delivery = useMemo(() => {
     const knownDelivery = deliveryLinks.find((item) => item.orderNumber === orderNumber);
 
     if (knownDelivery) {
-      return knownDelivery;
+      return { ...knownDelivery, ...receiver?.summary };
     }
 
     const fallbackOrderNumber = orderNumber ?? "pedido";
@@ -93,11 +94,10 @@ export default function ClientDeliverySignature() {
       forecast: "Previsão do processo de frete",
       volume: "Volumes e peso do pedido",
       invoice: "Documento vinculado",
-      token: `canhoto-${fallbackOrderNumber}-preview`,
-      authorizedReceiverName: "Maria Souza",
-      authorizedReceiverCpf: "123.456.789-01",
+      token: getDeliveryToken(fallbackOrderNumber),
+      ...receiver?.summary,
     };
-  }, [orderNumber]);
+  }, [orderNumber, receiver?.summary]);
   const [receiverName, setReceiverName] = useState("");
   const [receiverCpf, setReceiverCpf] = useState("");
   const [signatureData, setSignatureData] = useState("");
@@ -109,7 +109,7 @@ export default function ClientDeliverySignature() {
 
   const token = searchParams.get("token") || delivery.token;
   const tokenIsValid = token === delivery.token;
-  const isIdentityReady = Boolean(receiverName.trim() && onlyDigits(receiverCpf).length === 11);
+  const isIdentityReady = Boolean(receiver && receiverName.trim() && onlyDigits(receiverCpf).length === 11);
   const canConfirm = Boolean(identityReleased && signatureData);
 
   const resetIdentityRelease = () => {
@@ -131,10 +131,7 @@ export default function ClientDeliverySignature() {
       return;
     }
 
-    const nameMatches = normalizeName(receiverName) === normalizeName(delivery.authorizedReceiverName);
-    const cpfMatches = onlyDigits(receiverCpf) === onlyDigits(delivery.authorizedReceiverCpf);
-
-    if (!nameMatches || !cpfMatches) {
+    if (!receiver || !receiverMatches(receiver, receiverName, receiverCpf)) {
       setIdentityReleased(false);
       setSignatureData("");
       setIdentityError("Nome ou CPF não conferem com o recebedor cadastrado para este pedido.");
@@ -170,7 +167,7 @@ export default function ClientDeliverySignature() {
               </CardDescription>
             </div>
             <Badge variant="outline" className="w-fit rounded-full border-primary/25 bg-primary/10 text-primary">
-              {identityReleased ? "Aguardando assinatura" : "Aguardando identificação"}
+              {confirmed ? "Entrega confirmada" : !receiver ? "Recebedor não cadastrado" : identityReleased ? "Aguardando assinatura" : "Aguardando identificação"}
             </Badge>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -204,6 +201,16 @@ export default function ClientDeliverySignature() {
               </div>
             ) : (
               <div className="space-y-5">
+                {!receiver && (
+                  <div role="status" className="rounded-2xl border border-warning/30 bg-warning/10 p-4 text-sm leading-6">
+                    <p className="font-semibold">O recebedor deste pedido ainda não foi cadastrado.</p>
+                    <p className="mt-1 text-muted-foreground">
+                      Peça ao responsável pela compra que salve o nome completo e o CPF em Recebedor autorizado,
+                      nos detalhes do pedido. Para pedidos da gestão de fretes, use a aba Recebedor.
+                      Nesta demonstração, o cadastro e a assinatura precisam ser abertos no mesmo navegador.
+                    </p>
+                  </div>
+                )}
                 <div className="rounded-[28px] border border-primary/20 bg-[linear-gradient(135deg,hsl(var(--primary)/0.10),hsl(var(--card)))] p-5">
                   <div className="flex items-start gap-3">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -222,6 +229,7 @@ export default function ClientDeliverySignature() {
                       <Label htmlFor="client-receiver-name">Nome de quem recebeu</Label>
                       <Input
                         id="client-receiver-name"
+                        disabled={!receiver}
                         value={receiverName}
                         onChange={(event) => {
                           resetIdentityRelease();
@@ -236,6 +244,7 @@ export default function ClientDeliverySignature() {
                       <Label htmlFor="client-receiver-cpf">CPF</Label>
                       <MaskedInput
                         id="client-receiver-cpf"
+                        disabled={!receiver}
                         inputMode="numeric"
                         maxLength={14}
                         value={receiverCpf}

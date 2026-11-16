@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useOrderReceiver } from "@/hooks/use-order-receiver";
+import { maskReceiverCpf } from "@/lib/order-receiver";
 
 type DriverDelivery = {
   id: string;
@@ -33,8 +35,6 @@ type DriverDelivery = {
   volume: string;
   status: "pending" | "route" | "delivered";
   qrToken: string;
-  authorizedReceiverName: string;
-  authorizedReceiverCpf: string;
   receiverName?: string;
   confirmedAt?: string;
 };
@@ -51,8 +51,6 @@ const initialDeliveries: DriverDelivery[] = [
     volume: "24 m³ / 6,5 ton",
     status: "route",
     qrToken: "canhoto-5842-rota-segura",
-    authorizedReceiverName: "Maria Souza",
-    authorizedReceiverCpf: "123.456.789-01",
   },
   {
     id: "del-5846",
@@ -65,8 +63,6 @@ const initialDeliveries: DriverDelivery[] = [
     volume: "18 m³ / 4,1 ton",
     status: "pending",
     qrToken: "canhoto-5846-coleta-verde",
-    authorizedReceiverName: "Carlos Andrade",
-    authorizedReceiverCpf: "987.654.321-00",
   },
   {
     id: "del-5845",
@@ -79,8 +75,6 @@ const initialDeliveries: DriverDelivery[] = [
     volume: "12 m³ / 3,4 ton",
     status: "delivered",
     qrToken: "canhoto-5845-confirmado",
-    authorizedReceiverName: "Paulo Nogueira",
-    authorizedReceiverCpf: "456.789.123-88",
     receiverName: "Paulo Nogueira",
     confirmedAt: "30/09/2026 às 17:18",
   },
@@ -107,6 +101,7 @@ export default function DriverDeliveries() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const selectedDelivery = deliveries.find((delivery) => delivery.id === selectedDeliveryId) ?? deliveries[0];
+  const receiver = useOrderReceiver(selectedDelivery.orderNumber);
   const signatureUrl = useMemo(() => {
     const origin = typeof window === "undefined" ? "" : window.location.origin;
 
@@ -217,9 +212,18 @@ export default function DriverDeliveries() {
               <Info
                 icon={ShieldCheck}
                 label="Recebedor cadastrado"
-                value={`${selectedDelivery.authorizedReceiverName} • ${selectedDelivery.authorizedReceiverCpf}`}
+                value={receiver
+                  ? `${receiver.name} • ${maskReceiverCpf(receiver.cpf)}`
+                  : selectedDelivery.status === "delivered" ? selectedDelivery.receiverName ?? "Entrega confirmada" : "Cadastro pendente"}
               />
             </div>
+
+            {!receiver && selectedDelivery.status !== "delivered" && (
+              <p role="status" className="rounded-2xl border border-warning/30 bg-warning/10 p-4 text-sm leading-6">
+                Solicite ao responsável pelo pedido o cadastro do recebedor na aba Recebedor da gestão de fretes.
+                A assinatura ficará bloqueada até esse cadastro. Nesta demonstração, use o mesmo navegador.
+              </p>
+            )}
 
             {selectedDelivery.status === "delivered" ? (
               <div className="rounded-[26px] border border-emerald-500/25 bg-emerald-500/10 p-5">

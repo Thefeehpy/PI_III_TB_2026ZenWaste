@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SignaturePad } from "@/components/SignaturePad";
+import { OrderReceiverRegistration } from "@/components/OrderReceiverRegistration";
 import {
   Dialog,
   DialogContent,
@@ -1424,11 +1425,25 @@ export default function FreightAudit() {
                   <TabsTrigger value="quotes" className="rounded-xl">Cotações</TabsTrigger>
                   <TabsTrigger value="documents" className="rounded-xl">Documentos</TabsTrigger>
                   <TabsTrigger value="treatments" className="rounded-xl">Tratativas</TabsTrigger>
+                  <TabsTrigger value="receiver" className="rounded-xl">Recebedor</TabsTrigger>
                   <TabsTrigger value="delivery" className="rounded-xl">Entrega</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="summary" className="space-y-5">
                   <SummaryTab process={selectedProcess} />
+                </TabsContent>
+
+                <TabsContent value="receiver">
+                  <OrderReceiverRegistration
+                    key={selectedProcess.orderNumber}
+                    orderNumber={selectedProcess.orderNumber}
+                    summary={{
+                      client: selectedProcess.client,
+                      material: selectedProcess.material,
+                      destination: selectedProcess.destination,
+                      volume: `${selectedProcess.cubicMeters} m³ / ${selectedProcess.weightTon} ton`,
+                    }}
+                  />
                 </TabsContent>
 
                 <TabsContent value="quotes" className="space-y-5">

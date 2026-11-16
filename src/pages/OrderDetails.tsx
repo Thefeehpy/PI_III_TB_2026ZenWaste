@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { OrderReceiverRegistration } from "@/components/OrderReceiverRegistration";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -296,6 +297,17 @@ export default function OrderDetails() {
               ))}
             </dl>
           </PaymentPanel>
+          {!canceled && (
+            <OrderReceiverRegistration
+              orderNumber={order.number}
+              summary={{
+                client: order.buyer.name,
+                material: order.item.name,
+                destination: order.item.location,
+                volume: `${formatQuantity(order.quantity)} ${order.item.unit}`,
+              }}
+            />
+          )}
           {paid ? (
             <PaymentPanel
               title="O que acontece agora?"
